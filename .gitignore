@@ -60,6 +60,7 @@ tests/
 **/*_test.py
 **/*.md
 **/*.rst
+!/README.md
 
 # Local credentials and runtime output must never enter source control.
 api-key-file.txt
