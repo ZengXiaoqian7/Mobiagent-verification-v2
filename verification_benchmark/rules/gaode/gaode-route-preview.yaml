@@ -1,0 +1,24 @@
+task_id: gaode-route-preview
+app_id: gaode
+task_type: route_preview
+description: Origin/destination-grounded route preview without starting navigation.
+
+nodes:
+  - id: requested_route_preview
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          require_image: true
+        dynamic_match:
+          extract: task_entities
+          entity_patterns:
+            - "从(.+?)到(.+?)的路线预览"
+          verification_fields: ["xml_text"]
+          require_all: ["开始导航", "驾车"]
+        xml:
+          all: ["开始导航", "驾车"]
+
+success:
+  any_of: [requested_route_preview]

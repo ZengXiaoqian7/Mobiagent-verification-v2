@@ -1,0 +1,1161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "batch_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "claim_boundary": {
+      "additionalProperties": false,
+      "properties": {
+        "accuracy_claimed": {
+          "const": false
+        },
+        "ground_truth_consumed_by_new_kernel": {
+          "const": false
+        },
+        "heldout_performance_claimed": {
+          "const": false
+        },
+        "historical_diagnostics_consumed_by_new_kernel": {
+          "const": false
+        },
+        "historical_reports_are_decision_only_alignment_inputs": {
+          "const": true
+        },
+        "unsupported_is_not_failure": {
+          "const": true
+        }
+      },
+      "required": [
+        "ground_truth_consumed_by_new_kernel",
+        "historical_diagnostics_consumed_by_new_kernel",
+        "historical_reports_are_decision_only_alignment_inputs",
+        "heldout_performance_claimed",
+        "accuracy_claimed",
+        "unsupported_is_not_failure"
+      ],
+      "type": "object"
+    },
+    "contract_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "data_role": {
+      "const": "development"
+    },
+    "engine_version": {
+      "const": "harmony-eval-development-batch-replay-v2"
+    },
+    "evidence_sources": {
+      "additionalProperties": false,
+      "properties": {
+        "recorded_ocr_llm": {
+          "additionalProperties": false,
+          "properties": {
+            "provider_plan_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "storage_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "provider_plan_sha256",
+            "storage_sha256"
+          ],
+          "type": "object"
+        },
+        "visual_state": {
+          "additionalProperties": false,
+          "properties": {
+            "detector_version": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "provider_plan_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "storage_sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "provider_plan_sha256",
+            "storage_sha256",
+            "detector_version"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "recorded_ocr_llm",
+        "visual_state"
+      ],
+      "type": "object"
+    },
+    "evidence_storage_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "historical_alignment": {
+      "additionalProperties": false,
+      "properties": {
+        "rows": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "historical_verdict": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "PASS",
+                      "FAIL"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "new_kernel_verdict": {
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "ABSTAIN",
+                  "INVALID_TRACE",
+                  "UNSUPPORTED"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "AGREES",
+                  "DISAGREES",
+                  "NEW_ABSTAIN",
+                  "NEW_INVALID_TRACE",
+                  "NEW_UNSUPPORTED",
+                  "NO_HISTORICAL_ROW"
+                ]
+              },
+              "system_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "trace_id": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "system_id",
+              "trace_id",
+              "historical_verdict",
+              "new_kernel_verdict",
+              "status"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "systems": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "agreement_rate": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "agreements": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "comparable_rows": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "historical_rows": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "status_counts": {
+                "additionalProperties": false,
+                "properties": {
+                  "AGREES": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "DISAGREES": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "NEW_ABSTAIN": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "NEW_INVALID_TRACE": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "NEW_UNSUPPORTED": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "NO_HISTORICAL_ROW": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "AGREES",
+                  "DISAGREES",
+                  "NEW_ABSTAIN",
+                  "NEW_INVALID_TRACE",
+                  "NEW_UNSUPPORTED",
+                  "NO_HISTORICAL_ROW"
+                ],
+                "type": "object"
+              },
+              "system_id": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "system_id",
+              "historical_rows",
+              "comparable_rows",
+              "agreements",
+              "agreement_rate",
+              "status_counts"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "systems",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "mode": {
+      "const": "AUDIT_BENCHMARK"
+    },
+    "provider_plan_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "result_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "harmony-eval-development-batch-result-v2"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "accuracy": {
+          "type": "null"
+        },
+        "formal_envelope_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "new_kernel_coverage": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "new_kernel_decided_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "trace_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "verdict_counts": {
+          "additionalProperties": false,
+          "properties": {
+            "ABSTAIN": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "FAIL": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "INVALID_TRACE": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "PASS": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "UNSUPPORTED": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "PASS",
+            "FAIL",
+            "ABSTAIN",
+            "INVALID_TRACE",
+            "UNSUPPORTED"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "trace_count",
+        "formal_envelope_count",
+        "verdict_counts",
+        "new_kernel_decided_count",
+        "new_kernel_coverage",
+        "accuracy"
+      ],
+      "type": "object"
+    },
+    "traces": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "audit_envelope": {
+            "$id": "audit_report_envelope_v1.schema.json",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "acquisition_provenance": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "acquisition_version": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "contract_sha256": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      "evidence": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "evidence_sha256": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          },
+                          "frame_end_exclusive": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "frame_start": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "trace_id": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "trace_sha256": {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "trace_id",
+                          "trace_sha256",
+                          "evidence_sha256",
+                          "frame_start",
+                          "frame_end_exclusive"
+                        ],
+                        "type": "object"
+                      },
+                      "evidence_storage_sha256": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "outcomes_sha256": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      "provider_configuration_sha256": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "pattern": "^[0-9a-f]{64}$",
+                            "type": "string"
+                          }
+                        ]
+                      },
+                      "provider_id": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contract_sha256",
+                      "evidence",
+                      "outcomes_sha256",
+                      "provider_id",
+                      "acquisition_version",
+                      "provider_configuration_sha256",
+                      "evidence_storage_sha256"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "canonicalizer_version": {
+                "const": "harmony-eval-audit-canonical-json-v1"
+              },
+              "capability": {
+                "additionalProperties": false,
+                "properties": {
+                  "available": {
+                    "items": {
+                      "enum": [
+                        "SCREENSHOT",
+                        "HIERARCHY_RAW_JSON",
+                        "HIERARCHY_XML",
+                        "ACTIONS",
+                        "REACT_DIAGNOSTIC",
+                        "TIMESTAMPS",
+                        "LEGACY_AVDAG_EXECUTION"
+                      ]
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "contract_required": {
+                    "items": {
+                      "enum": [
+                        "SCREENSHOT",
+                        "HIERARCHY_RAW_JSON",
+                        "HIERARCHY_XML",
+                        "ACTIONS",
+                        "REACT_DIAGNOSTIC",
+                        "TIMESTAMPS",
+                        "LEGACY_AVDAG_EXECUTION"
+                      ]
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "criterion_required": {
+                    "items": {
+                      "enum": [
+                        "SCREENSHOT",
+                        "HIERARCHY_RAW_JSON",
+                        "HIERARCHY_XML",
+                        "ACTIONS",
+                        "REACT_DIAGNOSTIC",
+                        "TIMESTAMPS",
+                        "LEGACY_AVDAG_EXECUTION"
+                      ]
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "missing_contract": {
+                    "items": {
+                      "enum": [
+                        "SCREENSHOT",
+                        "HIERARCHY_RAW_JSON",
+                        "HIERARCHY_XML",
+                        "ACTIONS",
+                        "REACT_DIAGNOSTIC",
+                        "TIMESTAMPS",
+                        "LEGACY_AVDAG_EXECUTION"
+                      ]
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "missing_criterion": {
+                    "items": {
+                      "enum": [
+                        "SCREENSHOT",
+                        "HIERARCHY_RAW_JSON",
+                        "HIERARCHY_XML",
+                        "ACTIONS",
+                        "REACT_DIAGNOSTIC",
+                        "TIMESTAMPS",
+                        "LEGACY_AVDAG_EXECUTION"
+                      ]
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "trace_integrity": {
+                    "enum": [
+                      "VALID",
+                      "DEGRADED",
+                      "INVALID"
+                    ]
+                  }
+                },
+                "required": [
+                  "trace_integrity",
+                  "available",
+                  "contract_required",
+                  "criterion_required",
+                  "missing_contract",
+                  "missing_criterion"
+                ],
+                "type": "object"
+              },
+              "contract": {
+                "additionalProperties": false,
+                "properties": {
+                  "compiler_provenance": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "selection_key": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "source_digest": {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      },
+                      "source_id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "source_locator": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "source_type": {
+                        "enum": [
+                          "registry",
+                          "template",
+                          "validated-jit",
+                          "legacy"
+                        ]
+                      },
+                      "source_version": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "source_type",
+                      "source_id",
+                      "source_version",
+                      "source_digest",
+                      "source_locator",
+                      "selection_key"
+                    ],
+                    "type": "object"
+                  },
+                  "contract_id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "contract_sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "contract_source": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "selection_audit_sha256": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "pattern": "^[0-9a-f]{64}$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "contract_id",
+                  "contract_sha256",
+                  "contract_source",
+                  "compiler_provenance",
+                  "selection_audit_sha256"
+                ],
+                "type": "object"
+              },
+              "criteria": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "criterion_id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "dimension": {
+                      "enum": [
+                        "OUTCOME",
+                        "PROCESS"
+                      ]
+                    },
+                    "evidence": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "frame_index": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "source": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "timestamp": {
+                            "minimum": 0,
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "frame_index",
+                          "source",
+                          "timestamp"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "first_satisfied_frame": {
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "last_evaluated_frame": {
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "obscured_but_persistent": {
+                      "type": "boolean"
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "enum": [
+                        "SATISFIED",
+                        "VIOLATED",
+                        "UNKNOWN_EVIDENCE",
+                        "SOURCE_EVIDENCE_MISSING",
+                        "UNSUPPORTED_CAPABILITY"
+                      ]
+                    },
+                    "temporal_semantics": {
+                      "enum": [
+                        "LATCHED_EVENT",
+                        "PERSISTENT_STATE",
+                        "EVENTUAL_STATE",
+                        "PROCESS_OBLIGATION"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "criterion_id",
+                    "dimension",
+                    "temporal_semantics",
+                    "required",
+                    "status",
+                    "evidence",
+                    "first_satisfied_frame",
+                    "last_evaluated_frame",
+                    "obscured_but_persistent"
+                  ],
+                  "type": "object"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              "failures": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        "TRACE_INVALID",
+                        "SOURCE_EVIDENCE_MISSING",
+                        "CAPABILITY_UNSUPPORTED",
+                        "OUTCOME_EVIDENCE_UNKNOWN",
+                        "OUTCOME_VIOLATED",
+                        "PROCESS_CAPABILITY_UNSUPPORTED",
+                        "PROCESS_EVIDENCE_UNKNOWN",
+                        "PROCESS_OBLIGATION_VIOLATED",
+                        "PREMATURE_DONE",
+                        "TIMEOUT",
+                        "LEFT_SUCCESS_REGRESSION",
+                        "TERMINAL_LOADING",
+                        "BLOCKING_OVERLAY",
+                        "OVERLAY_STATE_UNKNOWN"
+                      ]
+                    },
+                    "criterion_ids": {
+                      "items": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "domain": {
+                      "enum": [
+                        "TRACE",
+                        "CAPABILITY",
+                        "OUTCOME",
+                        "PROCESS",
+                        "TERMINATION",
+                        "OVERLAY"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "domain",
+                    "code",
+                    "criterion_ids"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "guarantee": {
+                "additionalProperties": false,
+                "properties": {
+                  "level": {
+                    "enum": [
+                      "NONE",
+                      "S0",
+                      "S1",
+                      "S2",
+                      "S3"
+                    ]
+                  },
+                  "supporting_criterion_ids": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "supporting_evidence": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "evidence_sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "VISIBLE_RISK_ACTION_OR_RECEIPT",
+                            "INSTRUMENTED_APP_STATE_DIFF",
+                            "AUTHORIZED_BACKEND_AUDIT"
+                          ]
+                        },
+                        "source_ref": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "source_ref",
+                        "evidence_sha256"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "level",
+                  "supporting_criterion_ids",
+                  "supporting_evidence"
+                ],
+                "type": "object"
+              },
+              "measurements": {
+                "additionalProperties": false,
+                "properties": {
+                  "cost_amount": {
+                    "minimum": 0,
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "cost_currency": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "latency_ms": {
+                    "minimum": 0,
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "model_calls": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "provider_calls": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "latency_ms",
+                  "provider_calls",
+                  "model_calls",
+                  "cost_amount",
+                  "cost_currency"
+                ],
+                "type": "object"
+              },
+              "mode": {
+                "const": "AUDIT_BENCHMARK"
+              },
+              "overlay": {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "CLEAR",
+                      "BLOCKING",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "terminal_kinds": {
+                    "items": {
+                      "enum": [
+                        "NONE",
+                        "SYSTEM_DIALOG",
+                        "APP_MODAL",
+                        "UNKNOWN_OVERLAY"
+                      ]
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "terminal_loading": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "status",
+                  "terminal_kinds",
+                  "terminal_loading"
+                ],
+                "type": "object"
+              },
+              "report_kind": {
+                "const": "AUDIT_RUN"
+              },
+              "schema_version": {
+                "const": "harmony-eval-audit-report-envelope-v1"
+              },
+              "termination": {
+                "additionalProperties": false,
+                "properties": {
+                  "declared_done_frame": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "declared_done_timestamp": {
+                    "minimum": 0,
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "grace_end_frame": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "grace_end_timestamp": {
+                    "minimum": 0,
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "quality": {
+                    "enum": [
+                      "ON_TIME",
+                      "PREMATURE_DONE",
+                      "TIMEOUT",
+                      "UNKNOWN"
+                    ]
+                  }
+                },
+                "required": [
+                  "quality",
+                  "declared_done_frame",
+                  "grace_end_frame",
+                  "declared_done_timestamp",
+                  "grace_end_timestamp"
+                ],
+                "type": "object"
+              },
+              "trace": {
+                "additionalProperties": false,
+                "properties": {
+                  "event_log_envelope_schema_version": {
+                    "const": "harmony-eval-event-log-envelope-v1"
+                  },
+                  "replay_engine_version": {
+                    "const": "harmony-eval-replay-v1"
+                  },
+                  "source_trace_ref": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "trace_id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "trace_schema_version": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "trace_sha256": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "trace_id",
+                  "trace_schema_version",
+                  "event_log_envelope_schema_version",
+                  "trace_sha256",
+                  "source_trace_ref",
+                  "replay_engine_version"
+                ],
+                "type": "object"
+              },
+              "verdicts": {
+                "additionalProperties": false,
+                "properties": {
+                  "outcome": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "ABSTAIN",
+                      "INVALID_TRACE",
+                      "UNSUPPORTED"
+                    ]
+                  },
+                  "outcome_after_grace": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "enum": [
+                          "PASS",
+                          "FAIL",
+                          "ABSTAIN",
+                          "INVALID_TRACE",
+                          "UNSUPPORTED"
+                        ]
+                      }
+                    ]
+                  },
+                  "outcome_at_declared_done": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "enum": [
+                          "PASS",
+                          "FAIL",
+                          "ABSTAIN",
+                          "INVALID_TRACE",
+                          "UNSUPPORTED"
+                        ]
+                      }
+                    ]
+                  },
+                  "process": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "enum": [
+                          "PASS",
+                          "FAIL",
+                          "ABSTAIN",
+                          "INVALID_TRACE",
+                          "UNSUPPORTED"
+                        ]
+                      }
+                    ]
+                  },
+                  "verdict": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "ABSTAIN",
+                      "INVALID_TRACE",
+                      "UNSUPPORTED"
+                    ]
+                  }
+                },
+                "required": [
+                  "verdict",
+                  "outcome",
+                  "process",
+                  "outcome_at_declared_done",
+                  "outcome_after_grace"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "schema_version",
+              "report_kind",
+              "mode",
+              "canonicalizer_version",
+              "contract",
+              "trace",
+              "verdicts",
+              "termination",
+              "overlay",
+              "capability",
+              "criteria",
+              "failures",
+              "guarantee",
+              "acquisition_provenance",
+              "measurements"
+            ],
+            "title": "Harmony Evaluation Audit Report Envelope v1",
+            "type": "object"
+          },
+          "audit_envelope_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "checker_evidence_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "durable_trace_ref": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "event_trace_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "outcome_verdict": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "ABSTAIN",
+              "INVALID_TRACE",
+              "UNSUPPORTED"
+            ]
+          },
+          "trace_id": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "trace_id",
+          "durable_trace_ref",
+          "event_trace_sha256",
+          "checker_evidence_sha256",
+          "outcome_verdict",
+          "audit_envelope_sha256",
+          "audit_envelope"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "engine_version",
+    "batch_id",
+    "manifest_sha256",
+    "mode",
+    "data_role",
+    "contract_sha256",
+    "provider_plan_sha256",
+    "evidence_storage_sha256",
+    "summary",
+    "traces",
+    "historical_alignment",
+    "claim_boundary",
+    "result_sha256",
+    "evidence_sources"
+  ],
+  "title": "Harmony Evaluation Development Batch Replay Result",
+  "type": "object"
+}

@@ -1,0 +1,24 @@
+task_id: cross-app-dynamic-creator-homepage
+app_id: cross_app
+task_type: creator_homepage
+description: Reusable creator-profile terminal verifier grounded in the requested identity.
+
+nodes:
+  - id: requested_creator_profile
+    name: Requested creator identity and profile structure are both present
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          require_image: true
+        dynamic_match:
+          extract: task_entity
+          verification_fields: ["xml_text"]
+          require_any: ["主页", "获赞与收藏", "小红书号"]
+        xml:
+          any: ["主页", "获赞与收藏", "小红书号"]
+          none: ["android.widget.EditText"]
+
+success:
+  any_of: [requested_creator_profile]

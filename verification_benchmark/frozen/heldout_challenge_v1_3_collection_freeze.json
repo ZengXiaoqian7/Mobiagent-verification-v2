@@ -1,0 +1,62 @@
+{
+  "freeze_id": "heldout-challenge-v1.3-collection-freeze",
+  "status": "sealed_after_smoke_v2_audit_before_formal_collection",
+  "device": {
+    "serial": "5ZU0226122004500",
+    "model": "HUAWEI Mate X7",
+    "platform": "HarmonyOS 6.1.0.125",
+    "fixed_display_size": [1080, 2444],
+    "fold_state_policy": "Do not fold or unfold during collection."
+  },
+  "task_count": 48,
+  "task_groups": 8,
+  "runner_compatibility_fixes_since_v1_2": [
+    "Explicit idempotent Harmony client shutdown prevents the completed CLI from remaining alive during interpreter teardown.",
+    "A target mentioning a clear/close/back control no longer receives false semantic support from a nearby Search button during XML click alignment."
+  ],
+  "smoke_v2_audit": {
+    "trace_count": 4,
+    "ok_count": 4,
+    "warning_count": 0,
+    "error_count": 0,
+    "terminal_frames_visually_reviewed": true
+  },
+  "enhanced_verifier": {
+    "tag": "enhanced-development-20260712",
+    "commit": "7079cc7c44a53a52a886e2133c632b1cc306570c",
+    "unchanged": true
+  },
+  "supersedes": "heldout-challenge-v1.2-collection-freeze",
+  "files": [
+    {
+      "path": "verification_benchmark/configs/runner_cross_app_heldout_challenge_v1.json",
+      "sha256": "b18ccb04bdb38d0010cb6205f0f2dd9e19e0e16c5dea31767032e4983dea58ee"
+    },
+    {
+      "path": "verification_benchmark/configs/runner_harmony_matex7_smoke_v1.json",
+      "sha256": "889eb9bf6bd6f9ae1acf92fcd209f4fce4b926e3654844099e54a3f2a2467040"
+    },
+    {
+      "path": "verification_benchmark/docs/cross_app_heldout_challenge_v1_protocol.md",
+      "sha256": "a841c87690b8750b307e1cd12b344292d46fa44b4043dbec86d88ca45a6f4d97"
+    },
+    {
+      "path": "verification_benchmark/docs/cross_app_heldout_challenge_v1_runbook.md",
+      "sha256": "8f28f90d7f9ea0c1c67b46714d0cf858426ab863748d03d9e9d909b509dd9e9d"
+    },
+    {
+      "path": "runner/mobiagent/mobiagent.py",
+      "sha256": "1377e39173dc2a41daf4fc45003c2d502a246333ad5bfcd688894755d4634ced"
+    },
+    {
+      "path": "runner/mobiagent/test_harmony_compat.py",
+      "sha256": "1b692a4150e4e7e805f8ef13a50a826c4016de2dc26ccda663cf259708a9b3e3"
+    },
+    {
+      "path": "verification_benchmark/reports/harmony_matex7_smoke_v2_audit/runner_batch_audit.json",
+      "sha256": "33c58d59c3371f9c332361bb075b156860b87973f613c6a1522da1a7055e44fb"
+    }
+  ],
+  "collection_output": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1",
+  "verifier_embargo": "No verifier or rule/checker execution before Ground Truth labels and trace manifest checksums are frozen."
+}

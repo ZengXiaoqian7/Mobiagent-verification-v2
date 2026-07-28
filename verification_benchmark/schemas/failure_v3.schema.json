@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "failure_v3.schema.json",
+  "title": "FailureEvent V3",
+  "type": "object",
+  "required": ["stage", "cause", "controllability", "observability", "severity", "terminal_failure"],
+  "properties": {
+    "stage": {"enum": ["task_understanding", "perception", "grounding_and_action", "process", "outcome", "environment", "trace", "verifier"]},
+    "cause": {"type": "string", "minLength": 1},
+    "controllability": {"enum": ["agent", "environment", "mixed", "unknown"]},
+    "observability": {"enum": ["observed", "evidence_unavailable", "conflicting"]},
+    "severity": {"enum": ["critical", "major", "minor"]},
+    "first_failure_frame": {"type": ["integer", "null"], "minimum": 0},
+    "terminal_failure": {"type": "boolean"},
+    "criterion_id": {"type": ["string", "null"]},
+    "reason": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}

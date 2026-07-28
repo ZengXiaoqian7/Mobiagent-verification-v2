@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task_v3.schema.json",
+  "title": "TaskInstance V3",
+  "type": "object",
+  "required": ["schema_version", "task_instance_id", "task_description", "app_id", "task_family", "slots"],
+  "properties": {
+    "schema_version": {"const": "3.0"},
+    "task_instance_id": {"type": "string", "minLength": 1},
+    "task_description": {"type": "string", "minLength": 1},
+    "app_id": {"type": "string", "minLength": 1},
+    "task_family": {"type": "string", "minLength": 1},
+    "slots": {"type": "object"},
+    "source_trace_id": {"type": ["string", "null"]},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}

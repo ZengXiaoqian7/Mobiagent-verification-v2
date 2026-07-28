@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/phase5_trace_intake_v1.schema.json",
+  "title": "Phase 5 immutable collection run manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "collector_version", "experiment_id", "experiment_manifest_sha256", "run_id", "task_id", "task_text_sha256", "app", "package", "trace_relpath", "device", "agent", "collection_status", "attempt_ordinal", "oracle_database_dependency", "ground_truth_status", "guardrail_callback_enabled", "start_state_guard_enabled", "runner_exit_code"],
+  "properties": {
+    "schema_version": {"const": "harmony-eval-phase5-collection-run-v1"},
+    "collector_version": {"const": "harmony-eval-phase5-collector-v1"},
+    "experiment_id": {"const": "phase5-harmony-blackbox-pilot-v1"},
+    "experiment_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "run_id": {"type": "string", "pattern": "^p5r-[0-9a-f]{16}$"},
+    "task_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{2,79}$"},
+    "task_text_sha256": {"$ref": "#/$defs/sha256"},
+    "app": {"const": "淘宝"},
+    "package": {"const": "com.taobao.taobao4hmos"},
+    "trace_relpath": {"type": "string", "pattern": "^(?!/)(?!.*\\.\\.)(?!.*\\\\).+$"},
+    "device": {
+      "type": "object", "additionalProperties": false,
+      "required": ["serial", "model", "device_type", "posture", "resolution", "os_version", "app_version"],
+      "properties": {
+        "serial": {"const": "5ZU0226122004500"}, "model": {"const": "DEL-AL10"},
+        "device_type": {"const": "Harmony"}, "posture": {"const": "FOLDED_OUTER_DISPLAY"},
+        "resolution": {"const": [1080, 2444]},
+        "os_version": {"type": "string", "minLength": 1}, "app_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "agent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider_base_url", "model", "transport", "runner_module_sha256", "collector_source_sha256", "evaluation_git_head", "runner_repository_git_head"],
+      "properties": {
+        "provider_base_url": {"const": "https://api.horizon1123.top/v1"},
+        "model": {"const": "gpt-5.4-mini"}, "transport": {"const": "raw_http"},
+        "runner_module_sha256": {"$ref": "#/$defs/sha256"}, "collector_source_sha256": {"$ref": "#/$defs/sha256"},
+        "evaluation_git_head": {"type": "string", "minLength": 1},
+        "runner_repository_git_head": {"type": "string", "minLength": 1}
+      }
+    },
+    "collection_status": {"enum": ["RUN_COMPLETE", "RUN_ABORTED", "RUN_FAILED", "RUN_IN_PROGRESS"]},
+    "attempt_ordinal": {"type": "integer", "minimum": 1},
+    "oracle_database_dependency": {"const": false},
+    "ground_truth_status": {"const": "PENDING_BLIND_REVIEW"},
+    "guardrail_callback_enabled": {"const": false},
+    "start_state_guard_enabled": {"const": false},
+    "runner_exit_code": {"type": ["integer", "null"]}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

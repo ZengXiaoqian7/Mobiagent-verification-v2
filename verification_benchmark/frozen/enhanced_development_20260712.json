@@ -1,0 +1,221 @@
+{
+  "freeze_id": "enhanced-development-20260712",
+  "status": "development",
+  "warning": "Includes post-hoc CloudMusic changes; not a held-out result.",
+  "generated_at": "2026-07-12T22:11:13",
+  "git_head_before_freeze_commit": "091ef8969499801434525a490a9839cef3f203b8",
+  "python": "3.12.3",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "dependencies": {
+    "PyYAML": "6.0.1",
+    "Pillow": "10.4.0",
+    "numpy": "2.2.6",
+    "opencv-python": "4.12.0.88",
+    "uiautomator2": null,
+    "langchain-openai": null,
+    "paddleocr": null,
+    "pytesseract": null
+  },
+  "files": [
+    {
+      "path": "MobiFlow/avdag/__init__.py",
+      "sha256": "708df332f53004b34f72a2ca51b7741bda0976bae5344ec21737f34804ff77fc",
+      "bytes": 179
+    },
+    {
+      "path": "MobiFlow/avdag/conditions.py",
+      "sha256": "4717e734bdb71b161f6a0d5bfe25a83fc1ec9d8d77e28a6919418a8a255a19d4",
+      "bytes": 50184
+    },
+    {
+      "path": "MobiFlow/avdag/dag.py",
+      "sha256": "bdb52296feba0c5a65cadd5f2775350202a0b5ab21ea4b3235dd87e37003e423",
+      "bytes": 8213
+    },
+    {
+      "path": "MobiFlow/avdag/loader.py",
+      "sha256": "7784193a8ddac1c1ab52e837fabff6e9da19238aa0bc97916ff5a26da3234c9e",
+      "bytes": 1187
+    },
+    {
+      "path": "MobiFlow/avdag/logger.py",
+      "sha256": "89e0cba0cea114f428a5beac174c14f201ce6cea3ef58eb46423c171c5998d33",
+      "bytes": 16830
+    },
+    {
+      "path": "MobiFlow/avdag/ocr_processor.py",
+      "sha256": "7062b0099571d63aafac95d7d62497fa97e3bb989d71be48d7d5a1500e2d7915",
+      "bytes": 3599
+    },
+    {
+      "path": "MobiFlow/avdag/trace_loader.py",
+      "sha256": "4433c39b36d73bab51b54bd59a5dd8d3d80dcd997f8cba36cfe1ba89f97a3d33",
+      "bytes": 4763
+    },
+    {
+      "path": "MobiFlow/avdag/types.py",
+      "sha256": "d0c0c2b81673783f4a424026fbb4b23eb1240ae8284ba28bc5aab60fba0ba8e8",
+      "bytes": 3856
+    },
+    {
+      "path": "MobiFlow/avdag/verifier.py",
+      "sha256": "255fc68d022b9dfa5d360235668870530287e55a42399c8ca7b16cfa9608d3c5",
+      "bytes": 43899
+    },
+    {
+      "path": "MobiFlow/pyproject.toml",
+      "sha256": "885bac18af3b056b19b821b0ddbbc345052fd2e40ea14af0d3b2099f4476378c",
+      "bytes": 417
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "7e88deb7b0309ce70a0996868f2af9cef23404edfbf9e785c9073b9d21f479a1",
+      "bytes": 616
+    },
+    {
+      "path": "requirements_simple.txt",
+      "sha256": "1d7f1b92e314e12d997e261f82b987f0a825941ad56eb16186cd3546fee482b5",
+      "bytes": 117
+    },
+    {
+      "path": "verification_benchmark/configs/llm.env.example",
+      "sha256": "eb4235379c2155ab8a973a94d3b763435edd35773928b46e481fb46b747fee5d",
+      "bytes": 260
+    },
+    {
+      "path": "verification_benchmark/configs/mvp_tasks.json",
+      "sha256": "e01c943a4b0a3a7abc3abe2158b30f52ab1bc907d83e81acb7c378c10a91b59c",
+      "bytes": 7617
+    },
+    {
+      "path": "verification_benchmark/configs/mvp_tasks_original_cross_app.json",
+      "sha256": "9be6b0ad8e53d0ff46e40a6647c6f7547b2040f1863ae655587e0b7cb9a2a79e",
+      "bytes": 1008
+    },
+    {
+      "path": "verification_benchmark/configs/runner_cross_app_pilot_round1.json",
+      "sha256": "f884b309ebf96aed35d332e1fdc38d0161ef82cc1d1a16bb2fb8a216a33daf4e",
+      "bytes": 1346
+    },
+    {
+      "path": "verification_benchmark/configs/runner_cross_app_round2_scale.json",
+      "sha256": "11a4c76140f4223adf55669097953b4e4faa8da5a17a3c094d1cc92c6f574977",
+      "bytes": 2779
+    },
+    {
+      "path": "verification_benchmark/configs/runner_smoke_bilibili.json",
+      "sha256": "501debc74b71064393e2ee3c90c6173cf3320d1fd900149eb0e627376bb69dbe",
+      "bytes": 139
+    },
+    {
+      "path": "verification_benchmark/configs/runner_smoke_taobao.json",
+      "sha256": "f7af6ac27f7977047a0c168dd5a25424760c60e373758b8455db954512be9c6e",
+      "bytes": 138
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_composed_controls_round1.json",
+      "sha256": "48b13dc27259d0898b0f0a5e13e4eee49d6d13de247fc1ee545fd1bf3c17d312",
+      "bytes": 1271
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_open_detail_round1.json",
+      "sha256": "feb6c05b5eb213f30ecae363dcda8e6a56c76c538f34e158039a6c292a44dbb7",
+      "bytes": 1297
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_open_detail_round3_diverse.json",
+      "sha256": "f02961ca623ec1a671307c022cc30d1b0b9a7a09f3591d0cfb0a2e41dcfc7d33",
+      "bytes": 2966
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_sales_sort_round1.json",
+      "sha256": "c3206ff46b83edbb30ecb97a70d1032caa057351105056b3f901c5c9f165c4f2",
+      "bytes": 1618
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_search_batch.json",
+      "sha256": "720ccd8ab52c8de3e4cf2456f259eb91e7f8520c957b295141c8eed2f7abd4fe",
+      "bytes": 388
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_search_batch_round2.json",
+      "sha256": "89a0fbab488d7d086573241ace270473b21ef7922bbdac42b3b1881fe4d0fba1",
+      "bytes": 388
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_search_loaded_batch_round3.json",
+      "sha256": "45d788057a20fabb0e0e0ca2616aa774c031c2348b814b651307636fc24c4c21",
+      "bytes": 1018
+    },
+    {
+      "path": "verification_benchmark/configs/runner_taobao_tmall_filter_round1.json",
+      "sha256": "bb74843d90ab48c8abb48d32a645b273fb2c8b7d5557e8bc985646413a2b0bf9",
+      "bytes": 1235
+    },
+    {
+      "path": "verification_benchmark/rules/bilibili/bilibili-play-video.yaml",
+      "sha256": "767e38931e847ce079b4dc487ca0e48830b05526934502113333e3bfda3c92cc",
+      "bytes": 1620
+    },
+    {
+      "path": "verification_benchmark/rules/cross_app/dynamic-creator-homepage.yaml",
+      "sha256": "b32255b1356edfc2d48e96976ce512b87a7036f479651397ccd900aa52259db8",
+      "bytes": 708
+    },
+    {
+      "path": "verification_benchmark/rules/cross_app/dynamic-music-playback.yaml",
+      "sha256": "a835590a075726c217cadd8beb7f0a07a8e53702456f4f8ea2af3d8f886f359b",
+      "bytes": 670
+    },
+    {
+      "path": "verification_benchmark/rules/cross_app/dynamic-music-search-results.yaml",
+      "sha256": "25f08f5eb0b5e621a49f60f378ee99d56173578cec9b107ea8fdfbf7d1e6c36f",
+      "bytes": 794
+    },
+    {
+      "path": "verification_benchmark/rules/cross_app/dynamic-search-results.yaml",
+      "sha256": "f7e18e27e372da5381634a0e7f568c16309462b77ff2fbc5fc048ccd53dd2f73",
+      "bytes": 675
+    },
+    {
+      "path": "verification_benchmark/rules/taobao/taobao-dynamic-selected-control-results.yaml",
+      "sha256": "585b9b215c8afb6609e0f3caad037a382eebe40423d08ecfd0c2a554d2e1fc3e",
+      "bytes": 2398
+    },
+    {
+      "path": "verification_benchmark/rules/taobao/taobao-open-detail-strict.yaml",
+      "sha256": "3bef883c68182ccd869b5a3236c4a7a58e6007a9c7e9fe8c1de034744a486cc0",
+      "bytes": 2658
+    },
+    {
+      "path": "verification_benchmark/rules/taobao/taobao-sales-sort-results.yaml",
+      "sha256": "7db031b9bdda42ed8863d5877f3ba47abb5b7ddfaf98a33d3f23d70f8049105c",
+      "bytes": 2286
+    },
+    {
+      "path": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "sha256": "bce3918c4118a73ba83cd4faeac69a157b14d3c51693d7b5fe776ce816125b05",
+      "bytes": 1739
+    },
+    {
+      "path": "verification_benchmark/rules/taobao/taobao-tmall-filter-results.yaml",
+      "sha256": "51a81db6d34a4fe441d17211293c005a873bf178417a3502ca4aed2de1ba0812",
+      "bytes": 2261
+    },
+    {
+      "path": "verification_benchmark/tools/evaluate_baselines_v2.py",
+      "sha256": "5033a1d639f8b4a1accd68f654d7e7b843beafe266623039a492a4ee514cbeb9",
+      "bytes": 9035
+    },
+    {
+      "path": "verification_benchmark/tools/evaluate_benchmark.py",
+      "sha256": "744d505852708a6a723f025b25768020b4f7f9064964428954c3ab64e0620d35",
+      "bytes": 31860
+    },
+    {
+      "path": "verification_benchmark/tools/run_legacy_verifier.py",
+      "sha256": "3753a9d652a19ac236f734ed61b1fca170bab56fa3e815212ecda93e7c288896",
+      "bytes": 1804
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence_v3.schema.json",
+  "title": "EvidenceRef V3",
+  "type": "object",
+  "required": ["evidence_id", "frame_index", "modality", "role", "metadata"],
+  "properties": {
+    "evidence_id": {"type": "string", "minLength": 1},
+    "frame_index": {"type": "integer", "minimum": 0},
+    "modality": {"enum": ["action", "xml", "image", "ocr", "vlm", "legacy_node_match"]},
+    "role": {"enum": ["support", "contradict", "context"]},
+    "artifact_uri": {"type": ["string", "null"]},
+    "selector": {"type": ["object", "null"]},
+    "observation": {},
+    "quality": {"type": ["string", "null"]},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}

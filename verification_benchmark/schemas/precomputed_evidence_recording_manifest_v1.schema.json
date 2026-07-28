@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harmony-eval-recording-manifest-v1",
+  "title": "Harmony Evaluation External Recording Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "model_version", "jobs"],
+  "properties": {
+    "schema_version": {
+      "const": "harmony-eval-recording-manifest-v1"
+    },
+    "model_version": {
+      "const": "gpt-5.4-mini"
+    },
+    "jobs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "job_id",
+          "provider_kind",
+          "screenshot_ref",
+          "screenshot_sha256",
+          "request"
+        ],
+        "properties": {
+          "job_id": {"type": "string", "minLength": 1},
+          "provider_kind": {"enum": ["OCR", "LLM"]},
+          "screenshot_ref": {
+            "type": "string",
+            "pattern": "^[^\\\\/](?:.*[^/])?\\.(?:jpg|jpeg|JPG|JPEG)$"
+          },
+          "screenshot_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "request": {
+            "oneOf": [
+              {"$ref": "#/$defs/ocr_request"},
+              {"$ref": "#/$defs/llm_request"}
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"provider_kind": {"const": "OCR"}}},
+            "then": {"properties": {"request": {"$ref": "#/$defs/ocr_request"}}}
+          },
+          {
+            "if": {"properties": {"provider_kind": {"const": "LLM"}}},
+            "then": {"properties": {"request": {"$ref": "#/$defs/llm_request"}}}
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "ocr_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "coordinate_space", "bounds", "reference_size"],
+      "properties": {
+        "kind": {"const": "OCR_ROI"},
+        "coordinate_space": {"enum": ["NORMALIZED", "REFERENCE_PIXELS"]},
+        "bounds": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {"type": "number"}
+        },
+        "reference_size": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {"type": "integer", "minimum": 1}
+            }
+          ]
+        }
+      }
+    },
+    "llm_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prompt_template_version", "prompt"],
+      "properties": {
+        "kind": {"const": "LLM_PROMPT"},
+        "prompt_template_version": {"const": "legacy-llm-prompt-v1"},
+        "prompt": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

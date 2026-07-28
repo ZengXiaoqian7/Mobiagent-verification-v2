@@ -1,0 +1,27 @@
+task_id: dynamic-music-playback
+app_id: cross_app_music
+task_type: play
+description: Artist/song-grounded terminal playback interface.
+
+nodes:
+  - id: requested_track_playback
+    condition:
+      type: juxtaposition
+      params:
+        dynamic_match:
+          extract: task_entities
+          entity_patterns:
+            - "播放(.+?)的《(.+?)》"
+            - "播放歌曲(.+?)(?:，|,|。|$)"
+          verification_fields: ["xml_text"]
+          require_all:
+            - "com.netease.cloudmusic:id/playBtn"
+            - "com.netease.cloudmusic:id/nextBtn"
+        xml:
+          all:
+            - "com.netease.cloudmusic:id/playBtn"
+            - "com.netease.cloudmusic:id/nextBtn"
+          none: ["无匹配结果", "android.widget.EditText"]
+
+success:
+  any_of: [requested_track_playback]

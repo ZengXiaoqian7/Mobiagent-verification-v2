@@ -1,0 +1,31 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "xiaohongshu-phone-agent-readonly-001",
+  "app_under_test": {
+    "name": "小红书",
+    "package": "com.xingin.xhs_hos"
+  },
+  "feature": "phone_owned_target_surface_observation",
+  "steps": [
+    {
+      "step_id": "open_xiaohongshu",
+      "instruction": "仅打开小红书并观察前台界面；不得点击、输入、发送或发布。",
+      "action_type": "OPEN_APP",
+      "target": {"role": "application", "label": "小红书", "text_candidates": []},
+      "timeout_seconds": 30,
+      "max_retries": 0
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "probe_surface_absent",
+      "type": "TEXT_ABSENT",
+      "expected_value": "MobiAgent HarmonyOS",
+      "after_step": "open_xiaohongshu",
+      "required": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "LOW",
+  "metadata": {"readonly": true, "no_business_write": true}
+}

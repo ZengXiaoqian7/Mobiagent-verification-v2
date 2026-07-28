@@ -1,0 +1,159 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "cloudmusic-create-note-001",
+  "app_under_test": {
+    "name": "网易云音乐",
+    "package": "com.netease.cloudmusic",
+    "version": "runtime-confirmed"
+  },
+  "feature": "create_note",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["登录", "立即登录", "手机号登录", "请先登录"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "测试账号已登录网易云音乐，且具备发布笔记的权限"
+    },
+    {
+      "condition_id": "network_available",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["网络不给力", "网络异常", "无网络", "加载失败", "点击重试"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "网易云音乐可正常联网"
+    }
+  ],
+  "test_data": {
+    "note_title": "TEST",
+    "note_body": "评测智能体"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true,
+    "adaptive_capture": true
+  },
+  "steps": [
+    {
+      "step_id": "open_cloudmusic",
+      "instruction": "打开网易云音乐",
+      "action_type": "OPEN_APP",
+      "timeout_seconds": 20,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_my_tab",
+      "instruction": "点击底部导航中的“我的”",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["我的"],
+        "prefer_hierarchy_exact_text": true,
+        "post_action_context": {
+          "text_candidates": ["我的", "笔记"],
+          "required": true
+        }
+      },
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "open_notes",
+      "instruction": "在“我的”页面点击“笔记”入口",
+      "action_type": "CLICK",
+      "target": {
+        "role": "section",
+        "text_candidates": ["笔记"],
+        "prefer_hierarchy_exact_text": true,
+        "post_action_context": {
+          "text_candidates": ["笔记"],
+          "required": true
+        }
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "open_note_editor",
+      "instruction": "在笔记页面点击右下角“+”新建笔记，进入笔记编辑页",
+      "action_type": "CLICK",
+      "target": {
+        "role": "floating_action_button",
+        "text_candidates": ["+", "新建笔记", "发布笔记", "创建笔记"],
+        "post_action_context": {
+          "text_candidates": ["标题", "正文", "发布"],
+          "required": true
+        }
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_note_title",
+      "instruction": "在标题输入框填写 TEST",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input",
+        "text_candidates": ["标题", "填写标题", "请输入标题"]
+      },
+      "value_ref": "note_title",
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_note_body",
+      "instruction": "在正文输入框填写 评测智能体",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input",
+        "text_candidates": ["正文", "内容", "写点什么", "分享你的想法"]
+      },
+      "value_ref": "note_body",
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "publish_note",
+      "instruction": "点击“发布”按钮发布笔记",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["发布"],
+        "prefer_hierarchy_exact_text": true
+      },
+      "timeout_seconds": 20,
+      "max_retries": 0
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "published_title_visible",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "note_title",
+      "surface": "published_note_or_notes_list",
+      "after_step": "publish_note",
+      "historical_match_not_sufficient": true,
+      "required": true
+    },
+    {
+      "assertion_id": "published_body_visible",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "note_body",
+      "surface": "published_note_or_notes_list",
+      "after_step": "publish_note",
+      "historical_match_not_sufficient": true,
+      "required": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "HIGH",
+  "metadata": {
+    "stage": "real-commercial-content-publishing-smoke",
+    "real_device_required": true,
+    "test_account_required": true,
+    "manual_review_required": true,
+    "verification_runner_disabled_reason": "发布后的笔记标题和正文由主执行器在发布页或笔记列表中的直接观察证据判断，不启用 Verifier Runner。",
+    "note": "会使用测试账号公开发布标题为 TEST、正文为 评测智能体 的笔记；运行前请确认该账号和发布行为已获授权。"
+  }
+}

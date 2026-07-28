@@ -1,0 +1,18 @@
+{
+  "schema_version": "harmony-eval-action-frame-resolution-policy-v1",
+  "base_catalog_sha256": "d07785366c4127d2d4859aee39bad21dda8df9d1689d35b3f27cb04df2303f0d",
+  "rules": [
+    {
+      "rule_id": "taobao-search-input-keyword-click-input-v1",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "contract_sha256": "c193e0cf9a865b1f06dff59877f847555345027fd2771148403eddde6da7399e",
+      "node_id": "input_keyword",
+      "checker_id": "llm",
+      "provider_kind": "LLM",
+      "action_type": "click_input",
+      "require_nonempty_text": true,
+      "frame_relation": "POST_ACTION_SAME_INDEX",
+      "cardinality": "EXACTLY_ONE"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+task_id: taobao-search-results
+app_id: com.taobao.taobao
+task_type: search_results
+description: Taobao search task that succeeds at the loaded search results page.
+
+nodes:
+  - id: activate_search
+    next: [input_keyword]
+    name: Activate search input
+    condition:
+      type: escalate
+      params:
+        text:
+          any: ["搜索框", "激活淘宝搜索", "点击搜索"]
+        ocr:
+          all: ["搜索", "猜你想搜", "历史搜索"]
+        llm:
+          prompt: "该步骤是否在淘宝中激活了搜索输入框？"
+          expected_true: true
+
+  - id: input_keyword
+    next: [results_page]
+    name: Input search keyword
+    condition:
+      type: escalate
+      params:
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["text", "xml_text"]
+        llm:
+          prompt: "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？"
+          expected_true: true
+
+  - id: results_page
+    name: Show loaded search results
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["xml_text"]
+        xml:
+          any: ["销量", "人付款", "元", "天猫", "店铺"]
+          none: ["android.widget.EditText"]
+        ocr:
+          any: ["销量", "人付款", "元", "天猫", "店铺"]
+        llm_optional: true
+        llm:
+          prompt: "该步骤是否正确呈现了满足 task_description 要求的淘宝搜索结果商品列表，并且不是骨架屏或加载中页面？"
+          expected_true: true
+
+success:
+  any_of: [results_page]

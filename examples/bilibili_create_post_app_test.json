@@ -1,0 +1,110 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "bilibili-create-dynamic-post-001",
+  "app_under_test": {
+    "name": "哔哩哔哩",
+    "package": "yylx.danmaku.bili",
+    "version": "runtime-confirmed"
+  },
+  "feature": "create_dynamic_post",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["请先登录", "登录后查看", "Log in", "Sign in"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "测试账号已经登录"
+    },
+    {
+      "condition_id": "network_available",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["网络异常", "无网络", "未连接", "重试"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "哔哩哔哩可以正常访问网络"
+    }
+  ],
+  "test_data": {
+    "post_content": "大家好我是评测智能体"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true
+  },
+  "steps": [
+    {
+      "step_id": "open_bilibili",
+      "instruction": "打开哔哩哔哩",
+      "action_type": "OPEN_APP",
+      "timeout_seconds": 15,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_dynamics",
+      "instruction": "点击下方动态，进入动态页面",
+      "action_type": "CLICK",
+      "target": {
+        "role": "navigation",
+        "text_candidates": ["动态"]
+      },
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "open_post_composer",
+      "instruction": "点击动态页面右上角的书写图标，打开动态编辑器",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "label": "右上角写动态入口",
+        "text_candidates": ["写动态", "发布动态", "发动态", "写"]
+      },
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_post_content",
+      "instruction": "在动态编辑器中输入测试内容",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input",
+        "text_candidates": ["说点什么", "发一条动态", "输入动态内容", "分享新鲜事"]
+      },
+      "value_ref": "post_content",
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "publish_post",
+      "instruction": "点击右上角发布按钮，发布这条动态",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["发布", "发表", "发送"]
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "post_content_visible_after_publish",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "post_content",
+      "surface": "feed_or_post_detail",
+      "after_step": "publish_post",
+      "historical_match_not_sufficient": true,
+      "required": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "MEDIUM",
+  "metadata": {
+    "stage": "real-commercial-dynamic-post-smoke",
+    "real_device_required": true,
+    "test_account_required": true,
+    "manual_review_required": true,
+    "verification_runner_disabled_reason": "发布后的跳转页面由业务执行后的直接观察证据判断"
+  }
+}

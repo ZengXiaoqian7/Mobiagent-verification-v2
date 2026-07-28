@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "result_v3.schema.json",
+  "title": "VerificationResult V3",
+  "type": "object",
+  "required": ["schema_version", "verdict", "outcome", "process", "criteria", "evidence_chain", "diagnosis", "coverage", "cost", "provenance", "legacy"],
+  "properties": {
+    "schema_version": {"const": "3.0"},
+    "verdict": {"enum": ["PASS", "FAIL", "ABSTAIN", "INVALID", "ERROR"]},
+    "reason": {"type": ["string", "null"]},
+    "outcome": {"type": "object"},
+    "process": {"type": "object"},
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["criterion_id", "dimension", "status", "score_awarded", "score_max", "evidence_refs", "latency_ms"],
+        "properties": {
+          "criterion_id": {"type": "string", "minLength": 1},
+          "dimension": {"type": "string", "minLength": 1},
+          "status": {"enum": ["SATISFIED", "VIOLATED", "UNKNOWN", "NOT_APPLICABLE", "ERROR"]},
+          "score_awarded": {"type": "number", "minimum": 0},
+          "score_max": {"type": "number", "minimum": 0},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "checker_name": {"type": ["string", "null"]},
+          "checker_version": {"type": ["string", "null"]},
+          "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "reason": {"type": ["string", "null"]},
+          "failure_code": {"type": ["string", "null"]},
+          "latency_ms": {"type": "number", "minimum": 0}
+        },
+        "additionalProperties": false
+      }
+    },
+    "evidence_chain": {"type": "array", "items": {"$ref": "evidence_v3.schema.json"}},
+    "diagnosis": {"type": "array", "items": {"$ref": "failure_v3.schema.json"}},
+    "coverage": {"type": "object"},
+    "cost": {"type": "object"},
+    "provenance": {"type": "object"},
+    "legacy": {"type": "object"}
+  },
+  "additionalProperties": false
+}

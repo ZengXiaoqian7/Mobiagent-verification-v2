@@ -1,0 +1,121 @@
+{
+  "status": "pending_human_adjudication",
+  "created_at": "2026-07-13T23:00:19+08:00",
+  "real_ground_truth_tag": "heldout-challenge-v2-real-ground-truth-freeze",
+  "real_ground_truth_commit": "8287d9aaa7a1f2877b00d7f59a31842ab2dc1d76",
+  "enhanced_verifier_tag": "enhanced-v2-20260713",
+  "verifier_executed_before_draft": false,
+  "count": 10,
+  "failure_type_counts": {
+    "left_success_state": 2,
+    "loading_final_state": 2,
+    "partial_completion": 2,
+    "wrong_entity": 2,
+    "wrong_terminal_page": 2
+  },
+  "storage": {
+    "primary_root": "D:\\Lab\\MobiAgent-heldout-v2-data",
+    "backup_root": "D:\\Lab\\MobiAgent-heldout-v2-data-backup-20260713",
+    "backup_verified": true,
+    "primary_file_count": 179,
+    "backup_file_count": 179,
+    "copy_differences": 0,
+    "total_bytes": 89065999
+  },
+  "labels": {
+    "path": "verification_benchmark/labels_cross_app_heldout_challenge_v2_semireal_draft.jsonl",
+    "sha256": "114df3e653e8a7e284d86ce51281f7465cd4fe5833477b04396dc0045082aec6"
+  },
+  "traces": [
+    {
+      "trace_id": "semireal/wrong_entity/wrong_entity_01",
+      "parent_trace_id": "real/哔哩哔哩/type4/1",
+      "donor_trace_id": "real/哔哩哔哩/type4/2",
+      "transformation": "retained parent frames 1..3; replaced terminal frame 4 with donor terminal frame 5",
+      "sha256_tree": "18a48f2af1ee0ed4365bd57550cf104cba8ea793296734f5b8f3e0a4918a92aa",
+      "file_count": 14,
+      "bytes": 4790394
+    },
+    {
+      "trace_id": "semireal/wrong_entity/wrong_entity_02",
+      "parent_trace_id": "real/网易云音乐/type1/2",
+      "donor_trace_id": "real/网易云音乐/type1/3",
+      "transformation": "retained parent frames 1..3; replaced terminal frame 4 with donor terminal frame 4",
+      "sha256_tree": "ca595128e86b67e5ea7e055fd9c3f869af63bc80eef6d4ea1dedf9f02d73857a",
+      "file_count": 14,
+      "bytes": 8368705
+    },
+    {
+      "trace_id": "semireal/wrong_terminal_page/wrong_terminal_page_01",
+      "parent_trace_id": "real/哔哩哔哩/type4/3",
+      "donor_trace_id": null,
+      "transformation": "retained parent frames 1..12; replaced action/react 12 with false done",
+      "sha256_tree": "3ed42e45463f7c9cfefbfce35cd0461e4b83c54203f94767916354ffce59d373",
+      "file_count": 38,
+      "bytes": 15244179
+    },
+    {
+      "trace_id": "semireal/wrong_terminal_page/wrong_terminal_page_02",
+      "parent_trace_id": "real/网易云音乐/type2/1",
+      "donor_trace_id": null,
+      "transformation": "retained parent frames 1..5; replaced action/react 5 with false done",
+      "sha256_tree": "4213557d2bb0cf5e68f985fc6d9530c7c8bb440b5712544b8e1537177e4006e2",
+      "file_count": 17,
+      "bytes": 10695042
+    },
+    {
+      "trace_id": "semireal/loading_final_state/loading_final_state_01",
+      "parent_trace_id": "real/网易云音乐/type1/1",
+      "donor_trace_id": null,
+      "transformation": "retained parent frames 1..3; replaced action/react 3 with false done",
+      "sha256_tree": "388505872b5064c5b0b0255ed286f21781d71b2e61e5475eb05e64892ee111ab",
+      "file_count": 11,
+      "bytes": 5671395
+    },
+    {
+      "trace_id": "semireal/loading_final_state/loading_final_state_02",
+      "parent_trace_id": "real/高德地图/location_search/2",
+      "donor_trace_id": null,
+      "transformation": "retained parent frames 1..2; replaced action/react 2 with false done",
+      "sha256_tree": "5c9e3cf4ab0711202d7f6a9fcda222e34412770ddd1b816748fc3fea9b475939",
+      "file_count": 8,
+      "bytes": 3681624
+    },
+    {
+      "trace_id": "semireal/partial_completion/partial_completion_01",
+      "parent_trace_id": "real/网易云音乐/type2/2",
+      "donor_trace_id": null,
+      "transformation": "retained parent frames 1..5; replaced action/react 5 with false done",
+      "sha256_tree": "8b5ac87fe8382a95e0aa3019cae58218c5282de1c43e9604101aad90d1aec9f2",
+      "file_count": 17,
+      "bytes": 9051550
+    },
+    {
+      "trace_id": "semireal/partial_completion/partial_completion_02",
+      "parent_trace_id": "real/网易云音乐/type2/3",
+      "donor_trace_id": null,
+      "transformation": "retained parent frames 1..4; replaced action/react 4 with false done",
+      "sha256_tree": "a0e6eb003492bac6ef944bc8d0887a6a81dade94aa4ef6a1f07ca727774315cb",
+      "file_count": 14,
+      "bytes": 8114165
+    },
+    {
+      "trace_id": "semireal/left_success_state/left_success_state_01",
+      "parent_trace_id": "real/哔哩哔哩/type4/2",
+      "donor_trace_id": null,
+      "transformation": "retained successful frames 1..5; appended non-target parent frame 1 as terminal frame 6",
+      "sha256_tree": "69bcf13a05a82777a71d8f2c9eaec56a2c8624fa80ffa63830f54621ff7be27b",
+      "file_count": 20,
+      "bytes": 7461252
+    },
+    {
+      "trace_id": "semireal/left_success_state/left_success_state_02",
+      "parent_trace_id": "real/高德地图/location_search/1",
+      "donor_trace_id": null,
+      "transformation": "retained successful frames 1..7; appended non-target parent frame 1 as terminal frame 8",
+      "sha256_tree": "b2523e64fa828b9fbb974f554dce660a0ed3c4cdd3e86f15dff62aac3575aa3d",
+      "file_count": 26,
+      "bytes": 15987693
+    }
+  ]
+}

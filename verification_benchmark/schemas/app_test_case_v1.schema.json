@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "app_test_case_v1.schema.json",
+  "title": "App Test Case v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "test_case_id",
+    "app_under_test",
+    "feature",
+    "steps",
+    "expected_results"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "const": "app-test-case-v1"
+    },
+    "test_case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "app_under_test": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": true,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "package": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "feature": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": ["condition_id", "type", "failure_class"],
+            "additionalProperties": true,
+            "properties": {
+              "condition_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "enum": [
+                  "TEXT_VISIBLE",
+                  "TEXT_ABSENT",
+                  "STATE_CHANGED",
+                  "SUCCESS_SIGNAL"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value_candidates": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "failure_class": {
+                "enum": [
+                  "ENV_BLOCKED",
+                  "TEST_EXECUTION_FAIL",
+                  "INCONCLUSIVE",
+                  "UNSUPPORTED"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    "test_data": {
+      "type": "object"
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": ["step_id", "instruction"],
+            "additionalProperties": true,
+            "properties": {
+              "step_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "instruction": {
+                "type": "string",
+                "minLength": 1
+              },
+              "action_type": {
+                "enum": [
+                  "OPEN_APP",
+                  "CLICK",
+                  "INPUT",
+                  "WAIT",
+                  "BACK",
+                  "GUI_TASK"
+                ]
+              },
+              "step_mode": {
+                "enum": [
+                  "ATOMIC",
+                  "GOAL"
+                ]
+              },
+              "target": {
+                "type": "object"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "timeout_seconds": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "max_retries": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "not": {
+              "required": ["value", "value_ref"]
+            }
+          }
+        ]
+      }
+    },
+    "expected_results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": ["assertion_id", "type"],
+            "additionalProperties": true,
+            "properties": {
+              "assertion_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expected_value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expected_value_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "surface": {
+                "type": "string",
+                "minLength": 1
+              },
+              "after_step": {
+                "type": "string",
+                "minLength": 1
+              },
+              "historical_match_not_sufficient": {
+                "type": "boolean"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "requires_verification_runner": {
+                "type": "boolean"
+              }
+            },
+            "not": {
+              "required": ["expected_value", "expected_value_ref"]
+            }
+          }
+        ]
+      }
+    },
+    "verification_runner_policy": {
+      "enum": [
+        "NEVER",
+        "IF_DIRECT_UNKNOWN",
+        "REQUIRED_FOR_RESULT"
+      ],
+      "default": "IF_DIRECT_UNKNOWN"
+    },
+    "forbidden_effects": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": ["assertion_id", "type"],
+            "additionalProperties": true,
+            "properties": {
+              "assertion_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "const": "TEXT_ABSENT"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value_candidates": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            }
+          }
+        ]
+      }
+    },
+    "risk_level": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "source_text": {
+      "type": "string"
+    }
+  }
+}

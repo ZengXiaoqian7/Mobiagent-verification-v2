@@ -1,0 +1,94 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "post-create-001",
+  "app_under_test": {
+    "name": "DemoForum",
+    "package": "com.example.demoforum",
+    "version": "1.0.0"
+  },
+  "feature": "create_post",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["Please log in", "Login required"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "User is already logged in"
+    },
+    {
+      "condition_id": "feed_visible",
+      "type": "TEXT_VISIBLE",
+      "value": "Feed",
+      "failure_class": "TEST_EXECUTION_FAIL",
+      "description": "The feed page is visible"
+    }
+  ],
+  "test_data": {
+    "post_content": "hello test 123"
+  },
+  "steps": [
+    {
+      "step_id": "open_post_editor",
+      "instruction": "Tap the post creation button",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["Post", "Create"]
+      },
+      "timeout_seconds": 5,
+      "max_retries": 2
+    },
+    {
+      "step_id": "input_post_content",
+      "instruction": "Input the configured post text into the editor",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input"
+      },
+      "value_ref": "post_content",
+      "timeout_seconds": 5,
+      "max_retries": 1
+    },
+    {
+      "step_id": "submit_post",
+      "instruction": "Tap the submit button",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["Send", "Post"]
+      },
+      "timeout_seconds": 10,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "post_content_visible",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "post_content",
+      "surface": "feed_or_post_detail",
+      "after_step": "submit_post",
+      "historical_match_not_sufficient": true
+    },
+    {
+      "assertion_id": "posting_changes_state",
+      "type": "STATE_CHANGED"
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "assertion_id": "no_payment_flow",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["payment", "Pay now", "Confirm order"]
+    },
+    {
+      "assertion_id": "no_logout",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["logout", "signed out"]
+    }
+  ],
+  "risk_level": "LOW",
+  "metadata": {
+    "mock_scenario": "pass"
+  }
+}

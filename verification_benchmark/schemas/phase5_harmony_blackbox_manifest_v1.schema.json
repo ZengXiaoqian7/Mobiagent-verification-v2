@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/phase5_harmony_blackbox_manifest_v1.schema.json",
+  "title": "Phase 5 Harmony black-box pilot manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "experiment_id", "protocol_status", "publication_eligible", "claim_boundary", "oracle_database_dependency", "phase4_status", "unseen_exclusions", "cohort", "agent", "collection_policy", "tasks"],
+  "properties": {
+    "schema_version": {"const": "harmony-eval-phase5-blackbox-pilot-v1"},
+    "experiment_id": {"const": "phase5-harmony-blackbox-pilot-v1"},
+    "protocol_status": {"const": "DEVELOPMENT_PILOT_FROZEN_BEFORE_COLLECTION"},
+    "publication_eligible": {"const": false},
+    "claim_boundary": {"const": "S0_S1_BLACK_BOX_ONLY_NO_BACKEND_SIDE_EFFECT_CLAIM"},
+    "oracle_database_dependency": {"const": false},
+    "phase4_status": {"const": "FROZEN_MECHANISM_VALIDATION_ONLY"},
+    "unseen_exclusions": {"type": "array", "minItems": 5, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "cohort": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cohort_id", "device_serial", "device_model", "device_type", "posture", "resolution"],
+      "properties": {
+        "cohort_id": {"type": "string", "minLength": 1},
+        "device_serial": {"const": "5ZU0226122004500"},
+        "device_model": {"const": "DEL-AL10"},
+        "device_type": {"const": "Harmony"},
+        "posture": {"const": "FOLDED_OUTER_DISPLAY"},
+        "resolution": {"const": [1080, 2444]}
+      }
+    },
+    "agent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider_base_url", "model", "transport", "key_env", "device", "use_qwen3", "use_experience", "user_profile", "use_graphrag", "accept_planner_changes", "decider_protocol", "coord_mode", "e2e", "max_steps", "runner_module_sha256"],
+      "properties": {
+        "provider_base_url": {"const": "https://api.horizon1123.top/v1"},
+        "model": {"const": "gpt-5.4-mini"},
+        "transport": {"const": "raw_http"},
+        "key_env": {"const": "MOBIAGENT_API_KEY"},
+        "device": {"const": "Harmony"},
+        "use_qwen3": {"const": "on"},
+        "use_experience": {"const": "off"},
+        "user_profile": {"const": "off"},
+        "use_graphrag": {"const": "off"},
+        "accept_planner_changes": {"const": "off"},
+        "decider_protocol": {"const": "qwen_json"},
+        "coord_mode": {"const": "resized_pixel"},
+        "e2e": {"const": true},
+        "max_steps": {"const": 15},
+        "runner_module_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "collection_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["risk_tier", "allowed_actions", "forbidden_actions", "abort_conditions", "collection_order", "ground_truth_status", "guardrail_callbacks_allowed", "overwrite_allowed"],
+      "properties": {
+        "risk_tier": {"const": "LOW_RISK_READ_ONLY_SEARCH"},
+        "allowed_actions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "forbidden_actions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "abort_conditions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "collection_order": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{2,79}$"}},
+        "ground_truth_status": {"const": "PENDING_BLIND_REVIEW"},
+        "guardrail_callbacks_allowed": {"const": false},
+        "overwrite_allowed": {"const": false}
+      }
+    },
+    "tasks": {
+      "type": "array", "minItems": 1, "maxItems": 20,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["task_id", "collection_ordinal", "app", "package", "task_family", "task_text", "requested_entity", "expected_observable_criteria", "allowed_actions", "forbidden_actions", "contract_source_route", "app_version_policy", "smoke_priority"],
+        "properties": {
+          "task_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{2,79}$"},
+          "collection_ordinal": {"type": "integer", "minimum": 1},
+          "app": {"const": "淘宝"},
+          "package": {"const": "com.taobao.taobao4hmos"},
+          "task_family": {"const": "search_results_read_only"},
+          "task_text": {"type": "string", "minLength": 1},
+          "requested_entity": {"type": "string", "minLength": 1},
+          "expected_observable_criteria": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "allowed_actions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "forbidden_actions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "contract_source_route": {"enum": ["registry", "template", "validated-jit"]},
+          "app_version_policy": {"type": "string", "minLength": 1},
+          "smoke_priority": {"enum": ["FIRST", "SECOND", "THIRD", "PILOT_LATER"]}
+        }
+      }
+    }
+  }
+}

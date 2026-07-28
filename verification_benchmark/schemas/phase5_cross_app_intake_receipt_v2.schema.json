@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/phase5_cross_app_intake_receipt_v2.schema.json",
+  "title": "Phase 5 cross-App strict intake receipt v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "intake_version", "intake_source_sha256", "status", "publication_eligible", "experiment_id", "experiment_manifest_sha256", "package_probe_report_sha256", "run_id", "task_id", "collection_run_manifest_sha256", "collection_status", "ground_truth_status", "oracle_database_dependency", "claim_boundary", "source_files", "source_tree_sha256", "evidence_capability_profile", "cross_app_observability", "diagnostic_evidence", "errors"],
+  "properties": {
+    "schema_version": {"const": "harmony-eval-phase5-cross-app-intake-receipt-v2"},
+    "intake_version": {"const": "harmony-eval-phase5-cross-app-intake-v2"},
+    "intake_source_sha256": {"$ref": "#/$defs/sha256"},
+    "status": {"enum": ["ACCEPTED_PENDING_SINGLE_OPERATOR_REVIEW", "REJECTED_COLLECTION_INCOMPLETE"]},
+    "publication_eligible": {"const": false},
+    "experiment_id": {"const": "phase5-cross-app-challenge-smoke-v2"},
+    "experiment_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "package_probe_report_sha256": {"const": "e72686f980b996ef3ca9a1ac7e1866284e7cec812d42181b4144be907db93317"},
+    "run_id": {"type": "string", "pattern": "^p5r-[0-9a-f]{16}$"},
+    "task_id": {"type": "string", "minLength": 1},
+    "collection_run_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "collection_status": {"enum": ["RUN_COMPLETE", "RUN_ABORTED", "RUN_FAILED", "RUN_IN_PROGRESS"]},
+    "ground_truth_status": {"const": "PENDING_SINGLE_OPERATOR_REVIEW"},
+    "oracle_database_dependency": {"const": false},
+    "claim_boundary": {"const": "S0_S1_BLACK_BOX_ONLY_NO_BACKEND_SIDE_EFFECT_CLAIM"},
+    "source_files": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/sourceFile"}},
+    "source_tree_sha256": {"$ref": "#/$defs/sha256"},
+    "evidence_capability_profile": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["screenshot_frames", "hierarchy_xml_frames", "hierarchy_raw_json_frames", "action_count", "action_types", "timestamps", "integrity"],
+          "properties": {
+            "screenshot_frames": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+            "hierarchy_xml_frames": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+            "hierarchy_raw_json_frames": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+            "action_count": {"type": "integer", "minimum": 1},
+            "action_types": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "timestamps": {"const": "RUN_LEVEL_WALL_CLOCK_ONLY_NO_FRAME_TIMESTAMPS"},
+            "integrity": {"const": "VALID_WITH_TIMESTAMP_DEGRADATION"}
+          }
+        }
+      ]
+    },
+    "cross_app_observability": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["initial_app_declared_by_runner", "open_app_targets", "target_app_open_requested", "input_text_sha256_sequence", "foreground_package_per_frame_available", "app_switch_evidence_mode", "success_inferred_by_intake"],
+          "properties": {
+            "initial_app_declared_by_runner": {"const": "小红书"},
+            "open_app_targets": {"type": "array", "items": {"type": ["string", "null"]}},
+            "target_app_open_requested": {"type": "boolean"},
+            "input_text_sha256_sequence": {"type": "array", "items": {"$ref": "#/$defs/sha256"}},
+            "foreground_package_per_frame_available": {"const": false},
+            "app_switch_evidence_mode": {"const": "ACTION_LOG_PLUS_FRAME_EVIDENCE_NO_FRAME_FOREGROUND_PACKAGE_TELEMETRY"},
+            "success_inferred_by_intake": {"const": false}
+          }
+        }
+      ]
+    },
+    "diagnostic_evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["react_present_and_hashed", "reasoning_copied_to_receipt", "runner_self_report_copied_to_receipt", "old_verifier_verdict_copied_to_receipt"],
+      "properties": {
+        "react_present_and_hashed": {"type": "boolean"},
+        "reasoning_copied_to_receipt": {"const": false},
+        "runner_self_report_copied_to_receipt": {"const": false},
+        "old_verifier_verdict_copied_to_receipt": {"const": false}
+      }
+    },
+    "errors": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sourceFile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["relative_ref", "byte_size", "sha256"],
+      "properties": {
+        "relative_ref": {"type": "string", "minLength": 1},
+        "byte_size": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

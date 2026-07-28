@@ -1,0 +1,708 @@
+{
+  "jobs": [
+    {
+      "job_id": "phase3-llm-0c439e8bf879-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/6.jpg",
+      "screenshot_sha256": "0c439e8bf8799e4bf2557fe54d8d95571d6fa4793c2accd3e60ce57e20d26c83"
+    },
+    {
+      "job_id": "phase3-llm-0c439e8bf879-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/6.jpg",
+      "screenshot_sha256": "0c439e8bf8799e4bf2557fe54d8d95571d6fa4793c2accd3e60ce57e20d26c83"
+    },
+    {
+      "job_id": "phase3-llm-1533f9071c1e-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_004/2.jpg",
+      "screenshot_sha256": "1533f9071c1eff307cfb6ce7d9f164dfb1d8d5daa939e6647657df7d6c8e522e"
+    },
+    {
+      "job_id": "phase3-llm-1533f9071c1e-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_004/2.jpg",
+      "screenshot_sha256": "1533f9071c1eff307cfb6ce7d9f164dfb1d8d5daa939e6647657df7d6c8e522e"
+    },
+    {
+      "job_id": "phase3-llm-3891139b8b7a-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_005/2.jpg",
+      "screenshot_sha256": "3891139b8b7ac3b661d8a96529165e0e895e11036aad00edbd9d1ad14159921b"
+    },
+    {
+      "job_id": "phase3-llm-3891139b8b7a-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_005/2.jpg",
+      "screenshot_sha256": "3891139b8b7ac3b661d8a96529165e0e895e11036aad00edbd9d1ad14159921b"
+    },
+    {
+      "job_id": "phase3-llm-484a62c1a2e3-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_002/1.jpg",
+      "screenshot_sha256": "484a62c1a2e3d236c500f0b710253ac960b6804f23999c8291d8ed57aff8a5bb"
+    },
+    {
+      "job_id": "phase3-llm-484a62c1a2e3-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_002/1.jpg",
+      "screenshot_sha256": "484a62c1a2e3d236c500f0b710253ac960b6804f23999c8291d8ed57aff8a5bb"
+    },
+    {
+      "job_id": "phase3-llm-48a5ba92648f-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/1.jpg",
+      "screenshot_sha256": "48a5ba92648f450fa1775c8256e9bfca638ba41c61a1b8340870297e8978ae30"
+    },
+    {
+      "job_id": "phase3-llm-48a5ba92648f-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/1.jpg",
+      "screenshot_sha256": "48a5ba92648f450fa1775c8256e9bfca638ba41c61a1b8340870297e8978ae30"
+    },
+    {
+      "job_id": "phase3-llm-64b6ae70c7b7-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_004/1.jpg",
+      "screenshot_sha256": "64b6ae70c7b7ade83d40e63c8cd47af031c529fc078d3fe70aad0a6f626359e1"
+    },
+    {
+      "job_id": "phase3-llm-64b6ae70c7b7-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_004/1.jpg",
+      "screenshot_sha256": "64b6ae70c7b7ade83d40e63c8cd47af031c529fc078d3fe70aad0a6f626359e1"
+    },
+    {
+      "job_id": "phase3-llm-7b9023ec9818-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/1.jpg",
+      "screenshot_sha256": "7b9023ec9818df80b9f635a13dcf1f4ca23c5b7b90390846880b789beb89cd81"
+    },
+    {
+      "job_id": "phase3-llm-7b9023ec9818-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/1.jpg",
+      "screenshot_sha256": "7b9023ec9818df80b9f635a13dcf1f4ca23c5b7b90390846880b789beb89cd81"
+    },
+    {
+      "job_id": "phase3-llm-7f9fe121fa91-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/2.jpg",
+      "screenshot_sha256": "7f9fe121fa9114a5ab533a0577c47cf1180a1bb7a1e38a7d9c9a1cf5e4deea8d"
+    },
+    {
+      "job_id": "phase3-llm-7f9fe121fa91-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/2.jpg",
+      "screenshot_sha256": "7f9fe121fa9114a5ab533a0577c47cf1180a1bb7a1e38a7d9c9a1cf5e4deea8d"
+    },
+    {
+      "job_id": "phase3-llm-8f7448eb02b3-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/3.jpg",
+      "screenshot_sha256": "8f7448eb02b34c33e37f293c5dfaeb2def79ae3179cea4d74daa04d73d4ffc13"
+    },
+    {
+      "job_id": "phase3-llm-8f7448eb02b3-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/3.jpg",
+      "screenshot_sha256": "8f7448eb02b34c33e37f293c5dfaeb2def79ae3179cea4d74daa04d73d4ffc13"
+    },
+    {
+      "job_id": "phase3-llm-9bb37416abdc-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/3.jpg",
+      "screenshot_sha256": "9bb37416abdcef2c5f83d4d950dcde56dd5b21446c37be005e175f803fae9c8e"
+    },
+    {
+      "job_id": "phase3-llm-9bb37416abdc-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/3.jpg",
+      "screenshot_sha256": "9bb37416abdcef2c5f83d4d950dcde56dd5b21446c37be005e175f803fae9c8e"
+    },
+    {
+      "job_id": "phase3-llm-a3a58323516c-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_003/1.jpg",
+      "screenshot_sha256": "a3a58323516c74c9492a0e182ef6100367e6a2f3197671ca053a6d7017dcbeec"
+    },
+    {
+      "job_id": "phase3-llm-a3a58323516c-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_003/1.jpg",
+      "screenshot_sha256": "a3a58323516c74c9492a0e182ef6100367e6a2f3197671ca053a6d7017dcbeec"
+    },
+    {
+      "job_id": "phase3-llm-a6743f153443-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_002/2.jpg",
+      "screenshot_sha256": "a6743f153443f47f3f9ce191f683f9ebc5bbb9e2e1ed60366c24c77806c2c6c8"
+    },
+    {
+      "job_id": "phase3-llm-a6743f153443-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_002/2.jpg",
+      "screenshot_sha256": "a6743f153443f47f3f9ce191f683f9ebc5bbb9e2e1ed60366c24c77806c2c6c8"
+    },
+    {
+      "job_id": "phase3-llm-c6ff26725e14-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/4.jpg",
+      "screenshot_sha256": "c6ff26725e14db4586109804ca12c8a232f7d499c453a9bf77950590805aa6e1"
+    },
+    {
+      "job_id": "phase3-llm-c6ff26725e14-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/4.jpg",
+      "screenshot_sha256": "c6ff26725e14db4586109804ca12c8a232f7d499c453a9bf77950590805aa6e1"
+    },
+    {
+      "job_id": "phase3-llm-d2c8565d6b3e-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/4.jpg",
+      "screenshot_sha256": "d2c8565d6b3e481c5408e24064604dfd822fba1b298844af9d180978a030c437"
+    },
+    {
+      "job_id": "phase3-llm-d2c8565d6b3e-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/4.jpg",
+      "screenshot_sha256": "d2c8565d6b3e481c5408e24064604dfd822fba1b298844af9d180978a030c437"
+    },
+    {
+      "job_id": "phase3-llm-d7b44b96d090-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/2.jpg",
+      "screenshot_sha256": "d7b44b96d0907947b427da13c413d1360f7a1651ea1dcd4576d2f77ee43a6eac"
+    },
+    {
+      "job_id": "phase3-llm-d7b44b96d090-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/2.jpg",
+      "screenshot_sha256": "d7b44b96d0907947b427da13c413d1360f7a1651ea1dcd4576d2f77ee43a6eac"
+    },
+    {
+      "job_id": "phase3-llm-ee0c96dd7f6c-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_005/1.jpg",
+      "screenshot_sha256": "ee0c96dd7f6c10d10c6127bb320a154005c8dc25dd5c396c85d887c63bdd70b8"
+    },
+    {
+      "job_id": "phase3-llm-ee0c96dd7f6c-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_005/1.jpg",
+      "screenshot_sha256": "ee0c96dd7f6c10d10c6127bb320a154005c8dc25dd5c396c85d887c63bdd70b8"
+    },
+    {
+      "job_id": "phase3-llm-f226aad63bac-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/5.jpg",
+      "screenshot_sha256": "f226aad63bac939c39b030cd2a3250597e8998496c78774302bffdc933c2b721"
+    },
+    {
+      "job_id": "phase3-llm-f226aad63bac-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/5.jpg",
+      "screenshot_sha256": "f226aad63bac939c39b030cd2a3250597e8998496c78774302bffdc933c2b721"
+    },
+    {
+      "job_id": "phase3-llm-fefeaa4c190a-d21da6a77322",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_003/2.jpg",
+      "screenshot_sha256": "fefeaa4c190a560a39bce3b39b5d1a23e179d0fbb295209ad3acd324ca401e10"
+    },
+    {
+      "job_id": "phase3-llm-fefeaa4c190a-fe11f4471a11",
+      "provider_kind": "LLM",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt": "该步骤是否向淘宝搜索框输入了与 task_description 要求一致的商品关键词？",
+        "prompt_template_version": "legacy-llm-prompt-v1"
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_003/2.jpg",
+      "screenshot_sha256": "fefeaa4c190a560a39bce3b39b5d1a23e179d0fbb295209ad3acd324ca401e10"
+    },
+    {
+      "job_id": "phase3-ocr-0c439e8bf879-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/6.jpg",
+      "screenshot_sha256": "0c439e8bf8799e4bf2557fe54d8d95571d6fa4793c2accd3e60ce57e20d26c83"
+    },
+    {
+      "job_id": "phase3-ocr-1533f9071c1e-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_004/2.jpg",
+      "screenshot_sha256": "1533f9071c1eff307cfb6ce7d9f164dfb1d8d5daa939e6647657df7d6c8e522e"
+    },
+    {
+      "job_id": "phase3-ocr-3891139b8b7a-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_005/2.jpg",
+      "screenshot_sha256": "3891139b8b7ac3b661d8a96529165e0e895e11036aad00edbd9d1ad14159921b"
+    },
+    {
+      "job_id": "phase3-ocr-484a62c1a2e3-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_002/1.jpg",
+      "screenshot_sha256": "484a62c1a2e3d236c500f0b710253ac960b6804f23999c8291d8ed57aff8a5bb"
+    },
+    {
+      "job_id": "phase3-ocr-48a5ba92648f-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/1.jpg",
+      "screenshot_sha256": "48a5ba92648f450fa1775c8256e9bfca638ba41c61a1b8340870297e8978ae30"
+    },
+    {
+      "job_id": "phase3-ocr-64b6ae70c7b7-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_004/1.jpg",
+      "screenshot_sha256": "64b6ae70c7b7ade83d40e63c8cd47af031c529fc078d3fe70aad0a6f626359e1"
+    },
+    {
+      "job_id": "phase3-ocr-7b9023ec9818-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/1.jpg",
+      "screenshot_sha256": "7b9023ec9818df80b9f635a13dcf1f4ca23c5b7b90390846880b789beb89cd81"
+    },
+    {
+      "job_id": "phase3-ocr-7f9fe121fa91-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/2.jpg",
+      "screenshot_sha256": "7f9fe121fa9114a5ab533a0577c47cf1180a1bb7a1e38a7d9c9a1cf5e4deea8d"
+    },
+    {
+      "job_id": "phase3-ocr-8f7448eb02b3-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/3.jpg",
+      "screenshot_sha256": "8f7448eb02b34c33e37f293c5dfaeb2def79ae3179cea4d74daa04d73d4ffc13"
+    },
+    {
+      "job_id": "phase3-ocr-9bb37416abdc-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/3.jpg",
+      "screenshot_sha256": "9bb37416abdcef2c5f83d4d950dcde56dd5b21446c37be005e175f803fae9c8e"
+    },
+    {
+      "job_id": "phase3-ocr-a3a58323516c-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_003/1.jpg",
+      "screenshot_sha256": "a3a58323516c74c9492a0e182ef6100367e6a2f3197671ca053a6d7017dcbeec"
+    },
+    {
+      "job_id": "phase3-ocr-a6743f153443-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_002/2.jpg",
+      "screenshot_sha256": "a6743f153443f47f3f9ce191f683f9ebc5bbb9e2e1ed60366c24c77806c2c6c8"
+    },
+    {
+      "job_id": "phase3-ocr-c6ff26725e14-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/4.jpg",
+      "screenshot_sha256": "c6ff26725e14db4586109804ca12c8a232f7d499c453a9bf77950590805aa6e1"
+    },
+    {
+      "job_id": "phase3-ocr-d2c8565d6b3e-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_001/4.jpg",
+      "screenshot_sha256": "d2c8565d6b3e481c5408e24064604dfd822fba1b298844af9d180978a030c437"
+    },
+    {
+      "job_id": "phase3-ocr-d7b44b96d090-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/2.jpg",
+      "screenshot_sha256": "d7b44b96d0907947b427da13c413d1360f7a1651ea1dcd4576d2f77ee43a6eac"
+    },
+    {
+      "job_id": "phase3-ocr-ee0c96dd7f6c-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_005/1.jpg",
+      "screenshot_sha256": "ee0c96dd7f6c10d10c6127bb320a154005c8dc25dd5c396c85d887c63bdd70b8"
+    },
+    {
+      "job_id": "phase3-ocr-f226aad63bac-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/5.jpg",
+      "screenshot_sha256": "f226aad63bac939c39b030cd2a3250597e8998496c78774302bffdc933c2b721"
+    },
+    {
+      "job_id": "phase3-ocr-fefeaa4c190a-18d0b61c40e0",
+      "provider_kind": "OCR",
+      "request": {
+        "bounds": [
+          0.0,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "coordinate_space": "NORMALIZED",
+        "kind": "OCR_ROI",
+        "reference_size": null
+      },
+      "screenshot_ref": "taobao/search/runner_taobao_batch_false_done_loading_003/2.jpg",
+      "screenshot_sha256": "fefeaa4c190a560a39bce3b39b5d1a23e179d0fbb295209ad3acd324ca401e10"
+    }
+  ],
+  "model_version": "gpt-5.4-mini",
+  "schema_version": "harmony-eval-recording-manifest-v1"
+}

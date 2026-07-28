@@ -1,0 +1,21 @@
+task_id: gaode-location-search
+app_id: gaode
+task_type: location_search
+description: Entity-grounded loaded location result or detail page.
+
+nodes:
+  - id: requested_location_result
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          require_image: true
+        dynamic_match:
+          extract: task_entities
+          entity_patterns:
+            - "搜索(.+?)(?:，|,)"
+          verification_fields: ["xml_text"]
+
+success:
+  any_of: [requested_location_result]

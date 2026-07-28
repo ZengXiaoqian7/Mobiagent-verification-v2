@@ -1,0 +1,74 @@
+task_id: taobao-tmall-filter-results
+app_id: com.taobao.taobao
+task_type: tmall_filter
+description: Taobao results task that succeeds only when the terminal Tmall filter is explicitly selected.
+
+nodes:
+  - id: activate_search
+    next: [input_keyword]
+    name: Activate search input
+    condition:
+      type: escalate
+      params:
+        text:
+          any: ["搜索框", "激活淘宝搜索", "点击搜索"]
+        ocr:
+          all: ["搜索", "猜你想搜", "历史搜索"]
+        llm:
+          prompt: "该步骤是否在淘宝中激活了搜索输入框？"
+          expected_true: true
+
+  - id: input_keyword
+    next: [loaded_results]
+    name: Input search keyword
+    condition:
+      type: escalate
+      params:
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["text", "xml_text"]
+        llm:
+          prompt: "该步骤是否输入了与任务一致的淘宝搜索关键词？"
+          expected_true: true
+
+  - id: loaded_results
+    next: [tmall_filtered_results]
+    name: Show loaded filterable results
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["xml_text"]
+        xml:
+          any: ["天猫,未选中", "天猫,已选中"]
+          none: ["android.widget.EditText"]
+        llm_optional: true
+        llm:
+          prompt: "该步骤是否显示已加载并具有天猫筛选入口的淘宝商品结果？"
+          expected_true: true
+
+  - id: tmall_filtered_results
+    name: Show terminal Tmall-filtered results
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["xml_text"]
+        xml:
+          all: ["天猫,已选中"]
+          none: ["android.widget.EditText"]
+        llm_optional: true
+        llm:
+          prompt: "最终页面是否为与任务关键词一致、商品列表已加载且天猫筛选已选中的结果页？"
+          expected_true: true
+
+success:
+  any_of: [tmall_filtered_results]

@@ -1,0 +1,240 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "xiaohongshu-create-text-note-real-001",
+  "app_under_test": {
+    "name": "Xiaohongshu",
+    "package": "com.xingin.xhs_hos",
+    "version": "9.38.3"
+  },
+  "feature": "create_text_note",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["请先登录", "登录后查看", "Log in"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "The test account is already logged in"
+    },
+    {
+      "condition_id": "network_available",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["网络异常", "无网络", "未连接", "重试"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "The app can reach Xiaohongshu services"
+    }
+  ],
+  "test_data": {
+    "post_content": "app_test_${run_id}"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true
+  },
+  "steps": [
+    {
+      "step_id": "open_xiaohongshu",
+      "instruction": "Open Xiaohongshu by package",
+      "action_type": "OPEN_APP",
+      "target": {},
+      "timeout_seconds": 10,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_publish_entry",
+      "instruction": "Tap the bottom center publish plus entry",
+      "action_type": "CLICK",
+      "target": {
+        "label": "bottom publish plus",
+        "coordinates": [540, 2289],
+        "confirmed_bounds": "[432,2220][648,2358]",
+        "text_candidates": ["+"]
+      },
+      "timeout_seconds": 10,
+      "max_retries": 1
+    },
+    {
+      "step_id": "select_write_text_entry",
+      "instruction": "Tap the write-text publishing entry",
+      "action_type": "CLICK",
+      "target": {
+        "label": "写文字",
+        "coordinates": [540, 2060],
+        "confirmed_bounds": "[465,2031][615,2090]",
+        "text_candidates": ["写文字"]
+      },
+      "timeout_seconds": 10,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_post_content",
+      "instruction": "Input this run's unique text into the text-note editor",
+      "action_type": "INPUT",
+      "target": {
+        "label": "说说你的想法吧",
+        "role": "text_input",
+        "coordinates": [543, 971],
+        "confirmed_bounds": "[143,835][937,944]",
+        "text_candidates": ["说说你的想法吧"]
+      },
+      "value_ref": "post_content",
+      "timeout_seconds": 10,
+      "max_retries": 1
+    },
+    {
+      "step_id": "continue_after_text",
+      "instruction": "Continue from the text editor to the card selection page",
+      "action_type": "CLICK",
+      "target": {
+        "label": "top-right continue",
+        "coordinates": [931, 190],
+        "confirmed_bounds": "[833,146][1030,234]",
+        "text_candidates": ["下一步", "生成"]
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "select_basic_card",
+      "instruction": "Select the basic card style",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["基础卡片", "基础", "基础模板"]
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "continue_after_basic_card",
+      "instruction": "Continue after selecting the basic card",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["下一步"]
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "publish_note",
+      "instruction": "Publish the note",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["发布笔记", "发布"]
+      },
+      "timeout_seconds": 30,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "post_content_visible_in_own_note_list",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "post_content",
+      "surface": "own_note_list",
+      "after_step": "publish_note",
+      "historical_match_not_sufficient": true,
+      "requires_verification_runner": true,
+      "required": true
+    }
+  ],
+  "verification_steps": [
+    {
+      "verification_step_id": "wait_after_publish",
+      "instruction": "Wait briefly for the publish result page or feed transition to settle",
+      "action_type": "WAIT",
+      "timeout_seconds": 5,
+      "max_retries": 0
+    },
+    {
+      "verification_step_id": "navigate_to_me_tab",
+      "instruction": "Navigate to the Me tab or own profile page",
+      "action_type": "NAVIGATE",
+      "target": {
+        "label": "我",
+        "coordinates": [972, 2289],
+        "confirmed_bounds": "[910,2220][1034,2358]",
+        "text_candidates": ["我"],
+        "surface_text_candidates": ["笔记", "收藏", "赞过"]
+      },
+      "timeout_seconds": 10,
+      "max_retries": 1
+    },
+    {
+      "verification_step_id": "navigate_to_own_note_list",
+      "instruction": "Navigate to the own note list if it is not already selected",
+      "action_type": "NAVIGATE",
+      "target": {
+        "role": "button",
+        "text_candidates": ["笔记", "作品", "帖子"],
+        "surface_text_candidates": ["笔记", "作品", "帖子"]
+      },
+      "timeout_seconds": 10,
+      "max_retries": 1
+    },
+    {
+      "verification_step_id": "wait_for_note_list_load",
+      "instruction": "Wait for the own note list to finish loading",
+      "action_type": "WAIT",
+      "timeout_seconds": 5,
+      "max_retries": 0
+    },
+    {
+      "verification_step_id": "refresh_own_note_list",
+      "instruction": "Refresh the own note list once",
+      "action_type": "REFRESH",
+      "target": {
+        "surface_text_candidates": ["笔记", "作品", "帖子"]
+      },
+      "timeout_seconds": 5,
+      "max_retries": 0
+    },
+    {
+      "verification_step_id": "scroll_own_note_list",
+      "instruction": "Scroll the own note list a limited amount while looking for this run's unique content",
+      "action_type": "SCROLL",
+      "target": {
+        "direction": "up",
+        "surface_text_candidates": ["笔记", "作品", "帖子"]
+      },
+      "timeout_seconds": 5,
+      "max_retries": 0
+    },
+    {
+      "verification_step_id": "observe_own_note_list",
+      "instruction": "Observe the own note list for this run's unique content",
+      "action_type": "OBSERVE",
+      "target": {
+        "surface": "own_note_list",
+        "surface_text_candidates": ["笔记", "作品", "帖子"]
+      },
+      "timeout_seconds": 5,
+      "max_retries": 0
+    }
+  ],
+  "verification_policy": {
+    "max_steps": 8,
+    "timeout_seconds": 60,
+    "max_retries": 2
+  },
+  "verification_runner_policy": "REQUIRED_FOR_RESULT",
+  "risk_level": "MEDIUM",
+  "metadata": {
+    "stage": "stage6-real-commercial",
+    "real_device_required": true,
+    "test_account_required": true,
+    "package_confirmed_by_hdc": "com.xingin.xhs_hos",
+    "ability_confirmed_by_hdc": "EntryAbility",
+    "hierarchy_confirmations": {
+      "bottom_publish_plus": "[432,2220][648,2358]",
+      "write_text_entry": "[465,2031][615,2090]",
+      "text_editor": "[143,835][937,944]",
+      "top_right_continue_observed_as_generate": "[833,146][1030,234]",
+      "me_tab": "[910,2220][1034,2358]"
+    },
+    "manual_runtime_note": "If the live Xiaohongshu build labels the text-card transition as 生成 instead of 下一步, this case accepts that label for the continue_after_text step. The real result is still judged only after the read-only verification runner observes the own note list."
+  }
+}

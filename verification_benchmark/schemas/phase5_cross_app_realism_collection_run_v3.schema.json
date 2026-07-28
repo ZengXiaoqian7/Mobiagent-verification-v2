@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/phase5_cross_app_realism_collection_run_v3.schema.json",
+  "title": "Phase 5 cross-App realism-pilot immutable collection run v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "collector_version", "experiment_id", "experiment_manifest_sha256", "package_probe_report_sha256", "predecessor_disposition_sha256", "run_id", "task_id", "task_text_sha256", "initial_app", "initial_package", "target_app", "target_package", "trace_relpath", "device", "installed_apps", "agent", "collection_status", "attempt_ordinal", "oracle_database_dependency", "ground_truth_status", "guardrail_callback_enabled", "start_state_guard_enabled", "runner_exit_code"],
+  "properties": {
+    "schema_version": {"const": "harmony-eval-phase5-cross-app-realism-collection-run-v3"},
+    "collector_version": {"const": "harmony-eval-phase5-cross-app-realism-collector-v3"},
+    "experiment_id": {"const": "phase5-cross-app-realism-pilot-v3"},
+    "experiment_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "package_probe_report_sha256": {"const": "e72686f980b996ef3ca9a1ac7e1866284e7cec812d42181b4144be907db93317"},
+    "predecessor_disposition_sha256": {"const": "68278635361d67c81d1344e0055e2ab9f4a545f329e943f34ca428a12e996176"},
+    "run_id": {"type": "string", "pattern": "^p5r-[0-9a-f]{16}$"},
+    "task_id": {"const": "crossapp-ranked-bag-review-001"},
+    "task_text_sha256": {"$ref": "#/$defs/sha256"},
+    "initial_app": {"const": "淘宝"},
+    "initial_package": {"const": "com.taobao.taobao4hmos"},
+    "target_app": {"const": "小红书"},
+    "target_package": {"const": "com.xingin.xhs_hos"},
+    "trace_relpath": {"type": "string", "pattern": "^(?!/)(?!.*\\.\\.)(?!.*\\\\).+$"},
+    "device": {
+      "type": "object", "additionalProperties": false,
+      "required": ["serial", "model", "device_type", "posture", "resolution", "os_version"],
+      "properties": {
+        "serial": {"const": "5ZU0226122004500"},
+        "model": {"const": "DEL-AL10"},
+        "device_type": {"const": "Harmony"},
+        "posture": {"const": "FOLDED_OUTER_DISPLAY"},
+        "resolution": {"const": [1080, 2444]},
+        "os_version": {"const": "OpenHarmony-6.1.1.120"}
+      }
+    },
+    "installed_apps": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/installedApp"}},
+    "agent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider_base_url", "model", "transport", "runner_module_sha256", "collector_source_sha256", "evaluation_git_head", "runner_repository_git_head"],
+      "properties": {
+        "provider_base_url": {"const": "https://api.horizon1123.top/v1"},
+        "model": {"const": "gpt-5.4-mini"},
+        "transport": {"const": "raw_http"},
+        "runner_module_sha256": {"$ref": "#/$defs/sha256"},
+        "collector_source_sha256": {"$ref": "#/$defs/sha256"},
+        "evaluation_git_head": {"type": "string", "minLength": 1},
+        "runner_repository_git_head": {"type": "string", "minLength": 1}
+      }
+    },
+    "collection_status": {"enum": ["RUN_COMPLETE", "RUN_ABORTED", "RUN_FAILED", "RUN_IN_PROGRESS"]},
+    "attempt_ordinal": {"type": "integer", "minimum": 1},
+    "oracle_database_dependency": {"const": false},
+    "ground_truth_status": {"const": "PENDING_SINGLE_OPERATOR_REVIEW"},
+    "guardrail_callback_enabled": {"const": false},
+    "start_state_guard_enabled": {"const": false},
+    "runner_exit_code": {"type": ["integer", "null"]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "installedApp": {
+      "type": "object", "additionalProperties": false,
+      "required": ["app", "package", "version_name", "version_code", "raw_dump_sha256"],
+      "properties": {
+        "app": {"enum": ["小红书", "淘宝"]},
+        "package": {"enum": ["com.xingin.xhs_hos", "com.taobao.taobao4hmos"]},
+        "version_name": {"enum": ["9.38.0", "10.64.0"]},
+        "version_code": {"enum": [9380801, 770]},
+        "raw_dump_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

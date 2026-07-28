@@ -1,0 +1,569 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "criteria": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_obscured_persistence": {
+            "type": "boolean"
+          },
+          "criterion_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "required_capabilities": {
+            "items": {
+              "enum": [
+                "ACTIONS",
+                "HIERARCHY_RAW_JSON",
+                "HIERARCHY_XML",
+                "SCREENSHOT",
+                "TIMESTAMPS"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "temporal_semantics": {
+            "enum": [
+              "LATCHED_EVENT",
+              "PERSISTENT_STATE",
+              "EVENTUAL_STATE",
+              "PROCESS_OBLIGATION"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "temporal_semantics",
+          "required",
+          "allow_obscured_persistence",
+          "required_capabilities",
+          "description"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "dag": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "edges": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "child_id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "DEPS_AND",
+                      "NEXT_OR"
+                    ],
+                    "type": "string"
+                  },
+                  "parent_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "parent_id",
+                  "child_id",
+                  "kind"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "nodes": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "checkers": {
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "checker_id": {
+                              "const": "text",
+                              "type": "string"
+                            },
+                            "parameters": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "all": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "any": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "expected_true": {
+                                  "type": "null"
+                                },
+                                "ignore_case": {
+                                  "type": "null"
+                                },
+                                "none": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "pattern": {
+                                  "type": "null"
+                                },
+                                "prompt": {
+                                  "type": "null"
+                                }
+                              },
+                              "required": [
+                                "any",
+                                "all",
+                                "none",
+                                "pattern",
+                                "ignore_case",
+                                "prompt",
+                                "expected_true"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "checker_id",
+                            "parameters"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "checker_id": {
+                              "const": "xml",
+                              "type": "string"
+                            },
+                            "parameters": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "all": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "any": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "expected_true": {
+                                  "type": "null"
+                                },
+                                "ignore_case": {
+                                  "type": "null"
+                                },
+                                "none": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "pattern": {
+                                  "type": "null"
+                                },
+                                "prompt": {
+                                  "type": "null"
+                                }
+                              },
+                              "required": [
+                                "any",
+                                "all",
+                                "none",
+                                "pattern",
+                                "ignore_case",
+                                "prompt",
+                                "expected_true"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "checker_id",
+                            "parameters"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "checker_id": {
+                              "const": "regex",
+                              "type": "string"
+                            },
+                            "parameters": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "all": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "any": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "expected_true": {
+                                  "type": "null"
+                                },
+                                "ignore_case": {
+                                  "type": "boolean"
+                                },
+                                "none": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "pattern": {
+                                  "type": "string"
+                                },
+                                "prompt": {
+                                  "type": "null"
+                                }
+                              },
+                              "required": [
+                                "any",
+                                "all",
+                                "none",
+                                "pattern",
+                                "ignore_case",
+                                "prompt",
+                                "expected_true"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "checker_id",
+                            "parameters"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "checker_id": {
+                              "const": "ocr",
+                              "type": "string"
+                            },
+                            "parameters": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "all": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "any": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "expected_true": {
+                                  "type": "null"
+                                },
+                                "ignore_case": {
+                                  "type": "boolean"
+                                },
+                                "none": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "pattern": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "prompt": {
+                                  "type": "null"
+                                }
+                              },
+                              "required": [
+                                "any",
+                                "all",
+                                "none",
+                                "pattern",
+                                "ignore_case",
+                                "prompt",
+                                "expected_true"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "checker_id",
+                            "parameters"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "checker_id": {
+                              "const": "llm",
+                              "type": "string"
+                            },
+                            "parameters": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "all": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "any": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "expected_true": {
+                                  "type": "boolean"
+                                },
+                                "ignore_case": {
+                                  "type": "null"
+                                },
+                                "none": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "maxItems": 0,
+                                  "type": "array"
+                                },
+                                "pattern": {
+                                  "type": "null"
+                                },
+                                "prompt": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "any",
+                                "all",
+                                "none",
+                                "pattern",
+                                "ignore_case",
+                                "prompt",
+                                "expected_true"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "checker_id",
+                            "parameters"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "condition_operator": {
+                    "enum": [
+                      "ALL_OF",
+                      "ANY_OF"
+                    ],
+                    "type": "string"
+                  },
+                  "node_id": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "node_id",
+                  "condition_operator",
+                  "score",
+                  "checkers"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "success": {
+              "additionalProperties": false,
+              "properties": {
+                "node_ids": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "operator": {
+                  "enum": [
+                    "ALL_OF",
+                    "ANY_OF"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "operator",
+                "node_ids"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "nodes",
+            "edges",
+            "success"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "g1_bindings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "checker": {
+            "enum": [
+              "ROI_STABILITY",
+              "NO_BLOCKING_OVERLAY",
+              "NOT_LOADING"
+            ],
+            "type": "string"
+          },
+          "criterion_id": {
+            "type": "string"
+          },
+          "rois": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "bounds": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "coordinate_space": {
+                  "enum": [
+                    "NORMALIZED",
+                    "REFERENCE_PIXELS"
+                  ],
+                  "type": "string"
+                },
+                "reference_size": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "roi_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "roi_id",
+                "bounds",
+                "coordinate_space",
+                "reference_size"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "checker",
+          "rois"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "justification": {
+      "description": "Exactly one sentence explaining why the proposed success node or success criterion represents completion of the task.",
+      "maxLength": 300,
+      "pattern": "^[^.!?。！？\\r\\n]+[.!?。！？]$",
+      "type": "string"
+    },
+    "required_capabilities": {
+      "items": {
+        "enum": [
+          "ACTIONS",
+          "HIERARCHY_RAW_JSON",
+          "HIERARCHY_XML",
+          "SCREENSHOT",
+          "TIMESTAMPS"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "harmony-eval-jit-contract-proposal-v1",
+      "type": "string"
+    },
+    "task_family": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "task_family",
+    "justification",
+    "required_capabilities",
+    "criteria",
+    "g1_bindings",
+    "dag"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,60 @@
+{
+  "schema_version": "harmony-eval-development-recording-planner-config-v1",
+  "model_version": "gpt-5.4-mini",
+  "contract_roots": [
+    "MobiFlow/task_rules",
+    "verification_benchmark/rules"
+  ],
+  "traces_root": "verification_benchmark/traces",
+  "provenance_overlay_ref": "verification_benchmark/provenance_overlay.jsonl",
+  "cache_refs": [
+    "verification_benchmark/reports/recording_smoke/development/taobao_search_minimal_smoke_v1/cache.jsonl"
+  ],
+  "selector_audit_refs": [
+    "verification_benchmark/reports/recording_preflight/development/taobao_search_minimal_smoke_v1.audit.json"
+  ],
+  "trace_contract_bindings": [
+    {
+      "trace_id": "taobao/search/runner_taobao_batch_false_done_loading_001",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    },
+    {
+      "trace_id": "taobao/search/runner_taobao_batch_false_done_loading_002",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    },
+    {
+      "trace_id": "taobao/search/runner_taobao_batch_false_done_loading_003",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    },
+    {
+      "trace_id": "taobao/search/runner_taobao_batch_false_done_loading_004",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    },
+    {
+      "trace_id": "taobao/search/runner_taobao_batch_false_done_loading_005",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    },
+    {
+      "trace_id": "taobao/search/runner_taobao_type1_clean_success_001",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    },
+    {
+      "trace_id": "taobao/search/runner_taobao_type1_neg_incomplete_edit_001",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    },
+    {
+      "trace_id": "taobao/search/runner_taobao_type1_neg_wrong_keyword_001",
+      "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "mapping_basis": "TRACE_NAMESPACE_APP_TASK_AND_HASH_FROZEN_CONTRACT_TASK_FAMILY"
+    }
+  ],
+  "max_jobs_per_shard": 10,
+  "max_attempts": 1
+}

@@ -1,0 +1,159 @@
+{
+  "freeze_id": "heldout-challenge-v1-ground-truth-freeze",
+  "frozen_at": "2026-07-13T15:37:09+08:00",
+  "review_confirmation": "user confirmation in experiment conversation on 2026-07-13",
+  "verifier_executed_before_freeze": false,
+  "enhanced_verifier_tag": "enhanced-development-20260712",
+  "enhanced_verifier_commit": "7079cc7c44a53a52a886e2133c632b1cc306570c",
+  "real_freeze_id": "heldout-challenge-v1-real-ground-truth-freeze",
+  "counts": {
+    "semireal": 21,
+    "challenge_total": 48,
+    "challenge_success": 24,
+    "challenge_fail": 24,
+    "challenge_real": 27,
+    "challenge_semireal": 21
+  },
+  "files": {
+    "real_labels": {
+      "path": "verification_benchmark/labels_cross_app_heldout_challenge_v1_real.jsonl",
+      "sha256": "060daec40ce40a55db9e3841f60d76eb821368950f951ce9cbf22bd23152e218"
+    },
+    "semireal_labels": {
+      "path": "verification_benchmark/labels_cross_app_heldout_challenge_v1_semireal.jsonl",
+      "sha256": "833cf0b1df8a8289d44d1949fa3a190f148181dbdd72ee357a968356edd07322"
+    },
+    "challenge_labels": {
+      "path": "verification_benchmark/labels_cross_app_heldout_challenge_v1_challenge.jsonl",
+      "sha256": "57a181210e132b3a06b98b083a18bd13ec6147145caedeceb094b00b1d4502dd"
+    }
+  },
+  "semireal_traces": [
+    {
+      "trace_id": "heldout_challenge_v1/semireal/wrong_entity/wrong_entity_01",
+      "sha256_tree": "5412ebd7b26233e18757ba1e4cc750bf1a3e7b3c903bddb01701dd8eb522a1f3",
+      "file_count": 11,
+      "bytes": 3511542
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/wrong_entity/wrong_entity_02",
+      "sha256_tree": "02f295d35bf23d288f6cce6b93fc582023619e85ee218f43e499464bc41c6a4c",
+      "file_count": 14,
+      "bytes": 3843235
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/wrong_entity/wrong_entity_03",
+      "sha256_tree": "511397be404faea463e38e9badd81f2daa2de45564564dbf9ea5cca93f00184a",
+      "file_count": 17,
+      "bytes": 8057715
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/wrong_terminal_page/wrong_terminal_page_01",
+      "sha256_tree": "53a68be740f1e8027758736597705f56dea786df76e4b3fba38542bc506f4063",
+      "file_count": 11,
+      "bytes": 4130914
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/wrong_terminal_page/wrong_terminal_page_02",
+      "sha256_tree": "dddf3edaefd8afacbb320fd4175df0964d2cfdee6cd3c8f0ad5bc84227bec741",
+      "file_count": 14,
+      "bytes": 3658088
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/wrong_terminal_page/wrong_terminal_page_03",
+      "sha256_tree": "eff4677593c4dfa21cb2022927887bee65f4799992f521cbf1c54e3e063a15d4",
+      "file_count": 17,
+      "bytes": 8300605
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/blocking_popup/blocking_popup_01",
+      "sha256_tree": "aa65e965715ccd4b30a4a0a52f6b7a9f1098169394a38de3f849c5c601b75b16",
+      "file_count": 5,
+      "bytes": 1960882
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/blocking_popup/blocking_popup_02",
+      "sha256_tree": "95eee3b712bdc70d26ddb6e7824f1c93092460da73139f1d8e61b420f483f883",
+      "file_count": 11,
+      "bytes": 6680625
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/blocking_popup/blocking_popup_03",
+      "sha256_tree": "67d067a9f81721ea0b58413741cc3d0c92b74ac6e41d3d25cee9114ca7996eaf",
+      "file_count": 14,
+      "bytes": 4005525
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/partial_completion/partial_completion_01",
+      "sha256_tree": "dfbf668980300ca755d688ee0223e3146d097676d1e2feea3cbf82956bde1c70",
+      "file_count": 8,
+      "bytes": 2356889
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/partial_completion/partial_completion_02",
+      "sha256_tree": "8f5cac2e41ba5e9561a3fc963559f1960e80d947bb7d36f0874ad4d93e94cd5b",
+      "file_count": 14,
+      "bytes": 3789199
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/partial_completion/partial_completion_03",
+      "sha256_tree": "370ff064ddd5e26acafc541db11f1e0c338ed9f08e0380711458bbae66756174",
+      "file_count": 17,
+      "bytes": 9012189
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/partial_completion/partial_completion_04",
+      "sha256_tree": "0a43f6d35581bf09bf99a49444f262fe44874d2a77bbdee3558f268df5370e05",
+      "file_count": 23,
+      "bytes": 11723056
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/loading_final_state/loading_01",
+      "sha256_tree": "8eb611d6947263c8989d26cacf1e72976e2d108a64fa1c4f0f51ff74576f8bfe",
+      "file_count": 8,
+      "bytes": 2690609
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/loading_final_state/loading_02",
+      "sha256_tree": "7b10d0642d541dcfa5b4903fb59aa8d00c065e139961ea3bd79113db37e6c7fd",
+      "file_count": 11,
+      "bytes": 2700606
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/loading_final_state/loading_03",
+      "sha256_tree": "0510fd9198ae1525edadde51593e08d5787d5289073e635a83d002106735d915",
+      "file_count": 14,
+      "bytes": 5717350
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/loading_final_state/loading_04",
+      "sha256_tree": "25004e9738e2a4ae0dbfc9a53be4bb28c110a055a40d1cdec0d998e17e2870a9",
+      "file_count": 17,
+      "bytes": 10797211
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/left_success_state/left_success_state_01",
+      "sha256_tree": "99d251d4be562077fd4f7eafbf70bc9f5cf738bb497a305edefe9b3ed9f377f5",
+      "file_count": 14,
+      "bytes": 5003390
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/left_success_state/left_success_state_02",
+      "sha256_tree": "398f6d4bb545857a8ad0e4eef0b5749819ddf84785992c4e82e49af8e0a93b70",
+      "file_count": 17,
+      "bytes": 4907487
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/left_success_state/left_success_state_03",
+      "sha256_tree": "066588a9d9e33ffa0967d555aa6dcd3c16ee2318b9a1437073136ce7b42f4ee9",
+      "file_count": 20,
+      "bytes": 9759131
+    },
+    {
+      "trace_id": "heldout_challenge_v1/semireal/left_success_state/left_success_state_04",
+      "sha256_tree": "c3e2c3a64b19fb5862fea5d382d150b66cabffa8dde57bd12383db0c31db1580",
+      "file_count": 17,
+      "bytes": 9196625
+    }
+  ]
+}

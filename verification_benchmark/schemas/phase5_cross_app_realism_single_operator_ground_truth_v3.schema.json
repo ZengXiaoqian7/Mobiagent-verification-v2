@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/phase5_cross_app_realism_single_operator_ground_truth_v3.schema.json",
+  "title": "Phase 5 cross-App realism-pilot single-operator Ground Truth v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "authority", "ground_truth_status", "publication_eligible", "eligible_for_development_performance_evaluation", "formal_double_blind_review_completed", "claim_boundary", "experiment_id", "experiment_manifest_sha256", "run_id", "task_id", "intake_receipt_file_sha256", "intake_receipt_semantic_sha256", "source_tree_sha256", "review_rubric_sha256", "operator_alias_sha256", "observation_mode", "observed_live", "automated_verifier_run_before_review", "runner_self_report_used_as_authority", "verdict", "failure_codes", "source_evidence_frames", "target_evidence_frames", "observed_source_identity", "observed_target_query", "rubric_observations", "notes", "created_at_utc"],
+  "properties": {
+    "schema_version": {"const": "harmony-eval-phase5-cross-app-realism-single-operator-ground-truth-v3"},
+    "authority": {"const": "PHASE5_SINGLE_OPERATOR_LIVE_REALISM_PILOT_OBSERVATION"},
+    "ground_truth_status": {"const": "FROZEN_SINGLE_OPERATOR_REALISM_PILOT_GROUND_TRUTH"},
+    "publication_eligible": {"const": false},
+    "eligible_for_development_performance_evaluation": {"const": true},
+    "formal_double_blind_review_completed": {"const": false},
+    "claim_boundary": {"const": "S0_S1_BLACK_BOX_ONLY_NO_BACKEND_SIDE_EFFECT_CLAIM"},
+    "experiment_id": {"const": "phase5-cross-app-realism-pilot-v3"},
+    "experiment_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "run_id": {"type": "string", "pattern": "^p5r-[0-9a-f]{16}$"},
+    "task_id": {"const": "crossapp-ranked-bag-review-001"},
+    "intake_receipt_file_sha256": {"$ref": "#/$defs/sha256"},
+    "intake_receipt_semantic_sha256": {"$ref": "#/$defs/sha256"},
+    "source_tree_sha256": {"$ref": "#/$defs/sha256"},
+    "review_rubric_sha256": {"$ref": "#/$defs/sha256"},
+    "operator_alias_sha256": {"$ref": "#/$defs/sha256"},
+    "observation_mode": {"const": "LIVE_DEVICE_PLUS_HASH_BOUND_REALISM_RECEIPT"},
+    "observed_live": {"const": true},
+    "automated_verifier_run_before_review": {"const": false},
+    "runner_self_report_used_as_authority": {"const": false},
+    "verdict": {"enum": ["PASS", "FAIL", "AMBIGUOUS"]},
+    "failure_codes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["NONE", "SOURCE_APP_NOT_OBSERVED", "SOURCE_QUERY_INCORRECT", "SALES_SORT_NOT_ACTIVATED", "SELECTION_RULE_VIOLATED", "SOURCE_IDENTITY_NOT_DISTINCTIVE", "TARGET_APP_NOT_OBSERVED", "TARGET_QUERY_MISSING_OR_INCORRECT", "TARGET_NO_SAME_PRODUCT_EVIDENCE", "FORBIDDEN_ACTION_OR_SURFACE", "PREMATURE_DONE", "TASK_INCOMPLETE", "EVIDENCE_AMBIGUOUS", "OTHER"]}},
+    "source_evidence_frames": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 1}},
+    "target_evidence_frames": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 1}},
+    "observed_source_identity": {"type": "string"},
+    "observed_target_query": {"type": "string"},
+    "rubric_observations": {"$ref": "#/$defs/rubricObservations"},
+    "notes": {"type": "string", "minLength": 1},
+    "created_at_utc": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "state": {"enum": ["YES", "NO", "AMBIGUOUS"]},
+    "rubricObservations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_query_visible", "sales_sort_activated", "selection_rule_satisfied", "source_identity_distinctive", "target_app_observed", "target_query_contains_source_identity", "same_product_target_evidence_visible", "forbidden_action_or_surface_observed", "task_complete_before_done"],
+      "properties": {
+        "source_query_visible": {"$ref": "#/$defs/state"},
+        "sales_sort_activated": {"$ref": "#/$defs/state"},
+        "selection_rule_satisfied": {"$ref": "#/$defs/state"},
+        "source_identity_distinctive": {"$ref": "#/$defs/state"},
+        "target_app_observed": {"$ref": "#/$defs/state"},
+        "target_query_contains_source_identity": {"$ref": "#/$defs/state"},
+        "same_product_target_evidence_visible": {"$ref": "#/$defs/state"},
+        "forbidden_action_or_surface_observed": {"$ref": "#/$defs/state"},
+        "task_complete_before_done": {"$ref": "#/$defs/state"}
+      }
+    }
+  }
+}

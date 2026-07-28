@@ -1,0 +1,103 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "qq-send-hello-zhexi-001",
+  "app_under_test": {
+    "name": "QQ",
+    "package": "com.tencent.mqq",
+    "version": "runtime-confirmed"
+  },
+  "feature": "send_chat_message",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["登录", "请先登录", "Log in", "Sign in"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "测试账号已经登录 QQ"
+    },
+    {
+      "condition_id": "network_available",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["网络异常", "无网络", "未连接网络", "重试"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "QQ 可以正常访问网络"
+    }
+  ],
+  "test_data": {
+    "message_text": "Hello"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true
+  },
+  "steps": [
+    {
+      "step_id": "open_qq",
+      "instruction": "打开 QQ",
+      "action_type": "OPEN_APP",
+      "timeout_seconds": 15,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_zhexi_chat",
+      "instruction": "点击联系人辄息，进入与辄息的聊天页面",
+      "action_type": "CLICK",
+      "target": {
+        "role": "conversation",
+        "text_candidates": ["辄息"],
+        "post_action_context": {
+          "text_candidates": ["辄息"],
+          "required": true
+        }
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_chat_message",
+      "instruction": "在当前聊天框中输入 Hello",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input",
+        "text_candidates": ["输入消息", "输入", "说点什么", "发送消息"]
+      },
+      "value_ref": "message_text",
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "send_chat_message",
+      "instruction": "点击发送按钮发送 Hello",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["发送"]
+      },
+      "timeout_seconds": 15,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "sent_message_visible_in_chat",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "message_text",
+      "surface": "conversation",
+      "after_step": "send_chat_message",
+      "historical_match_not_sufficient": true,
+      "required": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "MEDIUM",
+  "metadata": {
+    "stage": "real-commercial-chat-smoke",
+    "real_device_required": true,
+    "test_account_required": true,
+    "manual_review_required": true,
+    "verification_runner_disabled_reason": "发送完成后的聊天气泡由主执行器的直接观察证据判断，不启用 Verifier Runner。",
+    "note": "会向真实联系人辄息发送 Hello；运行前请确认其为授权测试联系人且当前会话列表可见。"
+  }
+}

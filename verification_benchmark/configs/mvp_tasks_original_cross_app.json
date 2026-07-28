@@ -1,0 +1,30 @@
+{
+  "description": "Frozen Original MobiFlow mapping for cross-app paired evaluation.",
+  "repo_relative_paths": true,
+  "mvp_tasks": [
+    {
+      "benchmark_task_id": "bilibili_search",
+      "rule_file": "MobiFlow/task_rules/bilibili/bilibili-type1.yaml"
+    },
+    {
+      "benchmark_task_id": "bilibili_creator_homepage_original",
+      "rule_file": "MobiFlow/task_rules/bilibili/bilibili-type4.yaml"
+    },
+    {
+      "benchmark_task_id": "xiaohongshu_search_original",
+      "rule_file": "MobiFlow/task_rules/xiaohongshu/xiaohongshu-type4.yaml"
+    },
+    {
+      "benchmark_task_id": "xiaohongshu_creator_homepage_original",
+      "rule_file": "MobiFlow/task_rules/xiaohongshu/xiaohongshu-type2.yaml"
+    },
+    {
+      "benchmark_task_id": "cloudmusic_search_original",
+      "rule_file": "MobiFlow/task_rules/cloudmusic/cloudmusic-type1.yaml"
+    },
+    {
+      "benchmark_task_id": "cloudmusic_play_original",
+      "rule_file": "MobiFlow/task_rules/cloudmusic/cloudmusic-type2.yaml"
+    }
+  ]
+}

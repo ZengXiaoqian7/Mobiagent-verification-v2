@@ -1,0 +1,57 @@
+task_id: bilibili-play-video-benchmark
+app_id: tv.danmaku.bili
+task_type: video_playback
+description: Bilibili task that succeeds only after opening a matching video playback page.
+
+nodes:
+  - id: enter_search_page
+    next: [execute_search]
+    name: Enter search page
+    score: 10
+    condition:
+      type: escalate
+      params:
+        ocr:
+          all: ["搜索", "搜索历史", "热搜"]
+        llm:
+          prompt: "当前界面是否为 B 站的搜索输入界面？"
+          expected_true: true
+
+  - id: execute_search
+    next: [view_content_list]
+    name: Execute keyword search
+    score: 10
+    condition:
+      type: escalate
+      params:
+        llm:
+          prompt: "用户是否在 B 站搜索框中输入了与 task_description 相关的关键词并执行了搜索操作？"
+          expected_true: true
+
+  - id: view_content_list
+    next: [video_is_playing]
+    name: View related content list
+    score: 20
+    condition:
+      type: juxtaposition
+      params:
+        ocr:
+          all: ["综合", "番剧", "直播", "用户"]
+        llm:
+          prompt: "当前界面是否成功展示了与 task_description 高度相关的 B站内容列表？"
+          expected_true: true
+
+  - id: video_is_playing
+    name: Open matching video playback page
+    score: 40
+    condition:
+      type: juxtaposition
+      params:
+        ocr:
+          all: ["简介", "评论", "弹幕", "关注"]
+        llm:
+          prompt: "当前界面是否已经打开并播放与 task_description 高度相关的 B站视频？"
+          expected_true: true
+
+success:
+  any_of: [video_is_playing]

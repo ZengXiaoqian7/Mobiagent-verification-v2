@@ -1,0 +1,76 @@
+task_id: taobao-dynamic-selected-control-results
+app_id: com.taobao.taobao
+task_type: selected_control
+description: Generic Taobao results verifier that derives the requested selected control from task text.
+
+nodes:
+  - id: activate_search
+    next: [input_keyword]
+    name: Activate search input
+    condition:
+      type: escalate
+      params:
+        text:
+          any: ["搜索框", "激活淘宝搜索", "点击搜索"]
+        ocr:
+          all: ["搜索", "猜你想搜", "历史搜索"]
+        llm:
+          prompt: "该步骤是否在淘宝中激活了搜索输入框？"
+          expected_true: true
+
+  - id: input_keyword
+    next: [loaded_results]
+    name: Input search keyword
+    condition:
+      type: escalate
+      params:
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["text", "xml_text"]
+        llm:
+          prompt: "该步骤是否输入了与任务一致的淘宝搜索关键词？"
+          expected_true: true
+
+  - id: loaded_results
+    next: [requested_control_selected]
+    name: Show loaded results
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["xml_text"]
+        xml:
+          any: ["销量", "人付款", "元", "天猫", "店铺"]
+          none: ["android.widget.EditText"]
+        llm_optional: true
+        llm:
+          prompt: "该步骤是否显示与任务关键词一致且已加载的淘宝商品结果？"
+          expected_true: true
+
+  - id: requested_control_selected
+    name: Show terminal results with requested control selected
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: selected_controls
+          source_field: task_description
+          verification_fields: ["xml_text"]
+          selected_suffix: ",已选中"
+        xml:
+          any: ["销量", "人付款", "元", "天猫", "店铺"]
+          none: ["android.widget.EditText"]
+        llm_optional: true
+        llm:
+          prompt: "最终结果页是否真实选中了自然语言任务要求的排序或筛选控件？"
+          expected_true: true
+
+success:
+  any_of: [requested_control_selected]

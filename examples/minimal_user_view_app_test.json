@@ -1,0 +1,23 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "minimal-user-view-post-create-001",
+  "app_under_test": {
+    "name": "DemoForum",
+    "package": "com.example.demoforum"
+  },
+  "feature": "create_post",
+  "test_data": {
+    "post_content": "app_test_${run_id}"
+  },
+  "steps": [
+    "打开发布入口",
+    "输入测试内容",
+    "点击发布"
+  ],
+  "expected_results": [
+    "可以在个人主页看到本轮发布的测试内容"
+  ],
+  "metadata": {
+    "mock_scenario": "pass"
+  }
+}

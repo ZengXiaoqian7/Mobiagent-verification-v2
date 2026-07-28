@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/offline_trace_verifier_report_v1.schema.json",
+  "title": "Offline Trace Verifier Report v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_kind",
+    "mode",
+    "verifier_version",
+    "architecture_scope",
+    "contract_ir_execution",
+    "ground_truth_consumed_by_verifier",
+    "ground_truth_consumed_after_verifier_decision_for_reporting",
+    "provider",
+    "baseline",
+    "rows",
+    "summary",
+    "publication_eligible"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "harmony-eval-offline-trace-verifier-report-v1"
+    },
+    "report_kind": {"const": "OFFLINE_TRACE_VERIFICATION"},
+    "mode": {"enum": ["VERIFY_ONLY", "EVALUATE"]},
+    "verifier_version": {"type": "string", "minLength": 1},
+    "architecture_scope": {
+      "const": "PHASE5_CROSS_APP_SPECIALIZED_OFFLINE_AUDIT"
+    },
+    "contract_ir_execution": {"const": false},
+    "ground_truth_consumed_by_verifier": {"const": false},
+    "ground_truth_consumed_after_verifier_decision_for_reporting": {
+      "type": "boolean"
+    },
+    "provider": {"$ref": "#/$defs/provider"},
+    "baseline": {
+      "type": "object",
+      "required": ["enabled", "role"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "role": {"const": "OPTIONAL_COMPARISON_NOT_PRIMARY"}
+      },
+      "additionalProperties": false
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/case"}
+    },
+    "summary": {"type": "object"},
+    "publication_eligible": {"const": false}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "provider": {
+      "type": "object",
+      "required": ["base_url", "model", "api_key_env", "transport"],
+      "properties": {
+        "base_url": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "api_key_env": {"type": "string", "minLength": 1},
+        "transport": {"const": "raw_http"}
+      },
+      "additionalProperties": false
+    },
+    "criterion": {
+      "type": "object",
+      "required": ["status", "reason"],
+      "properties": {
+        "status": {
+          "enum": [
+            "SATISFIED",
+            "VIOLATED",
+            "UNKNOWN_EVIDENCE",
+            "UNSUPPORTED_CAPABILITY"
+          ]
+        },
+        "reason": {"type": "string"},
+        "evidence": {},
+        "vlm_confidence": {},
+        "visible_evidence": {}
+      },
+      "additionalProperties": true
+    },
+    "case": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "run_id",
+        "task_id",
+        "experiment_id",
+        "runner_profile",
+        "run_dir",
+        "intake_receipt",
+        "verdict",
+        "criteria",
+        "evidence_frames",
+        "task_contract",
+        "claim_boundary",
+        "verifier",
+        "provider",
+        "measurements",
+        "failure"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "harmony-eval-offline-trace-verifier-case-v1"
+        },
+        "run_id": {"type": ["string", "null"]},
+        "task_id": {"type": ["string", "null"]},
+        "experiment_id": {"type": ["string", "null"]},
+        "runner_profile": {"type": ["string", "null"]},
+        "run_dir": {"type": "string"},
+        "intake_receipt": {"type": "string"},
+        "verdict": {
+          "enum": ["PASS", "FAIL", "ABSTAIN", "INVALID_TRACE", "UNSUPPORTED"]
+        },
+        "criteria": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/criterion"}
+        },
+        "evidence_frames": {"type": "object"},
+        "task_contract": {"type": ["object", "null"]},
+        "claim_boundary": {"type": "string", "minLength": 1},
+        "verifier": {"type": "object"},
+        "provider": {"$ref": "#/$defs/provider"},
+        "measurements": {"type": "object"},
+        "failure": {"type": ["object", "null"]},
+        "baseline": {"type": "object"},
+        "ground_truth": {"type": "object"},
+        "match_ground_truth": {"type": ["boolean", "null"]}
+      },
+      "additionalProperties": false
+    }
+  }
+}

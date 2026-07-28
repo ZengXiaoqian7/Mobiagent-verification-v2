@@ -1,0 +1,34 @@
+{
+  "freeze_id": "heldout-challenge-v1-collection-freeze",
+  "status": "superseded_before_collection",
+  "superseded_by": "heldout-challenge-v1.1-collection-freeze",
+  "reason": "Device changed from Android to Mate X7 HarmonyOS; no trace was collected under v1.",
+  "task_count": 48,
+  "task_groups": 8,
+  "apps": ["bilibili", "xiaohongshu", "cloudmusic", "gaode"],
+  "enhanced_verifier": {
+    "tag": "enhanced-development-20260712",
+    "commit": "7079cc7c44a53a52a886e2133c632b1cc306570c",
+    "allowed_for_first_unsealed_evaluation": true
+  },
+  "files": [
+    {
+      "path": "verification_benchmark/configs/runner_cross_app_heldout_challenge_v1.json",
+      "sha256": "1e1dcbe02ff6ecf52d792237876de94924fa4e11abb5b512cca6d8c8f9896d53"
+    },
+    {
+      "path": "verification_benchmark/docs/cross_app_heldout_challenge_v1_protocol.md",
+      "sha256": "a841c87690b8750b307e1cd12b344292d46fa44b4043dbec86d88ca45a6f4d97"
+    },
+    {
+      "path": "verification_benchmark/docs/cross_app_heldout_challenge_v1_runbook.md",
+      "sha256": "67ea977335bb8bf9dcc0916f34fd7628ea3f4a4133e905b9bb5d1cc9f146d7af"
+    },
+    {
+      "path": "runner/mobiagent/mobiagent.py",
+      "sha256": "99e3451faf54c7916f4c9b9139e1fd89424453d54a5059adb2a3fe308dea954d"
+    }
+  ],
+  "collection_output": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1",
+  "verifier_embargo": "No verifier or rule/checker execution before Ground Truth labels and trace manifest checksums are frozen."
+}

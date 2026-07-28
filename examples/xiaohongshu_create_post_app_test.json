@@ -1,0 +1,78 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "xiaohongshu-create-post-001",
+  "app_under_test": {
+    "name": "小红书",
+    "package": "com.xingin.xhs_hos",
+    "version": "runtime-confirmed"
+  },
+  "feature": "create_post",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["请先登录", "登录"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "用户已登录"
+    }
+  ],
+  "test_data": {
+    "post_content": "app_test_${run_id}"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true
+  },
+  "steps": [
+    {
+      "step_id": "open_publish_entry",
+      "instruction": "点击底部发布加号，进入发帖入口",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["发布", "加号", "+"]
+      },
+      "timeout_seconds": 10,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_post_content",
+      "instruction": "输入本轮唯一测试内容",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input"
+      },
+      "value_ref": "post_content",
+      "timeout_seconds": 10,
+      "max_retries": 1
+    },
+    {
+      "step_id": "submit_post",
+      "instruction": "点击发布按钮",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["发布", "发送"]
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "post_content_visible",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "post_content",
+      "after_step": "submit_post",
+      "historical_match_not_sufficient": true,
+      "required": true
+    }
+  ],
+  "risk_level": "MEDIUM",
+  "metadata": {
+    "stage": "stage6-small-scope-commercial",
+    "manual_review_required": true
+  }
+}

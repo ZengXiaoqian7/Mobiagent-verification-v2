@@ -1,0 +1,74 @@
+task_id: taobao-sales-sort-results
+app_id: com.taobao.taobao
+task_type: sales_sort
+description: Taobao search task that succeeds only when the loaded terminal results are explicitly sorted by sales.
+
+nodes:
+  - id: activate_search
+    next: [input_keyword]
+    name: Activate search input
+    condition:
+      type: escalate
+      params:
+        text:
+          any: ["搜索框", "激活淘宝搜索", "点击搜索"]
+        ocr:
+          all: ["搜索", "猜你想搜", "历史搜索"]
+        llm:
+          prompt: "该步骤是否在淘宝中激活了搜索输入框？"
+          expected_true: true
+
+  - id: input_keyword
+    next: [loaded_results]
+    name: Input search keyword
+    condition:
+      type: escalate
+      params:
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["text", "xml_text"]
+        llm:
+          prompt: "该步骤是否输入了与任务一致的淘宝搜索关键词？"
+          expected_true: true
+
+  - id: loaded_results
+    next: [sales_sorted_results]
+    name: Show loaded unsorted or sortable results
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["xml_text"]
+        xml:
+          any: ["销量,未选中", "销量,已选中"]
+          none: ["android.widget.EditText"]
+        llm_optional: true
+        llm:
+          prompt: "该步骤是否显示已加载的淘宝商品搜索结果，并具有销量排序入口？"
+          expected_true: true
+
+  - id: sales_sorted_results
+    name: Show terminal results sorted by sales
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["xml_text"]
+        xml:
+          all: ["销量,已选中"]
+          none: ["android.widget.EditText"]
+        llm_optional: true
+        llm:
+          prompt: "最终页面是否为与任务关键词一致、商品列表已加载且销量排序已选中的淘宝结果页？"
+          expected_true: true
+
+success:
+  any_of: [sales_sorted_results]

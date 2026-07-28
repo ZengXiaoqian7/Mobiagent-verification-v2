@@ -1,0 +1,15 @@
+{
+  "schema_version": "harmony-eval-mock-live-smoke-config-v1",
+  "resolved_catalog_sha256": "9251f6e21e50d666904b43fc224aa06e79ca844ea14fc9a2d34e8eaf5de12265",
+  "trace_id": "taobao/search/runner_taobao_type1_clean_success_001",
+  "contract_ref": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+  "contract_sha256": "c193e0cf9a865b1f06dff59877f847555345027fd2771148403eddde6da7399e",
+  "node_id": "input_keyword",
+  "checker_id": "llm",
+  "provider_kind": "LLM",
+  "frame_index": 4,
+  "model_version": "gpt-5.4-mini",
+  "mock_decision": true,
+  "request_budget": 1,
+  "max_attempts": 1
+}

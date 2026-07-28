@@ -1,0 +1,24 @@
+task_id: cross-app-dynamic-search-results
+app_id: cross_app
+task_type: search
+description: Reusable terminal search-result verifier using task-grounded XML evidence.
+
+nodes:
+  - id: loaded_results
+    name: Requested query is represented in a loaded terminal result page
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          require_image: true
+          crop_top_ratio: 0.12
+        dynamic_match:
+          extract: task_keyword
+          verification_fields: ["xml_text"]
+        xml:
+          any: ["综合", "全部"]
+          none: ["android.widget.EditText"]
+
+success:
+  any_of: [loaded_results]

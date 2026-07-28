@@ -1,0 +1,363 @@
+{
+  "freeze_id": "heldout-challenge-v1-real-ground-truth-freeze",
+  "frozen_at": "2026-07-13T15:10:37+08:00",
+  "collection_commit": "266306de4b910dc2c19e144c803232fdcda8b3bf",
+  "collection_tag": "heldout-challenge-v1.3-collection-freeze",
+  "enhanced_verifier_tag": "enhanced-development-20260712",
+  "verifier_executed_before_freeze": false,
+  "counts": {
+    "total": 48,
+    "success": 45,
+    "fail": 3,
+    "held_out_v1": 21,
+    "challenge_v1_real": 27
+  },
+  "files": {
+    "task_config": {
+      "path": "verification_benchmark/configs/runner_cross_app_heldout_challenge_v1.json",
+      "sha256": "b18ccb04bdb38d0010cb6205f0f2dd9e19e0e16c5dea31767032e4983dea58ee"
+    },
+    "labels": {
+      "path": "verification_benchmark/labels_cross_app_heldout_challenge_v1_real.jsonl",
+      "sha256": "060daec40ce40a55db9e3841f60d76eb821368950f951ce9cbf22bd23152e218"
+    }
+  },
+  "traces": [
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/search/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type1/1",
+      "sha256_tree": "94be4b436b3dc5d0e7244370b06158e64109b5819237ca366d7bdeaa90a31cf8",
+      "file_count": 17,
+      "bytes": 5159920
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/search/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type1/2",
+      "sha256_tree": "3f59303fa2131058cef1fb0019eb38591429477ea01663270bdb665c74124977",
+      "file_count": 14,
+      "bytes": 4617127
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/search/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type1/3",
+      "sha256_tree": "ee0159529affe76b019a0705ee95f6ef497c87194cf42af9f2f697282993014e",
+      "file_count": 14,
+      "bytes": 4425166
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/search/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type1/4",
+      "sha256_tree": "c13563b55b3abcaadd6d15f3a2784ca6bb3e487c10fc3292539ddd991e54e9fd",
+      "file_count": 77,
+      "bytes": 23758863
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/search/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type1/5",
+      "sha256_tree": "71caaadcacc0cc0b784f7e0fe6a56e2989389922d3bf5021f061924470c4183e",
+      "file_count": 92,
+      "bytes": 28903643
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/search/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type1/6",
+      "sha256_tree": "9db941d08c8cc51fb78284c31ec7ccbb90ffe63063582a241a61800bc714eb0c",
+      "file_count": 74,
+      "bytes": 20866650
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/creator_homepage/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type4/1",
+      "sha256_tree": "3cec404e5d1aec48c0b9026ee6184459032c3c91d048bb693c68adf678564121",
+      "file_count": 23,
+      "bytes": 7130450
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/creator_homepage/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type4/2",
+      "sha256_tree": "1db8c50bb144b9eb4ff795fec5b780a1dd2dd8163f254716832edc54927e1852",
+      "file_count": 23,
+      "bytes": 7129127
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/creator_homepage/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type4/3",
+      "sha256_tree": "5ade4f2d9c6e61ff1f31eb62be2b9e3bba4e2a3f4b2364f7e38223dbf0d2e119",
+      "file_count": 20,
+      "bytes": 6211504
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/creator_homepage/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type4/4",
+      "sha256_tree": "ab0459a25eafb51a06cf5daeb11b136987ca8879b053ff5423743c1d1620899e",
+      "file_count": 83,
+      "bytes": 25027251
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/creator_homepage/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type4/5",
+      "sha256_tree": "e4b604332dc1de653eefd2f013641d6c0fd227ff151c28c42ee2c2cc9a7bb17e",
+      "file_count": 23,
+      "bytes": 7134752
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/bilibili/creator_homepage/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/哔哩哔哩/type4/6",
+      "sha256_tree": "4a69351c97eeff772373f61156fc9c6c1e940a7e575582972134985dbe7b5308",
+      "file_count": 80,
+      "bytes": 32987854
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/search/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type4/1",
+      "sha256_tree": "8f5f8361d0612cdf0541da06629e9e01cbf75e1b95f19bb280456435f80a41de",
+      "file_count": 20,
+      "bytes": 5018542
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/search/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type4/2",
+      "sha256_tree": "9439248363e17fda9fb4faba62e934a3a6103cfc7976c4150ad2bfc0286a733a",
+      "file_count": 23,
+      "bytes": 5689513
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/search/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type4/3",
+      "sha256_tree": "08421628fc8dbdfef413bcc17809ecf65f9c6b48a5481979371ca68d97c12eb8",
+      "file_count": 20,
+      "bytes": 4588935
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/search/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type4/4",
+      "sha256_tree": "31c4aef00093e44beadf95c103006e9c4abbfcfaebd8dbe09fd007dfdebc456a",
+      "file_count": 20,
+      "bytes": 5275739
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/search/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type4/5",
+      "sha256_tree": "219781b58f5301dff70385e4d9f663d5da128562dc41bc3ed33580d3013c7f6f",
+      "file_count": 20,
+      "bytes": 5142299
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/search/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type4/6",
+      "sha256_tree": "4b0db8a0fc05363b4fdd6770f4c80a75125a4773f2c4d131c442236570b9c711",
+      "file_count": 20,
+      "bytes": 4962753
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/creator_homepage/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type2/1",
+      "sha256_tree": "3254403a64d04994e82254243935c7d8efab88d63962b2f26b8a95e022a77a22",
+      "file_count": 26,
+      "bytes": 6332040
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/creator_homepage/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type2/2",
+      "sha256_tree": "92466c3dd1ab809d65b546e88ea504d27fbd256024db947596570391c13662ba",
+      "file_count": 26,
+      "bytes": 7010168
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/creator_homepage/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type2/3",
+      "sha256_tree": "4fe788fbe1af98c6c709906df9b5c9ecf5c9b8d899a1a05139c02bc7b9b49835",
+      "file_count": 23,
+      "bytes": 5659197
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/creator_homepage/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type2/4",
+      "sha256_tree": "1545429f7a06a446a045b553aef2c73153d4c9666a8bab83d0b5f6e0b3f072ea",
+      "file_count": 32,
+      "bytes": 8750547
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/creator_homepage/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type2/5",
+      "sha256_tree": "9da82614e93df102cc40a01146e6ec6329cc3e92fbb141db5e19ce66b0abf1c2",
+      "file_count": 26,
+      "bytes": 6432147
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/xiaohongshu/creator_homepage/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/小红书/type2/6",
+      "sha256_tree": "909a5176199086a71aee96a5f569c0eb86f6944793f396cfff61b540e994e7a4",
+      "file_count": 26,
+      "bytes": 6591276
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/search/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type1/1",
+      "sha256_tree": "151f06cf541c871cf70959302257b6461cce807e545639a87eec5c09af976e36",
+      "file_count": 20,
+      "bytes": 8809785
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/search/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type1/2",
+      "sha256_tree": "b9ab5404626b2d1417bcbfbd7513c30aa0362e76092619f82edcf41c8ac08895",
+      "file_count": 26,
+      "bytes": 10038281
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/search/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type1/3",
+      "sha256_tree": "4ba3ec7c782c2e8bbd3d5737de12b45aeb0b383f4e98d52897a52aa6f769e351",
+      "file_count": 23,
+      "bytes": 9495641
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/search/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type1/4",
+      "sha256_tree": "acf41543dd4221466d4ec629be5fc8188f40bc5d0c1fc33abdb9feb17e4657f6",
+      "file_count": 17,
+      "bytes": 8134763
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/search/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type1/5",
+      "sha256_tree": "c4c5f0d054545949fa21cbbc767ba4cee961aac0d2635d4fe231797b6c4fe95d",
+      "file_count": 20,
+      "bytes": 9096117
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/search/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type1/6",
+      "sha256_tree": "917901a56229378886d1f909965bf8f74a6f9d625de2c1c0098510455d06006a",
+      "file_count": 23,
+      "bytes": 9919657
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/play/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type2/1",
+      "sha256_tree": "2a050f375a147f332e83b4d08f6f861927dd8bf9b17c112b1cc2b2dbae661d43",
+      "file_count": 26,
+      "bytes": 10103304
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/play/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type2/2",
+      "sha256_tree": "bad990c8ae37f88e28605edd98d2fcbba986eebe4312211425e4f8ef4cdaef5e",
+      "file_count": 29,
+      "bytes": 11384934
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/play/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type2/3",
+      "sha256_tree": "16c9f807e863a1d30295b9ee458877058ce92035391b8323bb4a762d761d46fc",
+      "file_count": 35,
+      "bytes": 13294805
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/play/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type2/4",
+      "sha256_tree": "0e8550f749fd424d30b86254d43496bdf50a531bcf19cffbff60c3a0c1c692a0",
+      "file_count": 23,
+      "bytes": 9727210
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/play/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type2/5",
+      "sha256_tree": "d3d1ab974d217451a9d3956dc5ee952c164ed0b1f6aea4b27beb621349091a1a",
+      "file_count": 23,
+      "bytes": 9821132
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/cloudmusic/play/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/网易云音乐/type2/6",
+      "sha256_tree": "bea037258d820c5659ea1c9cf657b73e361668c8f6a2a049c31d65213cae5b72",
+      "file_count": 47,
+      "bytes": 14110228
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/location_search/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/location_search/1",
+      "sha256_tree": "f7e9a2dd41070d37d8390f7c9b12acfb479142be66d914b7eec91f5451d73463",
+      "file_count": 29,
+      "bytes": 14671512
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/location_search/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/location_search/2",
+      "sha256_tree": "03364abb73e81d67038893f6cd06dd60ebd2d756232bd2fce191b9d817d44c90",
+      "file_count": 11,
+      "bytes": 4585397
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/location_search/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/location_search/3",
+      "sha256_tree": "05eea14bd2742e7768a4f34628a9e2dcced11808895f94c26b10e0f3a911e295",
+      "file_count": 20,
+      "bytes": 9002896
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/location_search/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/location_search/4",
+      "sha256_tree": "20f381b99610e8c611e56d773ca7607cd637e7ac1a0105ac353769bbd00b7435",
+      "file_count": 17,
+      "bytes": 7151025
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/location_search/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/location_search/5",
+      "sha256_tree": "cb040d0ff21593ab3a2b732280653c7022ba9b8c109ae38957c09684621a3e25",
+      "file_count": 14,
+      "bytes": 6789633
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/location_search/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/location_search/6",
+      "sha256_tree": "7f9d43f738947984640730b5fbc34d41d805134c4a61600579bcf6ee7c28cd06",
+      "file_count": 14,
+      "bytes": 6389726
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/route_preview/01",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/route_preview/1",
+      "sha256_tree": "e578d284624316d7ddfe6bb7db74a744e480cbcdb6aabd981fed052cccc45def",
+      "file_count": 71,
+      "bytes": 37416519
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/route_preview/02",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/route_preview/2",
+      "sha256_tree": "f15b78c1d8128abd04ef0e1cd874dd94fbd40794da8b685c0179ab9d8303e11b",
+      "file_count": 47,
+      "bytes": 18877436
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/route_preview/03",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/route_preview/3",
+      "sha256_tree": "54d5ff53dee75701fa2024695d422bec129c57d5e0387884efb45e92e7acd840",
+      "file_count": 92,
+      "bytes": 48387498
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/route_preview/04",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/route_preview/4",
+      "sha256_tree": "df6fd577c4662f52584dc529ae7c2fd8c0ce67b60b435291dfa462541c1c3d17",
+      "file_count": 41,
+      "bytes": 20776240
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/route_preview/05",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/route_preview/5",
+      "sha256_tree": "949ae5f7eb1ddce7755113914455986318019990c76e66d779ee6eade73d069c",
+      "file_count": 62,
+      "bytes": 26918777
+    },
+    {
+      "trace_id": "heldout_challenge_v1/real/gaode/route_preview/06",
+      "source": "verification_benchmark/runner_outputs_cross_app_heldout_challenge_v1/高德地图/route_preview/6",
+      "sha256_tree": "6c0e7d9d4dede91c7dd2f799fd42653babe995c9c151504fdf90def00845dfb6",
+      "file_count": 74,
+      "bytes": 29012730
+    }
+  ]
+}

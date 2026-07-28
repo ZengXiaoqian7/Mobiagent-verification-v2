@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "harmony-eval-recorder-receipt-v1",
+  "title": "Harmony Evaluation External Recorder Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "recorder_version",
+    "manifest_sha256",
+    "model_version",
+    "base_url",
+    "api_key_env",
+    "api_key_recorded",
+    "ocr_prompt_template_version",
+    "image_detail",
+    "status",
+    "cache_storage_sha256",
+    "summary",
+    "sessions"
+  ],
+  "properties": {
+    "schema_version": {"const": "harmony-eval-recorder-receipt-v1"},
+    "recorder_version": {"const": "harmony-eval-external-recorder-v1"},
+    "manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "model_version": {"const": "gpt-5.4-mini"},
+    "base_url": {"const": "https://api.horizon1123.top/v1"},
+    "api_key_env": {"const": "MOBIAGENT_API_KEY"},
+    "api_key_recorded": {"const": false},
+    "ocr_prompt_template_version": {"const": "recorded-ocr-json-v1"},
+    "image_detail": {"const": "high"},
+    "status": {"enum": ["PARTIAL", "COMPLETE"]},
+    "cache_storage_sha256": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+    },
+    "summary": {"$ref": "#/$defs/summary"},
+    "sessions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/session"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "usage": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recorded", "cached", "errors", "requests", "latency_ms_total", "usage"],
+      "properties": {
+        "recorded": {"type": "integer", "minimum": 0},
+        "cached": {"type": "integer", "minimum": 0},
+        "errors": {"type": "integer", "minimum": 0},
+        "requests": {"type": "integer", "minimum": 0},
+        "latency_ms_total": {"type": "number", "minimum": 0},
+        "usage": {"$ref": "#/$defs/usage"}
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_index", "request_budget", "worst_case_requests", "items"],
+      "properties": {
+        "session_index": {"type": "integer", "minimum": 0},
+        "request_budget": {"type": "integer", "minimum": 0},
+        "worst_case_requests": {"type": "integer", "minimum": 0},
+        "items": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/item"}
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_id",
+        "provider_kind",
+        "key",
+        "request_image_sha256",
+        "status",
+        "attempts",
+        "error_code",
+        "latency_ms",
+        "usage",
+        "response_sha256",
+        "response_id_sha256"
+      ],
+      "properties": {
+        "job_id": {"type": "string", "minLength": 1},
+        "provider_kind": {"enum": ["OCR", "LLM"]},
+        "key": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["screenshot_sha256", "model_version", "request_sha256"],
+          "properties": {
+            "screenshot_sha256": {"$ref": "#/$defs/sha256"},
+            "model_version": {"const": "gpt-5.4-mini"},
+            "request_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "request_image_sha256": {"$ref": "#/$defs/sha256"},
+        "status": {"enum": ["RECORDED", "CACHED", "ERROR"]},
+        "attempts": {"type": "integer", "minimum": 0, "maximum": 3},
+        "error_code": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "enum": [
+                "HTTP_ERROR",
+                "TRANSPORT_ERROR",
+                "MODEL_DRIFT",
+                "INVALID_RECORDED_OUTPUT",
+                "INVALID_PROVIDER_RESPONSE"
+              ]
+            }
+          ]
+        },
+        "latency_ms": {"type": "number", "minimum": 0},
+        "usage": {"$ref": "#/$defs/usage"},
+        "response_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "response_id_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        }
+      }
+    }
+  }
+}

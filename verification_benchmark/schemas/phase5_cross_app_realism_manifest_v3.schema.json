@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/phase5_cross_app_realism_manifest_v3.schema.json",
+  "title": "Phase 5 cross-App realism pilot manifest v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "experiment_id", "protocol_status", "publication_eligible", "claim_boundary", "oracle_database_dependency", "phase4_status", "predecessor_disposition", "cohort", "package_probe", "agent", "collection_policy", "tasks"],
+  "properties": {
+    "schema_version": {"const": "harmony-eval-phase5-cross-app-realism-manifest-v3"},
+    "experiment_id": {"const": "phase5-cross-app-realism-pilot-v3"},
+    "protocol_status": {"const": "DEVELOPMENT_REALISM_PILOT_FROZEN_BEFORE_COLLECTION"},
+    "publication_eligible": {"const": false},
+    "claim_boundary": {"const": "S0_S1_BLACK_BOX_ONLY_NO_BACKEND_SIDE_EFFECT_CLAIM"},
+    "oracle_database_dependency": {"const": false},
+    "phase4_status": {"const": "FROZEN_MECHANISM_VALIDATION_ONLY"},
+    "predecessor_disposition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["run_id", "status", "file_sha256", "semantic_sha256"],
+      "properties": {
+        "run_id": {"const": "p5r-2026071700000002"},
+        "status": {"const": "RETIRED_FROM_PERFORMANCE_COHORT_CONSTRUCT_INVALID"},
+        "file_sha256": {"const": "68278635361d67c81d1344e0055e2ab9f4a545f329e943f34ca428a12e996176"},
+        "semantic_sha256": {"const": "775ad102320206c3f7b5e8e43600e8e4500e3bbc89e1ca6a9d2c2932325a569a"}
+      }
+    },
+    "cohort": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cohort_id", "device_serial", "device_model", "device_type", "posture", "resolution", "os_version"],
+      "properties": {
+        "cohort_id": {"type": "string", "minLength": 1},
+        "device_serial": {"const": "5ZU0226122004500"},
+        "device_model": {"const": "DEL-AL10"},
+        "device_type": {"const": "Harmony"},
+        "posture": {"const": "FOLDED_OUTER_DISPLAY"},
+        "resolution": {"const": [1080, 2444]},
+        "os_version": {"const": "OpenHarmony-6.1.1.120"}
+      }
+    },
+    "package_probe": {"$ref": "#/$defs/packageProbe"},
+    "agent": {"$ref": "#/$defs/agent"},
+    "collection_policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["risk_tier", "allowed_apps", "allowed_actions", "forbidden_actions", "abort_conditions", "collection_order", "ground_truth_status", "guardrail_callbacks_allowed", "overwrite_allowed", "final_performance_cohort_status"],
+      "properties": {
+        "risk_tier": {"const": "LOW_RISK_CROSS_APP_READ_ONLY_PRODUCT_RESEARCH"},
+        "allowed_apps": {"const": ["淘宝", "小红书"]},
+        "allowed_actions": {"$ref": "#/$defs/nonEmptyStrings"},
+        "forbidden_actions": {"$ref": "#/$defs/nonEmptyStrings"},
+        "abort_conditions": {"$ref": "#/$defs/nonEmptyStrings"},
+        "collection_order": {"const": ["crossapp-ranked-bag-review-001"]},
+        "ground_truth_status": {"const": "PENDING_SINGLE_OPERATOR_REVIEW"},
+        "guardrail_callbacks_allowed": {"const": false},
+        "overwrite_allowed": {"const": false},
+        "final_performance_cohort_status": {"const": "NOT_FROZEN_UNTIL_REALISM_PILOT_IS_REVIEWED"}
+      }
+    },
+    "tasks": {
+      "type": "array", "minItems": 1, "maxItems": 1,
+      "prefixItems": [{"$ref": "#/$defs/task"}],
+      "items": false
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonEmptyStrings": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "installedApp": {
+      "type": "object", "additionalProperties": false,
+      "required": ["app", "package", "version_name", "version_code", "raw_dump_sha256"],
+      "properties": {
+        "app": {"enum": ["小红书", "淘宝"]},
+        "package": {"enum": ["com.xingin.xhs_hos", "com.taobao.taobao4hmos"]},
+        "version_name": {"enum": ["9.38.0", "10.64.0"]},
+        "version_code": {"enum": [9380801, 770]},
+        "raw_dump_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "packageProbe": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "status", "mode", "report_file_sha256", "report_semantic_sha256", "prior_same_path_attempt_preserved", "provenance_caveat", "installed_apps"],
+      "properties": {
+        "schema_version": {"const": "harmony-package-probe-v1"},
+        "status": {"const": "PASS"},
+        "mode": {"const": "READ_ONLY_PACKAGE_VERSION_PROBE"},
+        "report_file_sha256": {"const": "e72686f980b996ef3ca9a1ac7e1866284e7cec812d42181b4144be907db93317"},
+        "report_semantic_sha256": {"const": "d2ee3bad5b62ed4fff854885771ea41df13a80d1c85a36d65f84a941e27a8915"},
+        "prior_same_path_attempt_preserved": {"const": false},
+        "provenance_caveat": {"type": "string", "minLength": 1},
+        "installed_apps": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/installedApp"}}
+      }
+    },
+    "agent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider_base_url", "model", "transport", "key_env", "device", "use_qwen3", "use_experience", "user_profile", "use_graphrag", "accept_planner_changes", "decider_protocol", "coord_mode", "e2e", "max_steps", "runner_module_sha256"],
+      "properties": {
+        "provider_base_url": {"const": "https://api.horizon1123.top/v1"},
+        "model": {"const": "gpt-5.4-mini"},
+        "transport": {"const": "raw_http"},
+        "key_env": {"const": "MOBIAGENT_API_KEY"},
+        "device": {"const": "Harmony"},
+        "use_qwen3": {"const": "on"},
+        "use_experience": {"const": "off"},
+        "user_profile": {"const": "off"},
+        "use_graphrag": {"const": "off"},
+        "accept_planner_changes": {"const": "off"},
+        "decider_protocol": {"const": "qwen_json"},
+        "coord_mode": {"const": "resized_pixel"},
+        "e2e": {"const": true},
+        "max_steps": {"const": 15},
+        "runner_module_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "selectionPolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scope", "reading_order", "excluded_visible_markers", "rule", "global_ranking_claim_allowed"],
+      "properties": {
+        "scope": {"const": "FIRST_LOADED_VIEWPORT_AFTER_VISIBLE_SALES_SORT"},
+        "reading_order": {"const": "TOP_TO_BOTTOM_LEFT_TO_RIGHT"},
+        "excluded_visible_markers": {"const": ["广告", "直播"]},
+        "rule": {"const": "FIRST_NON_EXCLUDED_CARD_WITH_VISIBLE_IDENTIFIABLE_BRAND_OR_DISTINCTIVE_PRODUCT_PHRASE"},
+        "global_ranking_claim_allowed": {"const": false}
+      }
+    },
+    "transferPolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["minimum_slots", "maximum_slots", "slot_description", "exact_visible_identity_required", "generic_category_or_style_only_forbidden"],
+      "properties": {
+        "minimum_slots": {"const": 1},
+        "maximum_slots": {"const": 1},
+        "slot_description": {"type": "string", "minLength": 1},
+        "exact_visible_identity_required": {"const": true},
+        "generic_category_or_style_only_forbidden": {"const": true}
+      }
+    },
+    "task": {
+      "type": "object", "additionalProperties": false,
+      "required": ["task_id", "collection_ordinal", "task_family", "initial_app", "initial_package", "source_query", "source_sort", "selection_policy", "target_app", "target_package", "transfer_policy", "task_text", "expected_observable_criteria", "allowed_actions", "forbidden_actions", "contract_source_route", "smoke_priority"],
+      "properties": {
+        "task_id": {"const": "crossapp-ranked-bag-review-001"},
+        "collection_ordinal": {"const": 1},
+        "task_family": {"const": "cross_app_ranked_product_research_read_only"},
+        "initial_app": {"const": "淘宝"},
+        "initial_package": {"const": "com.taobao.taobao4hmos"},
+        "source_query": {"const": "通勤双肩包"},
+        "source_sort": {"const": "销量"},
+        "selection_policy": {"$ref": "#/$defs/selectionPolicy"},
+        "target_app": {"const": "小红书"},
+        "target_package": {"const": "com.xingin.xhs_hos"},
+        "transfer_policy": {"$ref": "#/$defs/transferPolicy"},
+        "task_text": {"type": "string", "minLength": 1},
+        "expected_observable_criteria": {"$ref": "#/$defs/nonEmptyStrings"},
+        "allowed_actions": {"$ref": "#/$defs/nonEmptyStrings"},
+        "forbidden_actions": {"$ref": "#/$defs/nonEmptyStrings"},
+        "contract_source_route": {"const": "template"},
+        "smoke_priority": {"const": "REALISM_GATE"}
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "harmony-probe-capability-001",
+  "app_under_test": {
+    "name": "MobiAgent Harmony Probe",
+    "package": "com.zengxq.mobiagentprobe",
+    "version": "runtime-confirmed"
+  },
+  "feature": "official_uitest_capability_probe",
+  "steps": [
+    {
+      "step_id": "check-capabilities",
+      "instruction": "点击检查系统能力按钮，等待能力状态更新",
+      "action_type": "CLICK",
+      "target": {
+        "role": "Button",
+        "label": "检查系统能力",
+        "text_candidates": ["检查系统能力"]
+      },
+      "timeout_seconds": 30,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "screenshot-capability-visible",
+      "type": "TEXT_VISIBLE",
+      "expected_value": "屏幕捕获成功",
+      "after_step": "check-capabilities",
+      "required": true,
+      "historical_match_not_sufficient": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "LOW",
+  "metadata": {
+    "stage": "native-harmony-framework-smoke",
+    "real_device_required": true,
+    "manual_review_required": false
+  }
+}

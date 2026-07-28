@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mobiagent.local/schemas/automated_evaluation_plan_v1.schema.json",
+  "title": "MobiAgent automated evaluation plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tasks"],
+  "properties": {
+    "schema_version": {
+      "const": "mobiagent-automated-evaluation-plan-v1"
+    },
+    "raw_trace_root": {"type": "string", "minLength": 1},
+    "intake_root": {"type": "string", "minLength": 1},
+    "metadata": {"type": "object"},
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/existing_trace"},
+          {"$ref": "#/$defs/realism_pilot"},
+          {"$ref": "#/$defs/realism_cohort"},
+          {"$ref": "#/$defs/generic_runner_trace"}
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "existing_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "run_dir", "intake_receipt"],
+      "properties": {
+        "kind": {"const": "existing_trace"},
+        "run_dir": {"type": "string", "minLength": 1},
+        "intake_receipt": {"type": "string", "minLength": 1},
+        "task_contract": {"type": "string", "minLength": 1},
+        "contract_freeze": {"type": "string", "minLength": 1}
+      }
+    },
+    "runner_common": {
+      "type": "object",
+      "properties": {
+        "run_id": {"type": "string", "pattern": "^p5r-[0-9a-f]{16}$"},
+        "task_id": {"type": "string", "minLength": 1},
+        "manifest": {"type": "string", "minLength": 1},
+        "package_probe_report": {"type": "string", "minLength": 1},
+        "os_version": {"type": "string", "minLength": 1},
+        "attempt_ordinal": {"type": "integer", "minimum": 1}
+      }
+    },
+    "realism_pilot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "run_id", "task_id", "manifest", "package_probe_report",
+        "predecessor_disposition", "os_version"
+      ],
+      "properties": {
+        "kind": {"const": "phase5_cross_app_realism"},
+        "run_id": {"$ref": "#/$defs/runner_common/properties/run_id"},
+        "task_id": {"$ref": "#/$defs/runner_common/properties/task_id"},
+        "manifest": {"$ref": "#/$defs/runner_common/properties/manifest"},
+        "package_probe_report": {"$ref": "#/$defs/runner_common/properties/package_probe_report"},
+        "predecessor_disposition": {"type": "string", "minLength": 1},
+        "os_version": {"$ref": "#/$defs/runner_common/properties/os_version"},
+        "attempt_ordinal": {"$ref": "#/$defs/runner_common/properties/attempt_ordinal"}
+      }
+    },
+    "realism_cohort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "run_id", "task_id", "manifest", "package_probe_report",
+        "pilot_ground_truth", "os_version"
+      ],
+      "properties": {
+        "kind": {"const": "phase5_cross_app_realism_cohort"},
+        "run_id": {"$ref": "#/$defs/runner_common/properties/run_id"},
+        "task_id": {"$ref": "#/$defs/runner_common/properties/task_id"},
+        "manifest": {"$ref": "#/$defs/runner_common/properties/manifest"},
+        "package_probe_report": {"$ref": "#/$defs/runner_common/properties/package_probe_report"},
+        "pilot_ground_truth": {"type": "string", "minLength": 1},
+        "os_version": {"$ref": "#/$defs/runner_common/properties/os_version"},
+        "attempt_ordinal": {"$ref": "#/$defs/runner_common/properties/attempt_ordinal"}
+      }
+    },
+    "generic_runner_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "run_id", "task_id", "task_text", "app",
+        "runner_task_type", "device_serial", "os_version"
+      ],
+      "properties": {
+        "kind": {"const": "generic_runner_trace"},
+        "run_id": {"type": "string", "minLength": 1},
+        "task_id": {"type": "string", "minLength": 1},
+        "task_text": {"type": "string", "minLength": 1},
+        "task_family": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
+        "app": {"type": "string", "minLength": 1},
+        "runner_task_type": {"type": "string", "minLength": 1},
+        "device_serial": {"type": "string", "minLength": 1},
+        "target_apps": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "provider_base_url": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "runner_model": {"type": "string", "minLength": 1},
+        "contract_model": {"type": "string", "minLength": 1},
+        "transport": {"const": "raw_http"},
+        "os_version": {"type": "string", "minLength": 1},
+        "attempt_ordinal": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

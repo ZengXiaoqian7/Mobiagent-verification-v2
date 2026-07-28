@@ -1,0 +1,182 @@
+{
+  "description": "MVP task/rule mapping for the state auto-verification benchmark.",
+  "repo_relative_paths": true,
+  "mvp_tasks": [
+    {
+      "benchmark_task_id": "taobao_search",
+      "display_name": "淘宝搜索",
+      "app": "taobao",
+      "runner_app": "淘宝",
+      "runner_type": "type1",
+      "benchmark_task_type": "search",
+      "rule_file": "MobiFlow/task_rules/taobao/type1-taobao-search.yaml",
+      "trace_root": "verification_benchmark/traces/taobao/search",
+      "notes": "Uses Taobao type1 rule. Existing MobiFlow taobao.json does not include type1, so benchmark uses this dedicated config."
+    },
+    {
+      "benchmark_task_id": "taobao_search_results",
+      "display_name": "Taobao search results",
+      "app": "taobao",
+      "runner_app": "娣樺疂",
+      "runner_type": "type1",
+      "benchmark_task_type": "search_results",
+      "rule_file": "verification_benchmark/rules/taobao/taobao-search-results.yaml",
+      "trace_root": "verification_benchmark/traces/taobao/search",
+      "notes": "Benchmark-local rule for tasks whose terminal state is the Taobao search results page."
+    },
+    {
+      "benchmark_task_id": "taobao_open_detail",
+      "display_name": "Taobao open detail",
+      "app": "taobao",
+      "runner_app": "娣樺疂",
+      "runner_type": "type1",
+      "benchmark_task_type": "open_detail",
+      "rule_file": "verification_benchmark/rules/taobao/taobao-open-detail-strict.yaml",
+      "trace_root": "verification_benchmark/traces/taobao/search",
+      "notes": "Benchmark-local strict rule for search-and-open-detail tasks. The final state requires both detail-page evidence and semantic task match."
+    },
+    {
+      "benchmark_task_id": "taobao_filter",
+      "display_name": "淘宝筛选/排序",
+      "app": "taobao",
+      "runner_app": "淘宝",
+      "runner_type": "type1",
+      "benchmark_task_type": "filter",
+      "rule_file": "MobiFlow/task_rules/taobao/type1-taobao-search.yaml",
+      "trace_root": "verification_benchmark/traces/taobao/filter",
+      "notes": "MVP treats filtering/sorting as a Taobao type1 path using the same rule first; later phases should tighten final-state and dynamic slot checks."
+    },
+    {
+      "benchmark_task_id": "taobao_sales_sort",
+      "display_name": "Taobao sales-sorted results",
+      "app": "taobao",
+      "runner_app": "淘宝",
+      "runner_type": "type1",
+      "benchmark_task_type": "sales_sort",
+      "rule_file": "verification_benchmark/rules/taobao/taobao-dynamic-selected-control-results.yaml",
+      "trace_root": "verification_benchmark/traces/taobao/sales_sort",
+      "notes": "Generic deterministic selected-control rule; derives 销量 from task text and requires the corresponding terminal selected state."
+    },
+    {
+      "benchmark_task_id": "taobao_tmall_filter",
+      "display_name": "Taobao Tmall-filtered results",
+      "app": "taobao",
+      "runner_app": "淘宝",
+      "runner_type": "type1",
+      "benchmark_task_type": "tmall_filter",
+      "rule_file": "verification_benchmark/rules/taobao/taobao-dynamic-selected-control-results.yaml",
+      "trace_root": "verification_benchmark/traces/taobao/tmall_filter",
+      "notes": "Generic deterministic selected-control rule; derives 天猫 from task text and requires the corresponding terminal selected state."
+    },
+    {
+      "benchmark_task_id": "taobao_composed_controls",
+      "display_name": "Taobao composed selected controls",
+      "app": "taobao",
+      "runner_app": "淘宝",
+      "runner_type": "type1",
+      "benchmark_task_type": "composed_controls",
+      "rule_file": "verification_benchmark/rules/taobao/taobao-dynamic-selected-control-results.yaml",
+      "trace_root": "verification_benchmark/traces/taobao/composed_controls",
+      "notes": "Uses the same generic rule and requires every control extracted from the task to be selected in the terminal XML."
+    },
+    {
+      "benchmark_task_id": "bilibili_search",
+      "display_name": "B站搜索",
+      "app": "bilibili",
+      "runner_app": "bilibili",
+      "runner_type": "type1",
+      "benchmark_task_type": "search",
+      "rule_file": "verification_benchmark/rules/cross_app/dynamic-search-results.yaml",
+      "trace_root": "verification_benchmark/traces/bilibili/search",
+      "notes": "Enhanced cross-app rule. Original baseline is evaluated through a frozen alternate mapping."
+    },
+    {
+      "benchmark_task_id": "bilibili_play",
+      "display_name": "B站播放",
+      "app": "bilibili",
+      "runner_app": "bilibili",
+      "runner_type": "type2",
+      "benchmark_task_type": "play",
+      "rule_file": "verification_benchmark/rules/bilibili/bilibili-play-video.yaml",
+      "trace_root": "verification_benchmark/traces/bilibili/play",
+      "notes": "Covered by existing MobiFlow/task_configs/bilibili.json type2."
+    },
+    {
+      "benchmark_task_id": "bilibili_creator_homepage_original",
+      "display_name": "Bilibili creator homepage (original rule)",
+      "app": "bilibili",
+      "runner_app": "bilibili",
+      "runner_type": "type4",
+      "benchmark_task_type": "creator_homepage",
+      "rule_file": "verification_benchmark/rules/cross_app/dynamic-creator-homepage.yaml",
+      "trace_root": "verification_benchmark/traces/bilibili/creator_homepage",
+      "notes": "Enhanced cross-app identity/profile rule; Bilibili SurfaceView XML limitations are reported as evidence coverage failures."
+    },
+    {
+      "benchmark_task_id": "xiaohongshu_search_original",
+      "display_name": "Xiaohongshu search (original rule)",
+      "app": "xiaohongshu",
+      "runner_app": "小红书",
+      "runner_type": "type4",
+      "benchmark_task_type": "search",
+      "rule_file": "verification_benchmark/rules/cross_app/dynamic-search-results.yaml",
+      "trace_root": "verification_benchmark/traces/xiaohongshu/search",
+      "notes": "Enhanced cross-app rule shared with Bilibili search."
+    },
+    {
+      "benchmark_task_id": "xiaohongshu_creator_homepage_original",
+      "display_name": "Xiaohongshu creator homepage (original rule)",
+      "app": "xiaohongshu",
+      "runner_app": "小红书",
+      "runner_type": "type2",
+      "benchmark_task_type": "creator_homepage",
+      "rule_file": "verification_benchmark/rules/cross_app/dynamic-creator-homepage.yaml",
+      "trace_root": "verification_benchmark/traces/xiaohongshu/creator_homepage",
+      "notes": "Enhanced cross-app rule shared with Bilibili creator homepage."
+    },
+    {
+      "benchmark_task_id": "cloudmusic_search_original",
+      "display_name": "CloudMusic search (original rule baseline)",
+      "app": "cloudmusic",
+      "runner_app": "网易云音乐",
+      "runner_type": "type1",
+      "benchmark_task_type": "search",
+      "rule_file": "verification_benchmark/rules/cross_app/dynamic-music-search-results.yaml",
+      "trace_root": "verification_benchmark/traces/cloudmusic/search",
+      "notes": "Post-round2 development rule; requires a future artist-held-out round before being counted as generalization evidence."
+    },
+    {
+      "benchmark_task_id": "cloudmusic_play_original",
+      "display_name": "CloudMusic playback (original rule baseline)",
+      "app": "cloudmusic",
+      "runner_app": "网易云音乐",
+      "runner_type": "type2",
+      "benchmark_task_type": "play",
+      "rule_file": "verification_benchmark/rules/cross_app/dynamic-music-playback.yaml",
+      "trace_root": "verification_benchmark/traces/cloudmusic/play",
+      "notes": "Post-round2 development rule; requires future song-held-out validation before being counted as generalization evidence."
+    },
+    {
+      "benchmark_task_id": "gaode_location_search_frozen_unmapped",
+      "display_name": "Gaode location search",
+      "app": "gaode",
+      "runner_app": "高德地图",
+      "runner_type": "location_search",
+      "benchmark_task_type": "location_search",
+      "rule_file": "verification_benchmark/rules/gaode/gaode-location-search.yaml",
+      "trace_root": "verification_benchmark/traces/heldout_challenge_v1/real/gaode/location_search",
+      "notes": "Enhanced v2 generic entity-grounded location result/detail mapping; no location literal is encoded."
+    },
+    {
+      "benchmark_task_id": "gaode_route_preview_frozen_unmapped",
+      "display_name": "Gaode route preview",
+      "app": "gaode",
+      "runner_app": "高德地图",
+      "runner_type": "route_preview",
+      "benchmark_task_type": "route_preview",
+      "rule_file": "verification_benchmark/rules/gaode/gaode-route-preview.yaml",
+      "trace_root": "verification_benchmark/traces/heldout_challenge_v1/real/gaode/route_preview",
+      "notes": "Enhanced v2 generic origin/destination route-preview mapping; does not start navigation."
+    }
+  ]
+}

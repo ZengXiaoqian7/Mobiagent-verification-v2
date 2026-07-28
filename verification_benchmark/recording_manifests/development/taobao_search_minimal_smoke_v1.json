@@ -1,0 +1,29 @@
+{
+  "schema_version": "harmony-eval-recording-manifest-v1",
+  "model_version": "gpt-5.4-mini",
+  "jobs": [
+    {
+      "job_id": "taobao-search-results-activate_search-llm-frame2",
+      "provider_kind": "LLM",
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/2.jpg",
+      "screenshot_sha256": "d7b44b96d0907947b427da13c413d1360f7a1651ea1dcd4576d2f77ee43a6eac",
+      "request": {
+        "kind": "LLM_PROMPT",
+        "prompt_template_version": "legacy-llm-prompt-v1",
+        "prompt": "该步骤是否在淘宝中激活了搜索输入框？"
+      }
+    },
+    {
+      "job_id": "taobao-search-results-results_page-ocr-frame6",
+      "provider_kind": "OCR",
+      "screenshot_ref": "taobao/search/runner_taobao_type1_clean_success_001/6.jpg",
+      "screenshot_sha256": "0c439e8bf8799e4bf2557fe54d8d95571d6fa4793c2accd3e60ce57e20d26c83",
+      "request": {
+        "kind": "OCR_ROI",
+        "coordinate_space": "NORMALIZED",
+        "bounds": [0.0, 0.0, 1.0, 1.0],
+        "reference_size": null
+      }
+    }
+  ]
+}

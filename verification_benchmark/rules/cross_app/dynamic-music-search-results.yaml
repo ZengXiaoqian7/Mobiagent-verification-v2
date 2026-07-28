@@ -1,0 +1,31 @@
+task_id: dynamic-music-search-results
+app_id: cross_app_music
+task_type: search
+description: Task-grounded loaded music search results.
+
+nodes:
+  - id: loaded_music_results
+    condition:
+      type: juxtaposition
+      params:
+        visual_state:
+          not_loading_skeleton: true
+          require_image: true
+        dynamic_match:
+          extract: task_entities
+          entity_patterns:
+            - "搜索(.+?)(?:的歌曲|，|,)"
+            - "(?:找一下|搜一下)(.+?)(?:的歌曲|，|,)"
+          require_entity_xml_node:
+            entity_index: 0
+            class: "android.widget.EditText"
+            attribute: "text"
+            allow_missing: true
+          verification_fields: ["xml_text"]
+          require_any: ["单曲", "歌手", "专辑", "歌单"]
+        xml:
+          any: ["单曲", "歌手", "专辑", "歌单"]
+          none: ["无匹配结果"]
+
+success:
+  any_of: [loaded_music_results]
