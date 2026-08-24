@@ -42,6 +42,27 @@ HarmonyOS 真实执行还需要已可用的 `hdc`、设备序列号和应用登�
 
 ## 运行测试
 
+### PC 客户端
+
+Windows 下可直接双击 `launch_pc_client.bat`，或运行：
+
+```powershell
+python -m pc_client
+```
+
+客户端复用下文同一套评测内核，支持离线 Manifest 回放、Mock 自检、无设备操作的真机预检，以及需要二次副作用确认的真机执行。离线回放默认从 raw `actions.json` 与 observation frames 使用当前规则重算 Step Gate，不采信历史 gate 标签。密钥仍只从环境变量读取，客户端不保存密钥。
+
+如需打包为 Windows 客户端目录，先安装 PyInstaller，再运行：
+
+```powershell
+python -m pip install pyinstaller
+.\build_pc_client.ps1
+```
+
+构建产物位于 `dist\MobiAgentVerifierPC\`。
+
+打包程序是否具备真机执行能力取决于构建环境：Android 需要 `uiautomator2`，HarmonyOS 需要 `hmdriver2`，模型调用需要 `openai`。缺少这些依赖时，离线回放、Mock 自检和真机预检仍可使用，但真机执行只能返回环境阻断；正式发布前应在依赖齐全的环境重新构建，并连接测试设备完成验收。
+
 ### 1. 本地冒烟测试
 
 不访问真实设备，用于检查用例格式、编排和报告链路。
@@ -116,7 +137,9 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 优先查看 `report.md`：
 
 - `APP_PASS`：所有业务断言在规定观察窗口内得到证据支持。
-- `APP_FAIL`：步骤失败、顺序不符或终态断言未满足。
+- `APP_FAIL`：业务步骤符合且环境正常，但完整观察窗口明确证明终态断言未满足。
+- `TEST_EXECUTION_FAIL`：步骤动作、输入、目标或顺序不符合测试契约。
+- `ENV_BLOCKED`：账号、权限、网络、设备或系统状态阻断测试。
 - `INCONCLUSIVE`：轨迹、设备状态或观察证据不足，不能可靠判定。
 
 ## 安全与版本控制

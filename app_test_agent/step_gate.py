@@ -181,6 +181,26 @@ def evaluate_step_gate(
         action_record=action_record,
         intent=intent,
     )
+    input_effect = action_record.get("input_effect")
+    if (
+        step.action_type == "INPUT"
+        and isinstance(input_effect, Mapping)
+        and input_effect.get("status") == ActionConformance.NON_CONFORMANT
+    ):
+        return StepGateResult(
+            step_id=step.step_id,
+            attempt=attempt,
+            pre_frame=pre_frame_id,
+            post_frames=post_frame_ids,
+            action_ids=action_ids,
+            target_evidence=target_evidence,
+            action_conformance=ActionConformance.NON_CONFORMANT,
+            progress_status=ProgressStatus.UNKNOWN,
+            next_step_target_evidence=normalized_next_target,
+            gate_decision=StepGateDecision.TEST_EXECUTION_FAIL,
+            reason="dispatched input value was not observed on the declared editable surface",
+            runtime_intent=intent.as_dict(),
+        )
     if action_conformance == ActionConformance.NON_CONFORMANT:
         overlay_retry = (
             target_evidence == "OVERLAY_BLOCKED" and attempt <= step.max_retries

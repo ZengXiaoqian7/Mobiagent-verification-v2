@@ -78,3 +78,9 @@ phone_runner/local_server/
 *.log
 output.txt
 给 codex 的结果输出.txt
+
+# Local Windows desktop-client build products.
+/build/
+/dist/
+/MobiAgentVerifierPC.spec
+/output_pc_client/

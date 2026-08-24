@@ -297,6 +297,30 @@ class ScriptedVerificationRunner:
             )
             for index, _step in enumerate(verification_steps, 1)
         ]
+        if scenario == "not_found" and sufficient and frames:
+            terminal = dict(frames[-1])
+            terminal["relative_to_action_ms"] = 0
+            frames[-1] = terminal
+            next_frame_id = int(terminal["frame_id"]) + 1
+            raw_delays = test_case.observation_policy.get("delays_ms", ())
+            max_wait = test_case.observation_policy.get("max_wait_ms", 0)
+            for delay in sorted(
+                {
+                    value
+                    for value in raw_delays
+                    if isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and isinstance(max_wait, int)
+                    and 0 <= value <= max_wait
+                }
+            ) if isinstance(raw_delays, (list, tuple)) else ():
+                frames.append(
+                    {
+                        **_verification_frame(next_frame_id, texts),
+                        "relative_to_action_ms": delay,
+                    }
+                )
+                next_frame_id += 1
         frame_texts = {str(frame["frame_id"]): list(frame["visible_texts"]) for frame in frames}
         step_results = tuple(
             VerificationStepResult(
@@ -305,7 +329,11 @@ class ScriptedVerificationRunner:
                 action_type=step.action_type,
                 attempts=1,
                 target=step.target,
-                observation_frames=(frames[index]["frame_id"],),
+                observation_frames=(
+                    tuple(frame["frame_id"] for frame in frames[index:])
+                    if index == len(verification_steps) - 1
+                    else (frames[index]["frame_id"],)
+                ),
                 reached_surface=index == len(verification_steps) - 1,
                 evidence={
                     "read_only_action": True,

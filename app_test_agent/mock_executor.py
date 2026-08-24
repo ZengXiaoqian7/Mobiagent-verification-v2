@@ -57,12 +57,14 @@ class MockStepExecutor:
         sufficient = True
         notes: list[str] = [f"mock_scenario={scenario}"]
         if scenario == "pass":
+            visible_texts.append("Feed")
             visible_texts.extend(_expected_texts(test_case))
             success_signals.append("success")
         elif scenario == "app_fail":
             visible_texts.append("unchanged feed")
             notes.append("expected App effect intentionally omitted")
         elif scenario == "forbidden_effect":
+            visible_texts.append("Feed")
             visible_texts.extend(_expected_texts(test_case))
             visible_texts.extend(_forbidden_texts(test_case))
             success_signals.append("success")
@@ -73,6 +75,7 @@ class MockStepExecutor:
             notes.append("mock evidence intentionally insufficient")
         else:
             return self._unsupported(test_case, test_case.steps[0].step_id, f"unknown mock scenario: {scenario}")
+        step_results = _with_mock_terminal_observation_window(test_case, step_results)
         return ExecutionRecord(
             test_case_id=test_case.test_case_id,
             executor=self.name,
@@ -267,7 +270,19 @@ def _mock_metadata(
         for frame_id in result.post_frames:
             texts = tuple(final_visible_texts)
             frame_texts[str(frame_id)] = list(texts)
-            frames.append(_mock_frame(frame_id, texts, relative_to_action_ms=500))
+            raw_offsets = result.evidence.get("mock_post_frame_offsets")
+            relative = (
+                raw_offsets.get(str(frame_id), 500)
+                if isinstance(raw_offsets, dict)
+                else 500
+            )
+            frames.append(
+                _mock_frame(
+                    frame_id,
+                    texts,
+                    relative_to_action_ms=int(relative),
+                )
+            )
     unique_frames = {
         int(frame["frame_id"]): frame for frame in frames if isinstance(frame.get("frame_id"), int)
     }
@@ -277,6 +292,81 @@ def _mock_metadata(
         "frame_visible_texts": frame_texts,
         "frames": [unique_frames[key] for key in sorted(unique_frames)],
     }
+
+
+def _with_mock_terminal_observation_window(
+    test_case: TestCaseSpec,
+    step_results: tuple[StepExecutionResult, ...],
+) -> tuple[StepExecutionResult, ...]:
+    """Make ordinary mock absence scenarios represent a complete window."""
+
+    policy = test_case.observation_policy
+    max_wait = policy.get("max_wait_ms")
+    if not isinstance(max_wait, int) or isinstance(max_wait, bool) or max_wait < 500:
+        # The short-window regression deliberately leaves the fixture's 500ms
+        # frame outside the selected policy window.
+        return step_results
+    raw_delays = policy.get("delays_ms", ())
+    delays = [
+        value
+        for value in raw_delays
+        if isinstance(value, int)
+        and not isinstance(value, bool)
+        and 0 <= value <= max_wait
+    ] if isinstance(raw_delays, (list, tuple)) else []
+    offsets = ([0] if policy.get("immediate") is True else []) + sorted(set(delays))
+    if not offsets or max(offsets) <= 500:
+        return step_results
+    selected_step_ids = {
+        assertion.after_step
+        for assertion in test_case.expected_results
+        if assertion.type in {"TEXT_VISIBLE", "TEXT_ABSENT"}
+        and assertion.after_step is not None
+    }
+    if test_case.forbidden_effects and step_results:
+        selected_step_ids.add(step_results[-1].step_id)
+    next_frame_id = (
+        max(
+            frame_id
+            for result in step_results
+            for frame_id in (
+                *((result.pre_frame,) if result.pre_frame is not None else ()),
+                *result.post_frames,
+            )
+        )
+        + 1
+    )
+    expanded: list[StepExecutionResult] = []
+    for result in step_results:
+        if result.step_id not in selected_step_ids or not result.post_frames:
+            expanded.append(result)
+            continue
+        frame_ids = [result.post_frames[0]]
+        while len(frame_ids) < len(offsets):
+            frame_ids.append(next_frame_id)
+            next_frame_id += 1
+        expanded.append(
+            StepExecutionResult(
+                step_id=result.step_id,
+                status=result.status,
+                action_type=result.action_type,
+                attempts=result.attempts,
+                resolved_value=result.resolved_value,
+                target=result.target,
+                pre_frame=result.pre_frame,
+                post_frames=tuple(frame_ids),
+                blocker=result.blocker,
+                error=result.error,
+                evidence={
+                    **dict(result.evidence),
+                    "mock_post_frame_offsets": {
+                        str(frame_id): offset
+                        for frame_id, offset in zip(frame_ids, offsets)
+                    },
+                },
+            )
+        )
+    return tuple(expanded)
 
 
 def _mock_frame(

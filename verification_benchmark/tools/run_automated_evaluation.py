@@ -71,6 +71,14 @@ def _parser() -> argparse.ArgumentParser:
         help="app-test-execution-manifest-v1 JSON used by --app-test-executor manifest",
     )
     parser.add_argument(
+        "--recompute-step-gates",
+        action="store_true",
+        help=(
+            "for manifest replay, recompute current Step Gate decisions from raw "
+            "actions and observation frames instead of trusting historical gate labels"
+        ),
+    )
+    parser.add_argument(
         "--mock-scenario",
         choices=MOCK_SCENARIOS,
         help="mock executor scenario for --app-test-case",
@@ -245,7 +253,9 @@ def main(argv: Optional[list[str]] = None) -> int:
                 )
             intake = load_app_test_manifest_evidence(
                 test_case=test_case,
+                test_case_path=args.app_test_case,
                 manifest_path=args.execution_manifest,
+                recompute_step_gates=args.recompute_step_gates,
             )
             executor = ScriptedStepExecutor(
                 intake.execution_record,

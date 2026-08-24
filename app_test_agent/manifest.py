@@ -366,9 +366,22 @@ class TestExecutionManifest:
         expected_ids = [step.step_id for step in test_case.steps]
         actual_ids = [step.step_id for step in self.steps]
         if actual_ids != expected_ids:
-            raise ManifestIntakeError(
-                f"manifest step ids do not match test case; expected={expected_ids}, actual={actual_ids}"
-            )
+            if not actual_ids:
+                raise ManifestIntakeError("manifest steps must not be empty")
+            expected_prefix = expected_ids[: len(actual_ids)]
+            if actual_ids != expected_prefix:
+                raise ManifestIntakeError(
+                    "manifest step ids are not a strict test-case prefix; "
+                    f"expected_prefix={expected_prefix}, actual={actual_ids}"
+                )
+            terminal = self.steps[-1]
+            if (
+                terminal.dispatch_status == "ACTION_DISPATCHED"
+                and terminal.conformance_status == "CONFORMANT"
+            ):
+                raise ManifestIntakeError(
+                    "truncated manifest requires a terminal non-conformant step"
+                )
         frame_ids = {frame.frame_id for frame in self.frames}
         for step, declared in zip(test_case.steps, self.steps):
             if declared.action_type != step.action_type:

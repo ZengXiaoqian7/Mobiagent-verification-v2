@@ -24,6 +24,134 @@ class TextEvidenceSlice:
         }
 
 
+@dataclass(frozen=True)
+class ObservationSufficiency:
+    sufficient: bool
+    reason: str
+    expected_offsets_ms: tuple[int, ...]
+    observed_offsets_ms: tuple[int, ...]
+    missing_offsets_ms: tuple[int, ...]
+    terminal_frame_id: int | None
+    terminal_stability: str | None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "sufficient": self.sufficient,
+            "reason": self.reason,
+            "expected_offsets_ms": list(self.expected_offsets_ms),
+            "observed_offsets_ms": list(self.observed_offsets_ms),
+            "missing_offsets_ms": list(self.missing_offsets_ms),
+            "terminal_frame_id": self.terminal_frame_id,
+            "terminal_stability": self.terminal_stability,
+        }
+
+
+def assess_negative_observation_sufficiency(
+    text_slice: TextEvidenceSlice,
+    observation_policy: Mapping[str, Any],
+) -> ObservationSufficiency:
+    """Require the configured delayed window before accepting absence.
+
+    Positive presence remains decisive as soon as it is observed.  This check
+    applies only when a verdict depends on text continuing to be absent.
+    """
+
+    max_wait = observation_policy.get("max_wait_ms")
+    max_wait_ms = (
+        max_wait
+        if isinstance(max_wait, int) and not isinstance(max_wait, bool) and max_wait >= 0
+        else None
+    )
+    raw_delays = observation_policy.get("delays_ms", ())
+    delays = tuple(
+        sorted(
+            {
+                value
+                for value in raw_delays
+                if isinstance(value, int)
+                and not isinstance(value, bool)
+                and value >= 0
+                and (max_wait_ms is None or value <= max_wait_ms)
+            }
+        )
+    ) if isinstance(raw_delays, (list, tuple)) else ()
+    expected = delays or ((0,) if observation_policy.get("immediate") is True else ())
+    observed_pairs = tuple(
+        (int(frame["relative_to_action_ms"]), frame)
+        for frame in text_slice.frames
+        if isinstance(frame.get("relative_to_action_ms"), int)
+        and not isinstance(frame.get("relative_to_action_ms"), bool)
+        and int(frame["relative_to_action_ms"]) >= 0
+        and (
+            max_wait_ms is None
+            or int(frame["relative_to_action_ms"]) <= max_wait_ms
+        )
+    )
+    observed = tuple(sorted({offset for offset, _frame in observed_pairs}))
+    missing = tuple(
+        expected_offset
+        for expected_offset in expected
+        if not any(
+            abs(observed_offset - expected_offset) <= _observation_offset_tolerance(expected_offset)
+            for observed_offset in observed
+        )
+    )
+    terminal_pair = max(observed_pairs, key=lambda item: item[0]) if observed_pairs else None
+    terminal_frame = terminal_pair[1] if terminal_pair is not None else None
+    terminal_frame_id = (
+        int(terminal_frame["frame_id"])
+        if isinstance(terminal_frame, Mapping)
+        and isinstance(terminal_frame.get("frame_id"), int)
+        and not isinstance(terminal_frame.get("frame_id"), bool)
+        else None
+    )
+    terminal_stability = (
+        str(terminal_frame.get("stability") or "UNKNOWN")
+        if isinstance(terminal_frame, Mapping)
+        else None
+    )
+    terminal_is_stable = _stable_terminal_value(terminal_stability)
+    if not text_slice.frames:
+        sufficient = False
+        reason = "selected evidence contains no observation frames"
+    elif not text_slice.evidence_sufficient:
+        sufficient = False
+        reason = "selected observation frames lack usable text evidence"
+    elif not expected:
+        sufficient = False
+        reason = "observation policy declares no usable observation offset"
+    elif not observed_pairs:
+        sufficient = False
+        reason = "observation frames lack relative_to_action_ms timing evidence"
+    elif missing:
+        sufficient = False
+        reason = "configured delayed observation window is incomplete"
+    elif not terminal_is_stable:
+        sufficient = False
+        reason = "terminal observation frame is not stably observable"
+    else:
+        sufficient = True
+        reason = "configured delayed observation window is complete and terminal evidence is stable"
+    return ObservationSufficiency(
+        sufficient=sufficient,
+        reason=reason,
+        expected_offsets_ms=expected,
+        observed_offsets_ms=observed,
+        missing_offsets_ms=missing,
+        terminal_frame_id=terminal_frame_id,
+        terminal_stability=terminal_stability,
+    )
+
+
+def _observation_offset_tolerance(expected_offset_ms: int) -> int:
+    return max(100, min(500, round(max(1, expected_offset_ms) * 0.2)))
+
+
+def _stable_terminal_value(value: str | None) -> bool:
+    normalized = str(value or "").strip().casefold()
+    return bool(normalized) and "stable" in normalized and "unstable" not in normalized
+
+
 class ExecutionEvidence:
     def __init__(self, execution: ExecutionRecord):
         self.execution = execution

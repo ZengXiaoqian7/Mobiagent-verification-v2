@@ -11,7 +11,12 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .evidence import ExecutionEvidence, TextEvidenceSlice, text_contains
+from .evidence import (
+    ExecutionEvidence,
+    TextEvidenceSlice,
+    assess_negative_observation_sufficiency,
+    text_contains,
+)
 from .executor import ExecutionRecord
 from .legacy_checker_adapter import review_with_legacy_checker
 from .result_types import AppBehaviorStatus
@@ -390,6 +395,10 @@ def _review_assertion(
         role=role,
         verification_context=verification_context,
     )
+    negative_sufficiency = assess_negative_observation_sufficiency(
+        text_slice,
+        contract.observation_policy,
+    )
     surface_evidence = _surface_review_evidence(
         assertion,
         evidence,
@@ -399,6 +408,7 @@ def _review_assertion(
     )
     base_evidence = {
         **text_slice.as_dict(),
+        "negative_observation_sufficiency": negative_sufficiency.as_dict(),
         "role": role,
         "review_status": review_status,
         "surface": assertion.surface,
@@ -432,6 +442,8 @@ def _review_assertion(
             execution,
             evidence,
             text_slice,
+            negative_observation_sufficient=negative_sufficiency.sufficient,
+            negative_observation_reason=negative_sufficiency.reason,
             role=role,
         )
         result = aggregate_criterion(criterion, observations)
@@ -561,6 +573,8 @@ def _observations_for_assertion(
     execution: ExecutionRecord,
     evidence: ExecutionEvidence,
     text_slice: TextEvidenceSlice,
+    negative_observation_sufficient: bool,
+    negative_observation_reason: str,
     *,
     role: str,
 ) -> tuple[CriterionObservation, ...]:
@@ -571,6 +585,8 @@ def _observations_for_assertion(
             execution,
             evidence,
             text_slice,
+            negative_observation_sufficient=negative_observation_sufficient,
+            negative_observation_reason=negative_observation_reason,
             role=role,
         )
     if assertion.type == "STATE_CHANGED":
@@ -606,6 +622,8 @@ def _text_observations(
     execution: ExecutionRecord,
     evidence: ExecutionEvidence,
     text_slice: TextEvidenceSlice,
+    negative_observation_sufficient: bool,
+    negative_observation_reason: str,
     *,
     role: str,
 ) -> tuple[CriterionObservation, ...]:
@@ -698,19 +716,29 @@ def _text_observations(
             else:
                 status = CriterionStatus.SATISFIED if present else CriterionStatus.VIOLATED
                 detail = "expected text present in frame" if present else "expected text absent from frame"
+            needs_negative_sufficiency = not present
         else:
             status = CriterionStatus.VIOLATED if present else CriterionStatus.SATISFIED
             detail = "forbidden text present in frame" if present else "forbidden text absent from frame"
+            needs_negative_sufficiency = not present
         if not page_state.decisive_for_result:
             status = CriterionStatus.UNKNOWN_EVIDENCE
             detail = f"{detail}; page state is {page_state.observation_state.value}"
+        elif needs_negative_sufficiency and not negative_observation_sufficient:
+            detail = f"{detail}; {negative_observation_reason}"
         observations.append(
             _single_observation(
                 assertion.assertion_id,
                 frame_index=frame_id if frame_id is not None else len(observations),
                 status=status,
-                evidence_sufficient=text_slice.evidence_sufficient
-                and execution.final_state.evidence_sufficient,
+                evidence_sufficient=(
+                    text_slice.evidence_sufficient
+                    and execution.final_state.evidence_sufficient
+                    and (
+                        not needs_negative_sufficiency
+                        or negative_observation_sufficient
+                    )
+                ),
                 detail=detail,
                 observation_state=page_state.observation_state,
                 overlay_kind=page_state.overlay_kind,
@@ -1303,8 +1331,69 @@ def _text_slice(
                 texts=(),
                 evidence_sufficient=False,
             )
-        return evidence.after_step_text_slice(assertion.after_step, observation_policy)
+        scoped = evidence.after_step_text_slice(assertion.after_step, observation_policy)
+        if assertion.surface:
+            return _business_surface_scoped_text_slice(
+                assertion,
+                evidence,
+                scoped,
+                execution=evidence.execution,
+            )
+        return scoped
     return evidence.observed_text_slice()
+
+
+def _business_surface_scoped_text_slice(
+    assertion: ExpectedAssertion,
+    evidence: ExecutionEvidence,
+    text_slice: TextEvidenceSlice,
+    *,
+    execution: ExecutionRecord,
+) -> TextEvidenceSlice:
+    """Select only stable business frames that prove the declared surface."""
+
+    surface_spec = _surface_evidence_spec(assertion, None)
+    selected_frames = tuple(
+        frame
+        for frame in text_slice.frames
+        if _page_state_for_frame(
+            frame,
+            execution,
+            surface_spec=surface_spec,
+        ).surface_matched
+        and _page_state_for_frame(
+            frame,
+            execution,
+            surface_spec=surface_spec,
+        ).decisive_for_result
+    )
+    if not selected_frames:
+        return TextEvidenceSlice(
+            source=f"surface_not_reached:{assertion.surface}",
+            texts=(),
+            frames=(),
+            evidence_sufficient=False,
+        )
+    selected_texts: list[str] = []
+    for frame in selected_frames:
+        frame_id = _frame_index(frame)
+        frame_texts = (
+            evidence.texts_for_frame(frame_id)
+            if frame_id is not None
+            else _frame_texts(frame)
+        )
+        if not frame_texts:
+            frame_texts = _frame_texts(frame)
+        selected_texts.extend(frame_texts)
+    first_frame = _frame_index(selected_frames[0])
+    return TextEvidenceSlice(
+        source=f"business_surface:{assertion.surface}:from_frame:{first_frame}",
+        texts=tuple(dict.fromkeys(selected_texts)),
+        frames=selected_frames,
+        evidence_sufficient=bool(
+            text_slice.evidence_sufficient and selected_frames and selected_texts
+        ),
+    )
 
 
 def _surface_scoped_text_slice(
@@ -1407,7 +1496,7 @@ def _surface_review_evidence(
     role: str,
     verification_context: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
-    if role != OfflineTraceRole.VERIFICATION_OBSERVATION or not assertion.surface:
+    if not assertion.surface:
         return {}
     surface_spec = _surface_evidence_spec(assertion, verification_context)
     page_states = [
@@ -1424,6 +1513,7 @@ def _surface_review_evidence(
         and item["observation_state"] == ObservationState.STABLE_SEMANTIC.value
     ]
     return {
+        "surface_evidence_role": role,
         "surface_evidence_spec": surface_spec.as_dict(),
         "surface_page_states": page_states,
         "surface_reached_frames": reached_frames,
@@ -1464,6 +1554,39 @@ def _surface_evidence_spec(
                 if _surface_shape_required(target):
                     required_shape_groups.extend(_surface_shape_groups(surface))
     values.extend(_surface_name_candidates(assertion.surface))
+    surface_name = str(assertion.surface or "").casefold()
+    if any(
+        marker in surface_name
+        for marker in (
+            "result",
+            "published",
+            "feed",
+            "timeline",
+            "list",
+            "detail",
+            "post",
+            "note",
+            "结果",
+            "发布后",
+            "列表",
+            "详情",
+            "笔记",
+            "帖子",
+        )
+    ) and not any(marker in surface_name for marker in ("editor", "compose", "编辑")):
+        forbidden_context.extend(
+            (
+                "EditText",
+                "RichEditor",
+                "TextArea",
+                "TextField",
+                "编辑器",
+                "编辑页",
+                "请输入标题",
+                "填写标题",
+                "写点什么",
+            )
+        )
     required_shape_groups.extend(
         (candidate,)
         for candidate in context_candidates
@@ -1644,7 +1767,11 @@ def _g1_page_state_for_frame(
         )
     except Exception:  # noqa: BLE001 - page-state checker is advisory.
         return None
-    tokens = descriptor.hierarchy.semantic_tokens
+    tokens = tuple(
+        dict.fromkeys(
+            (*descriptor.hierarchy.semantic_tokens, *_frame_semantic_tokens(frame))
+        )
+    )
     surface_hits = _marker_hits(surface_spec.marker_candidates, tokens)
     shape_hits = _shape_group_hits(surface_spec.required_shape_groups, tokens)
     context_hits = _marker_hits(surface_spec.context_candidates, tokens)
@@ -1686,7 +1813,7 @@ def _metadata_page_state_for_frame(
     surface_spec: SurfaceEvidenceSpec,
 ) -> PageStateEvidence:
     policy = G1ObservationPolicy()
-    tokens = _frame_texts(frame)
+    tokens = _frame_semantic_tokens(frame)
     loading = _marker_hits(policy.loading_markers, tokens)
     app_overlay = _marker_hits(policy.app_overlay_markers, tokens)
     system_overlay = _marker_hits(policy.system_overlay_markers, tokens)
@@ -1739,6 +1866,35 @@ def _marker_hits(candidates: Sequence[str], tokens: Sequence[str]) -> tuple[str,
             and str(candidate).casefold() in folded_tokens
         )
     )
+
+
+def _frame_semantic_tokens(frame: Mapping[str, Any]) -> tuple[str, ...]:
+    tokens = list(_frame_texts(frame))
+    raw_nodes = frame.get("xml_nodes")
+    if isinstance(raw_nodes, list):
+        for node in raw_nodes:
+            if not isinstance(node, Mapping):
+                continue
+            attributes = node.get("attributes")
+            attributes = attributes if isinstance(attributes, Mapping) else {}
+            tokens.extend(
+                str(value)
+                for value in (
+                    node.get("text"),
+                    node.get("semantic_text"),
+                    attributes.get("text"),
+                    attributes.get("originalText"),
+                    attributes.get("description"),
+                    attributes.get("hint"),
+                    attributes.get("id"),
+                    attributes.get("key"),
+                    attributes.get("type"),
+                    attributes.get("class"),
+                    attributes.get("resource-id"),
+                )
+                if value not in (None, "")
+            )
+    return tuple(dict.fromkeys(tokens))
 
 
 def _shape_group_hits(

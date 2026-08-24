@@ -1,0 +1,51 @@
+{
+  "schema_version": "app-test-replay-baseline-v1",
+  "description": "Five protected real-trace cases for the PC App-test agent; paths resolve under --asset-root.",
+  "cases": [
+    {
+      "case_id": "cloudmusic_create_note_fixed5",
+      "test_case_path": "cloudmusic_create_note_real_run_fixed5/test_case.normalized.json",
+      "manifest_path": "cloudmusic_create_note_real_run_fixed5/test_execution_manifest.json",
+      "ground_truth": "APP_PASS",
+      "key_frames": [15, 16, 17, 18],
+      "truth_reason": "Published note title TEST and body 评测智能体 remain visible on the result surface.",
+      "allowed_verification_policy": ["NOT_RUN", "COMPLETED"]
+    },
+    {
+      "case_id": "cloudmusic_create_note_fixed4",
+      "test_case_path": "cloudmusic_create_note_real_run_fixed4/test_case.normalized.json",
+      "manifest_path": "cloudmusic_create_note_real_run_fixed4/test_execution_manifest.json",
+      "ground_truth": "INCONCLUSIVE",
+      "key_frames": [],
+      "truth_reason": "Historical APP_FAIL is not accepted as defect truth; this asset must be replayed after it is restored.",
+      "allowed_verification_policy": ["NOT_RUN", "COMPLETED", "INCONCLUSIVE"]
+    },
+    {
+      "case_id": "xhs_chat_qingwen_212856",
+      "test_case_path": "xhs_chat_qingwen_20260724_212856/test_case.normalized.json",
+      "manifest_path": "xhs_chat_qingwen_20260724_212856/test_execution_manifest.json",
+      "ground_truth": "TEST_EXECUTION_FAIL",
+      "key_frames": [13, 14, 15, 16],
+      "truth_reason": "The declared message was dispatched but never appeared on the editable chat surface.",
+      "allowed_verification_policy": ["NOT_RUN"]
+    },
+    {
+      "case_id": "xhs_chat_qingwen_221700",
+      "test_case_path": "xhs_chat_qingwen_20260724_221700/test_case.normalized.json",
+      "manifest_path": "xhs_chat_qingwen_20260724_221700/test_execution_manifest.json",
+      "ground_truth": "INCONCLUSIVE",
+      "key_frames": [9, 10, 11, 12],
+      "truth_reason": "Current policy requests a safe navigation retry that is absent from the frozen trace.",
+      "allowed_verification_policy": ["NOT_RUN"]
+    },
+    {
+      "case_id": "xhs_chat_qingwen_223000_fix",
+      "test_case_path": "xhs_chat_qingwen_20260724_223000_fix/test_case.normalized.json",
+      "manifest_path": "xhs_chat_qingwen_20260724_223000_fix/test_execution_manifest.json",
+      "ground_truth": "ENV_BLOCKED",
+      "key_frames": [0],
+      "truth_reason": "The prerequisite environment is blocked before any business action is dispatched.",
+      "allowed_verification_policy": ["NOT_RUN"]
+    }
+  ]
+}

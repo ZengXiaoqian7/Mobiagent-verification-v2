@@ -8,7 +8,12 @@ from pathlib import Path
 from typing import Mapping
 
 from .contract import AppTestContract
-from .evidence import ExecutionEvidence, TextEvidenceSlice, text_contains
+from .evidence import (
+    ExecutionEvidence,
+    TextEvidenceSlice,
+    assess_negative_observation_sufficiency,
+    text_contains,
+)
 from .executor import ExecutionRecord
 from .model_client import (
     ModelConfigError,
@@ -107,8 +112,13 @@ def _evaluate_forbidden_effect(
     values = effect.resolved_values(test_case.test_data)
     evidence = ExecutionEvidence(execution)
     text_slice = evidence.observed_text_slice()
+    negative_sufficiency = assess_negative_observation_sufficiency(
+        text_slice,
+        contract.observation_policy,
+    )
     evidence_payload = {
         **text_slice.as_dict(),
+        "negative_observation_sufficiency": negative_sufficiency.as_dict(),
         "required": True,
         "forbidden_effect": effect.as_dict(),
         "contract_sha256": contract.sha256,
@@ -122,7 +132,11 @@ def _evaluate_forbidden_effect(
             expected_value,
             evidence_payload,
         )
-    if not text_slice.evidence_sufficient:
+    present = any(text_contains(text_slice.texts, value) for value in values)
+    if (
+        not present
+        and (not text_slice.evidence_sufficient or not negative_sufficiency.sufficient)
+    ):
         return AssertionResult(
             effect.assertion_id,
             AppBehaviorStatus.UNKNOWN_EVIDENCE,
@@ -130,7 +144,6 @@ def _evaluate_forbidden_effect(
             expected_value,
             evidence_payload,
         )
-    present = any(text_contains(text_slice.texts, value) for value in values)
     return AssertionResult(
         effect.assertion_id,
         AppBehaviorStatus.VIOLATED if present else AppBehaviorStatus.SATISFIED,
@@ -173,6 +186,11 @@ def _evaluate_assertion(
         "historical_match_not_sufficient": assertion.historical_match_not_sufficient,
         "requires_verification_runner": assertion.requires_verification_runner,
     }
+    negative_sufficiency = assess_negative_observation_sufficiency(
+        text_slice,
+        contract.observation_policy,
+    )
+    evidence_payload["negative_observation_sufficiency"] = negative_sufficiency.as_dict()
     if verification_context is not None:
         evidence_payload["verification_runner"] = dict(verification_context)
     review = (
@@ -336,8 +354,27 @@ def _evaluate_text_visible(
         evidence_payload,
     )
     if visual_result is not None:
+        negative_sufficiency = evidence_payload.get("negative_observation_sufficiency")
+        if (
+            visual_result.status == AppBehaviorStatus.VIOLATED
+            and isinstance(negative_sufficiency, Mapping)
+            and negative_sufficiency.get("sufficient") is not True
+        ):
+            return AssertionResult(
+                assertion.assertion_id,
+                AppBehaviorStatus.UNKNOWN_EVIDENCE,
+                "negative visual evidence does not cover the configured observation window",
+                expected_value,
+                visual_result.evidence,
+            )
         return visual_result
-    if not text_slice.evidence_sufficient or not source_execution.final_state.evidence_sufficient:
+    negative_sufficiency = evidence_payload.get("negative_observation_sufficiency")
+    if (
+        not text_slice.evidence_sufficient
+        or not source_execution.final_state.evidence_sufficient
+        or not isinstance(negative_sufficiency, Mapping)
+        or negative_sufficiency.get("sufficient") is not True
+    ):
         return AssertionResult(
             assertion.assertion_id,
             AppBehaviorStatus.UNKNOWN_EVIDENCE,
@@ -462,7 +499,16 @@ def _evaluate_text_absent(
             expected_value,
             evidence_payload,
         )
-    if not text_slice.evidence_sufficient:
+    negative_sufficiency = evidence_payload.get("negative_observation_sufficiency")
+    present = text_contains(text_slice.texts, expected_value)
+    if (
+        not present
+        and (
+            not text_slice.evidence_sufficient
+            or not isinstance(negative_sufficiency, Mapping)
+            or negative_sufficiency.get("sufficient") is not True
+        )
+    ):
         return AssertionResult(
             assertion.assertion_id,
             AppBehaviorStatus.UNKNOWN_EVIDENCE,
@@ -470,7 +516,6 @@ def _evaluate_text_absent(
             expected_value,
             evidence_payload,
         )
-    present = text_contains(text_slice.texts, expected_value)
     return AssertionResult(
         assertion.assertion_id,
         AppBehaviorStatus.VIOLATED if present else AppBehaviorStatus.SATISFIED,
