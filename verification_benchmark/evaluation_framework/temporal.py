@@ -281,6 +281,18 @@ def _aggregate_eventual(
             decisive_violations.append(observation)
 
     if decisive_violations:
+        terminal = observations[-1]
+        terminal_is_decisive_violation = (
+            terminal.observation_state not in _NON_DECISIVE_STATES
+            and terminal.observation_state is not ObservationState.STABLE_LOADING
+            and terminal.status is CriterionStatus.VIOLATED
+        )
+        if not terminal_is_decisive_violation:
+            return _unknown_result(
+                criterion,
+                observations,
+                "eventual-state deadline ended without decisive terminal evidence",
+            )
         return CriterionResult(
             criterion_id=criterion.criterion_id,
             temporal_semantics=criterion.temporal_semantics,

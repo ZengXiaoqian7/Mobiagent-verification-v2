@@ -169,7 +169,21 @@ def _observation_offset_tolerance(expected_offset_ms: int) -> int:
 
 def _stable_terminal_value(value: str | None) -> bool:
     normalized = str(value or "").strip().casefold()
-    return bool(normalized) and "stable" in normalized and "unstable" not in normalized
+    blockers = (
+        "blocked",
+        "changed",
+        "degraded",
+        "loading",
+        "obscured",
+        "transition",
+        "unknown",
+        "unstable",
+    )
+    return (
+        bool(normalized)
+        and "stable" in normalized
+        and not any(blocker in normalized for blocker in blockers)
+    )
 
 
 class ExecutionEvidence:

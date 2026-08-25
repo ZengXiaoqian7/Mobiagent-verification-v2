@@ -4105,7 +4105,9 @@ def test_text_visible_async_result_at_terminal_delay_is_app_pass():
     )
     terminal = replace(record.step_results[-1], post_frames=(3, 4, 5))
     frames = [
-        frame for frame in record.metadata["frames"] if frame.get("frame_id") != 3
+        frame
+        for frame in record.metadata["frames"]
+        if frame.get("frame_id") not in {3, 4, 5}
     ] + [
         _frame(3, ("Feed",), 0),
         _frame(4, ("Feed",), 500),
@@ -4137,6 +4139,68 @@ def test_text_visible_async_result_at_terminal_delay_is_app_pass():
     assert report["overall_result"] == OverallResult.APP_PASS
     assert assertion["status"] == "SATISFIED"
     assert assertion["evidence"]["negative_observation_sufficiency"]["sufficient"] is True
+
+
+@pytest.mark.parametrize(
+    ("terminal_texts", "terminal_stability"),
+    [
+        (("Feed", "loading"), "STABLE_LOADING"),
+        (("Feed", "permission_dialog"), "DEGRADED"),
+    ],
+)
+def test_text_visible_absence_with_terminal_blocker_is_inconclusive(
+    terminal_texts: tuple[str, ...],
+    terminal_stability: str,
+):
+    spec = load_test_case(CASE)
+    record = _scripted_record(
+        spec,
+        visible_texts=terminal_texts,
+        after_submit_texts=("Feed",),
+    )
+    terminal = replace(record.step_results[-1], post_frames=(3, 4, 5))
+    frames = [
+        frame
+        for frame in record.metadata["frames"]
+        if frame.get("frame_id") not in {3, 4, 5}
+    ] + [
+        _frame(3, ("Feed",), 0),
+        _frame(4, ("Feed",), 500),
+        {
+            **_frame(5, terminal_texts, 1000),
+            "stability": terminal_stability,
+        },
+    ]
+    frame_texts = {
+        **dict(record.metadata["frame_visible_texts"]),
+        "3": ["Feed"],
+        "4": ["Feed"],
+        "5": list(terminal_texts),
+    }
+    record = replace(
+        record,
+        step_results=(*record.step_results[:-1], terminal),
+        metadata={
+            **dict(record.metadata),
+            "frames": frames,
+            "frame_visible_texts": frame_texts,
+        },
+    )
+
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(record),
+        run_id=f"terminal-blocker-{terminal_stability.casefold()}",
+    )
+
+    review = report["business_offline_review"]["assertion_reviews"][0]
+    assertion = report["app_behavior_result"]["assertion_results"][0]
+    assert report["overall_result"] == OverallResult.INCONCLUSIVE
+    assert review["status"] == "UNKNOWN_EVIDENCE"
+    assert assertion["status"] == "UNKNOWN_EVIDENCE"
+    assert assertion["evidence"]["negative_observation_sufficiency"][
+        "sufficient"
+    ] is False
 
 
 def test_text_absent_requires_complete_delayed_observation_window():
