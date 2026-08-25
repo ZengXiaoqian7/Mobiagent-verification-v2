@@ -12,6 +12,7 @@ from .evidence import (
     ExecutionEvidence,
     TextEvidenceSlice,
     assess_negative_observation_sufficiency,
+    assess_text_freshness,
     text_contains,
 )
 from .executor import ExecutionRecord
@@ -191,6 +192,14 @@ def _evaluate_assertion(
         contract.observation_policy,
     )
     evidence_payload["negative_observation_sufficiency"] = negative_sufficiency.as_dict()
+    if assertion.type == "TEXT_VISIBLE" and expected_value is not None:
+        freshness = assess_text_freshness(
+            evidence,
+            text_slice,
+            expected_value,
+            required=assertion.historical_match_not_sufficient,
+        )
+        evidence_payload["freshness"] = freshness.as_dict()
     if verification_context is not None:
         evidence_payload["verification_runner"] = dict(verification_context)
     review = (
@@ -328,6 +337,26 @@ def _evaluate_text_visible(
             evidence_payload,
         )
     if text_contains(text_slice.texts, expected_value):
+        freshness = evidence_payload.get("freshness")
+        if (
+            assertion.historical_match_not_sufficient
+            and (
+                not isinstance(freshness, Mapping)
+                or freshness.get("proven") is not True
+            )
+        ):
+            reason = (
+                freshness.get("reason")
+                if isinstance(freshness, Mapping)
+                else "post-action evidence does not prove a fresh occurrence"
+            )
+            return AssertionResult(
+                assertion.assertion_id,
+                AppBehaviorStatus.UNKNOWN_EVIDENCE,
+                str(reason),
+                expected_value,
+                evidence_payload,
+            )
         return AssertionResult(
             assertion.assertion_id,
             AppBehaviorStatus.SATISFIED,

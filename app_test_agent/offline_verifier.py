@@ -15,6 +15,7 @@ from .evidence import (
     ExecutionEvidence,
     TextEvidenceSlice,
     assess_negative_observation_sufficiency,
+    assess_text_freshness,
     text_contains,
 )
 from .executor import ExecutionRecord
@@ -419,6 +420,13 @@ def _review_assertion(
         "verification_context": dict(verification_context or {}),
         **surface_evidence,
     }
+    if assertion.type == "TEXT_VISIBLE" and expected_value is not None:
+        base_evidence["freshness"] = assess_text_freshness(
+            evidence,
+            text_slice,
+            expected_value,
+            required=assertion.historical_match_not_sufficient,
+        ).as_dict()
     if review_status == OfflineReviewStatus.INVALID_TRACE:
         return OfflineAssertionReview(
             assertion.assertion_id,
@@ -683,6 +691,12 @@ def _text_observations(
                 detail="selected text evidence has no frame boundary",
             ),
         )
+    freshness = assess_text_freshness(
+        evidence,
+        text_slice,
+        expected_value,
+        required=assertion.historical_match_not_sufficient,
+    )
     observations: list[CriterionObservation] = []
     for frame in frames:
         frame_id = _frame_index(frame)
@@ -713,6 +727,9 @@ def _text_observations(
                     "expected text is only present in an input or clipboard overlay, "
                     "not a proven result surface"
                 )
+            elif present and not freshness.proven:
+                status = CriterionStatus.UNKNOWN_EVIDENCE
+                detail = freshness.reason
             else:
                 status = CriterionStatus.SATISFIED if present else CriterionStatus.VIOLATED
                 detail = "expected text present in frame" if present else "expected text absent from frame"

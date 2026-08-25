@@ -46,6 +46,26 @@ class ObservationSufficiency:
         }
 
 
+@dataclass(frozen=True)
+class FreshnessAssessment:
+    required: bool
+    proven: bool
+    reason: str
+    initial_count: int
+    max_post_count: int
+    proof_frame_ids: tuple[int, ...]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "required": self.required,
+            "proven": self.proven,
+            "reason": self.reason,
+            "initial_count": self.initial_count,
+            "max_post_count": self.max_post_count,
+            "proof_frame_ids": list(self.proof_frame_ids),
+        }
+
+
 def assess_negative_observation_sufficiency(
     text_slice: TextEvidenceSlice,
     observation_policy: Mapping[str, Any],
@@ -262,6 +282,94 @@ class ExecutionEvidence:
             if frame.get("frame_id") == frame_id:
                 return frame
         return None
+
+
+def assess_text_freshness(
+    evidence: ExecutionEvidence,
+    text_slice: TextEvidenceSlice,
+    expected_value: str,
+    *,
+    required: bool,
+) -> FreshnessAssessment:
+    """Prove that selected text belongs to the current action window.
+
+    A post-action match is fresh when it was absent before the action, or when
+    the selected frames contain more occurrences than the initial evidence.
+    Persistent historical text without either proof must fail closed.
+    """
+
+    initial_count = _text_occurrence_count(evidence.initial_texts(), expected_value)
+    post_counts: list[tuple[int, int]] = []
+    for frame in text_slice.frames:
+        frame_id = frame.get("frame_id")
+        if not isinstance(frame_id, int) or isinstance(frame_id, bool):
+            frame_id = frame.get("frame_index")
+        if not isinstance(frame_id, int) or isinstance(frame_id, bool):
+            continue
+        frame_texts = evidence.texts_for_frame(frame_id) or _frame_texts(frame)
+        post_counts.append(
+            (frame_id, _text_occurrence_count(frame_texts, expected_value))
+        )
+    max_post_count = max((count for _frame_id, count in post_counts), default=0)
+    matching_frame_ids = tuple(
+        frame_id for frame_id, count in post_counts if count > 0
+    )
+    increased_frame_ids = tuple(
+        frame_id for frame_id, count in post_counts if count > initial_count
+    )
+    if not required:
+        return FreshnessAssessment(
+            required=False,
+            proven=bool(matching_frame_ids),
+            reason="freshness proof is not required by the assertion",
+            initial_count=initial_count,
+            max_post_count=max_post_count,
+            proof_frame_ids=matching_frame_ids,
+        )
+    if not matching_frame_ids:
+        return FreshnessAssessment(
+            required=True,
+            proven=False,
+            reason="selected post-action evidence contains no frame-bounded match",
+            initial_count=initial_count,
+            max_post_count=max_post_count,
+            proof_frame_ids=(),
+        )
+    if initial_count == 0:
+        return FreshnessAssessment(
+            required=True,
+            proven=True,
+            reason="expected text was absent initially and appeared after the action",
+            initial_count=0,
+            max_post_count=max_post_count,
+            proof_frame_ids=matching_frame_ids,
+        )
+    if increased_frame_ids:
+        return FreshnessAssessment(
+            required=True,
+            proven=True,
+            reason="post-action evidence contains an additional text occurrence",
+            initial_count=initial_count,
+            max_post_count=max_post_count,
+            proof_frame_ids=increased_frame_ids,
+        )
+    return FreshnessAssessment(
+        required=True,
+        proven=False,
+        reason=(
+            "matching text already existed before the action and no additional "
+            "post-action occurrence was proven"
+        ),
+        initial_count=initial_count,
+        max_post_count=max_post_count,
+        proof_frame_ids=(),
+    )
+
+
+def _text_occurrence_count(texts: tuple[str, ...], expected_value: str) -> int:
+    if not expected_value:
+        return 0
+    return sum(str(item).count(expected_value) for item in texts)
 
 
 def text_contains(haystack: tuple[str, ...], needle: str) -> bool:

@@ -3103,6 +3103,56 @@ def test_stage5_old_text_without_post_action_freshness_is_inconclusive():
     assert report["app_behavior_result"]["status"] == "UNKNOWN_EVIDENCE"
 
 
+def test_stage5_persistent_historical_text_without_new_occurrence_is_inconclusive():
+    payload = _case_payload()
+    payload["test_data"]["post_content"] = "app_test_persistent_old"
+    spec = AppTestCaseSpec.from_json(payload)
+    record = _scripted_record(
+        spec,
+        visible_texts=("Feed", "app_test_persistent_old"),
+        initial_texts=("Feed", "app_test_persistent_old"),
+        after_submit_texts=("Feed", "app_test_persistent_old"),
+    )
+
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(record),
+        run_id="fresh-persistent-old",
+    )
+
+    assertion = report["app_behavior_result"]["assertion_results"][0]
+    assert report["overall_result"] == OverallResult.INCONCLUSIVE
+    assert assertion["status"] == "UNKNOWN_EVIDENCE"
+    assert assertion["evidence"]["freshness"]["proven"] is False
+
+
+def test_stage5_additional_historical_text_occurrence_proves_freshness():
+    payload = _case_payload()
+    payload["test_data"]["post_content"] = "app_test_repeated"
+    spec = AppTestCaseSpec.from_json(payload)
+    record = _scripted_record(
+        spec,
+        visible_texts=("Feed", "app_test_repeated", "app_test_repeated"),
+        initial_texts=("Feed", "app_test_repeated"),
+        after_submit_texts=("Feed", "app_test_repeated", "app_test_repeated"),
+    )
+
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(record),
+        run_id="fresh-repeated-new-occurrence",
+    )
+
+    assertion = report["app_behavior_result"]["assertion_results"][0]
+    freshness = assertion["evidence"]["freshness"]
+    assert report["overall_result"] == OverallResult.APP_PASS
+    assert assertion["status"] == "SATISFIED"
+    assert freshness["proven"] is True
+    assert freshness["initial_count"] == 1
+    assert freshness["max_post_count"] == 2
+    assert freshness["proof_frame_ids"]
+
+
 def test_stage5_final_state_text_without_frame_text_cannot_pass_freshness():
     spec = load_test_case(CASE)
     steps = tuple(completed_step(step, spec, index) for index, step in enumerate(spec.steps))
