@@ -24,6 +24,8 @@ from app_test_agent.mobiagent_executor import (
     _resolve_decider_aligned_text_target,
     _resolve_exact_text_target,
     _resolve_hierarchy_control_target,
+    _needs_navigation_context_recovery,
+    _retry_is_safe,
     prepare_mobiagent_preflight,
     reject_unimplemented_device_execution,
 )
@@ -2558,6 +2560,95 @@ def test_stage_c_step_gate_retries_pre_dispatch_target_failure(tmp_path):
     gates = record.step_results[0].evidence["step_gate_attempts"]
     assert gates[0]["gate_decision"] == "RETRY"
     assert gates[-1]["gate_decision"] == "CONTINUE"
+    attempts = record.step_results[0].evidence["attempt_evidence"]
+    assert len(attempts) == 2
+    assert attempts[0]["action_dispatched"] is False
+    assert attempts[0]["retry_class"] == "PRE_DISPATCH_RETRY"
+    assert attempts[0]["action_ids"] == []
+    assert attempts[1]["action_dispatched"] is True
+    assert attempts[1]["gate_decision"] == "CONTINUE"
+    json.dumps(attempts, ensure_ascii=False)
+
+
+def test_stage7_dispatched_business_actions_are_never_classified_as_safe_retries():
+    spec = load_test_case(CASE)
+    submit = spec.steps[2]
+    input_step = spec.steps[1]
+    dispatched_submit = {
+        "type": "click",
+        "action_index": 41,
+        "action_ids": [41],
+        "target_match": True,
+        "click_point": [540, 2200],
+        "runtime_bounds": [400, 2100, 680, 2300],
+        "post_action_context": {
+            "required": True,
+            "status": "NON_CONFORMANT",
+            "text_candidates": ["Feed"],
+        },
+    }
+    assert _retry_is_safe(submit, dispatched_submit) is False
+    assert _needs_navigation_context_recovery(submit, dispatched_submit) is False
+    assert _retry_is_safe(input_step, {"type": "click_input", "action_index": 42}) is False
+
+    goal_payload = _case_payload()
+    goal_payload["steps"] = [
+        {
+            "step_id": "goal",
+            "instruction": "完成一次文字发帖",
+            "action_type": "GUI_TASK",
+            "step_mode": "GOAL",
+            "target": {"stage_result_text_candidates": ["发布完成"]},
+        }
+    ]
+    goal_payload["expected_results"] = ["发布完成"]
+    goal = AppTestCaseSpec.from_json(goal_payload).steps[0]
+    assert _retry_is_safe(goal, {"type": "gui_task", "action_ids": [101]}) is False
+
+
+def test_stage7_navigation_recovery_requires_runtime_target_proof_and_read_only_role():
+    payload = _case_payload()
+    payload["steps"] = [
+        {
+            "step_id": "open_chat",
+            "instruction": "Open Alice's conversation",
+            "action_type": "CLICK",
+            "target": {
+                "role": "conversation",
+                "text_candidates": ["Alice"],
+                "post_action_context": {"required": True, "text_candidates": ["Alice"]},
+            },
+        }
+    ]
+    payload["expected_results"] = ["Alice"]
+    spec = AppTestCaseSpec.from_json(payload)
+    step = spec.steps[0]
+    base = {
+        "type": "click",
+        "action_index": 7,
+        "target_match": True,
+        "post_action_context": {"status": "NON_CONFORMANT", "required": True},
+    }
+    assert _needs_navigation_context_recovery(step, {**base, "bounds": [0, 0, 100, 100]}) is False
+    assert _needs_navigation_context_recovery(
+        step,
+        {
+            **base,
+            "click_point": [50, 50],
+            "runtime_bounds": [0, 0, 100, 100],
+        },
+    ) is True
+
+    write_step = replace(
+        step,
+        instruction="Send the message",
+        target={"role": "conversation", "text_candidates": ["Alice"]},
+    )
+    assert _needs_navigation_context_recovery(write_step, {
+        **base,
+        "click_point": [50, 50],
+        "runtime_bounds": [0, 0, 100, 100],
+    }) is False
 
 
 def test_stage_c_observation_burst_captures_async_progress_without_app_verdict(tmp_path):

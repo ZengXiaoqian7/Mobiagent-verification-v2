@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import ast
 import base64
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 import logging
@@ -189,9 +189,11 @@ class MobiAgentStepExecutor:
             )
             attempts = 0
             gate_attempts: list[dict[str, Any]] = []
+            attempt_evidence: list[dict[str, Any]] = []
             while attempts <= step.max_retries:
                 attempts += 1
                 action_index += 1
+                attempt_started_ms = int(time.time() * 1000)
                 current_frame = frames[-1] if frames else None
                 pre_frame = current_frame["frame_id"] if current_frame else None
                 try:
@@ -205,8 +207,15 @@ class MobiAgentStepExecutor:
                         next_frame_id=next_frame_id,
                         history=history,
                     )
+                    dispatch_finished_ms = int(time.time() * 1000)
+                    action_record["dispatch_started_ms"] = attempt_started_ms
+                    action_record["dispatch_finished_ms"] = dispatch_finished_ms
+                    action_record["dispatch_duration_ms"] = max(
+                        0, dispatch_finished_ms - attempt_started_ms
+                    )
                     actions.append(action_record)
                 except _TargetNotFound as exc:
+                    dispatch_finished_ms = int(time.time() * 1000)
                     gate = evaluate_dispatch_failure_gate(
                         test_case=test_case,
                         step=step,
@@ -216,6 +225,26 @@ class MobiAgentStepExecutor:
                         max_retries=step.max_retries,
                     )
                     gate_attempts.append(gate.as_dict())
+                    attempt_evidence.append(
+                        _build_attempt_evidence(
+                            attempt=attempts,
+                            action_index=action_index,
+                            pre_frame=current_frame,
+                            action_record=None,
+                            post_frames=(),
+                            gate=gate,
+                            dispatch_started_ms=attempt_started_ms,
+                            dispatch_finished_ms=dispatch_finished_ms,
+                            action_dispatched=False,
+                            retry_class=(
+                                "PRE_DISPATCH_RETRY"
+                                if gate.gate_decision == StepGateDecision.RETRY
+                                else "NO_REDISPATCH"
+                            ),
+                            retry_reason=gate.reason,
+                            error=str(exc),
+                        )
+                    )
                     if gate.gate_decision == StepGateDecision.RETRY:
                         continue
                     step_results.append(
@@ -236,6 +265,7 @@ class MobiAgentStepExecutor:
                                 "target_match": False,
                                 "step_gate": gate.as_dict(),
                                 "step_gate_attempts": list(gate_attempts),
+                                "attempt_evidence": list(attempt_evidence),
                                 "gate_decision": gate.gate_decision,
                                 "target_evidence": gate.target_evidence,
                                 "action_conformance": gate.action_conformance,
@@ -244,6 +274,23 @@ class MobiAgentStepExecutor:
                     )
                     break
                 except _UnsupportedRealAction as exc:
+                    dispatch_finished_ms = int(time.time() * 1000)
+                    attempt_evidence.append(
+                        _build_attempt_evidence(
+                            attempt=attempts,
+                            action_index=action_index,
+                            pre_frame=current_frame,
+                            action_record=None,
+                            post_frames=(),
+                            gate=None,
+                            dispatch_started_ms=attempt_started_ms,
+                            dispatch_finished_ms=dispatch_finished_ms,
+                            action_dispatched=False,
+                            retry_class="NO_REDISPATCH",
+                            retry_reason="unsupported action was not dispatched",
+                            error=str(exc),
+                        )
+                    )
                     step_results.append(
                         StepExecutionResult(
                             step_id=step.step_id,
@@ -254,10 +301,28 @@ class MobiAgentStepExecutor:
                             target=step.target,
                             pre_frame=pre_frame,
                             error=str(exc),
+                            evidence={"attempt_evidence": list(attempt_evidence)},
                         )
                     )
                     break
                 except Exception as exc:  # noqa: BLE001
+                    dispatch_finished_ms = int(time.time() * 1000)
+                    attempt_evidence.append(
+                        _build_attempt_evidence(
+                            attempt=attempts,
+                            action_index=action_index,
+                            pre_frame=current_frame,
+                            action_record=None,
+                            post_frames=(),
+                            gate=None,
+                            dispatch_started_ms=attempt_started_ms,
+                            dispatch_finished_ms=dispatch_finished_ms,
+                            action_dispatched=False,
+                            retry_class="NO_REDISPATCH",
+                            retry_reason="step execution raised before a gate decision",
+                            error=f"{type(exc).__name__}: {exc}",
+                        )
+                    )
                     if _is_model_service_blocker(exc):
                         step_results.append(
                             StepExecutionResult(
@@ -270,6 +335,7 @@ class MobiAgentStepExecutor:
                                 pre_frame=pre_frame,
                                 blocker="model_service_access",
                                 error=f"mobiagent model service blocked: {exc}",
+                                evidence={"attempt_evidence": list(attempt_evidence)},
                             )
                         )
                         break
@@ -283,6 +349,7 @@ class MobiAgentStepExecutor:
                             target=step.target,
                             pre_frame=pre_frame,
                             error=f"mobiagent step execution failed: {type(exc).__name__}: {exc}",
+                            evidence={"attempt_evidence": list(attempt_evidence)},
                         )
                     )
                     break
@@ -357,6 +424,55 @@ class MobiAgentStepExecutor:
                         else None
                     ),
                 )
+                reobserve_count = 0
+                reobserve_started_ms: int | None = None
+                if (
+                    gate.gate_decision == StepGateDecision.INCONCLUSIVE
+                    and _has_dispatched_action(action_record)
+                ):
+                    reobserve_started_ms = int(time.time() * 1000)
+                    reobserve_frames = self._capture_observation_burst(
+                        device,
+                        raw_trace_dir,
+                        next_frame_id=next_frame_id,
+                        pre_frame=post_frames[-1] if post_frames else current_frame,
+                        policy=test_case.observation_policy,
+                        force_full_schedule=True,
+                    )
+                    reobserve_count = 1
+                    next_frame_id += len(reobserve_frames)
+                    for reobserve_frame in reobserve_frames:
+                        reobserve_frame["observation_phase"] = "reobserve"
+                        reobserve_frame["reobserve_attempt"] = attempts
+                    frames.extend(reobserve_frames)
+                    post_frames = [*post_frames, *reobserve_frames]
+                    for post in reobserve_frames:
+                        frame_visible_texts[str(post["frame_id"])] = list(post["visible_texts"])
+                    gate_post_frames = tuple([*goal_frames, *post_frames])
+                    post_action_context = _evaluate_post_action_context(step, gate_post_frames)
+                    if post_action_context is not None:
+                        action_record["post_action_context"] = post_action_context
+                    next_target_resolution = self._resolve_next_step_target(
+                        next_step,
+                        test_case,
+                        post_frames[-1] if post_frames else current_frame,
+                    )
+                    if next_target_resolution is not None:
+                        action_record["next_step_target_resolution"] = next_target_resolution
+                    gate = evaluate_step_gate(
+                        test_case=test_case,
+                        step=step,
+                        action_record=action_record,
+                        attempt=attempts,
+                        pre_frame=current_frame,
+                        post_frames=gate_post_frames,
+                        next_step=next_step,
+                        next_step_target_evidence=(
+                            next_target_resolution.get("status")
+                            if next_target_resolution is not None
+                            else None
+                        ),
+                    )
                 post_frame_ids = tuple(frame["frame_id"] for frame in gate_post_frames)
                 evidence = {
                     **action_record,
@@ -378,10 +494,36 @@ class MobiAgentStepExecutor:
                     "target_evidence": gate.target_evidence,
                     "action_conformance": gate.action_conformance,
                     "environment_signal": gate.environment_signal,
+                    "reobserve_count": reobserve_count,
+                    "reobserve_started_ms": reobserve_started_ms,
                 }
                 if gate_attempts:
                     evidence["step_gate_attempts"] = [*gate_attempts, gate.as_dict()]
                 if gate.gate_decision == StepGateDecision.CONTINUE:
+                    attempt_evidence.append(
+                        _build_attempt_evidence(
+                            attempt=attempts,
+                            action_index=action_index,
+                            pre_frame=current_frame,
+                            action_record=action_record,
+                            post_frames=gate_post_frames,
+                            gate=gate,
+                            dispatch_started_ms=attempt_started_ms,
+                            dispatch_finished_ms=int(time.time() * 1000),
+                            action_dispatched=True,
+                            retry_class=(
+                                "REOBSERVE_THEN_CONTINUE"
+                                if reobserve_count
+                                else "CONTINUE"
+                            ),
+                            retry_reason=(
+                                "additional read-only observation after insufficient evidence"
+                                if reobserve_count
+                                else None
+                            ),
+                        )
+                    )
+                    evidence["attempt_evidence"] = list(attempt_evidence)
                     step_results.append(
                         StepExecutionResult(
                             step_id=step.step_id,
@@ -400,18 +542,25 @@ class MobiAgentStepExecutor:
                     gate.gate_decision == StepGateDecision.RETRY
                     and attempts <= step.max_retries
                     and (
-                        _retry_is_safe(step, action_record)
+                        (
+                            gate.target_evidence == "OVERLAY_BLOCKED"
+                            and _action_has_external_overlay(
+                                action_record,
+                                test_case.app_under_test.package,
+                            )
+                        )
                         or _needs_navigation_context_recovery(step, action_record)
-                        or _action_has_external_overlay(
+                    )
+                ):
+                    recovery_kind = None
+                    if (
+                        gate.target_evidence == "OVERLAY_BLOCKED"
+                        and _action_has_external_overlay(
                             action_record,
                             test_case.app_under_test.package,
                         )
-                    )
-                ):
-                    if _action_has_external_overlay(
-                        action_record,
-                        test_case.app_under_test.package,
                     ):
+                        recovery_kind = "SAFE_OVERLAY_RECOVERY"
                         recovery = self._dismiss_external_overlay(
                             device,
                             frames[-1] if frames else current_frame,
@@ -431,8 +580,30 @@ class MobiAgentStepExecutor:
                                     recovery_frame["visible_texts"]
                                 )
                             next_frame_id += len(recovery_frames)
+                            attempt_audit = _build_attempt_evidence(
+                                attempt=attempts,
+                                action_index=action_index,
+                                pre_frame=current_frame,
+                                action_record=action_record,
+                                post_frames=gate_post_frames,
+                                gate=gate,
+                                dispatch_started_ms=attempt_started_ms,
+                                dispatch_finished_ms=int(time.time() * 1000),
+                                action_dispatched=True,
+                                retry_class=recovery_kind,
+                                retry_reason=gate.reason,
+                            )
+                            attempt_audit["recovery_action"] = dict(recovery_action)
+                            attempt_audit["recovery_frame_ids"] = [
+                                frame["frame_id"] for frame in recovery_frames
+                            ]
+                            attempt_evidence.append(attempt_audit)
+                            evidence["retry_class"] = recovery_kind
+                            evidence["retry_reason"] = gate.reason
+                            evidence["attempt_evidence"] = list(attempt_evidence)
                             continue
                     elif _needs_navigation_context_recovery(step, action_record):
+                        recovery_kind = "SAFE_NAVIGATION_RECOVERY"
                         recovery_action, recovery_frames = self._recover_navigation_context(
                             device,
                             frames[-1] if frames else current_frame,
@@ -449,6 +620,27 @@ class MobiAgentStepExecutor:
                                 recovery_frame["visible_texts"]
                             )
                         next_frame_id += len(recovery_frames)
+                        attempt_audit = _build_attempt_evidence(
+                            attempt=attempts,
+                            action_index=action_index,
+                            pre_frame=current_frame,
+                            action_record=action_record,
+                            post_frames=gate_post_frames,
+                            gate=gate,
+                            dispatch_started_ms=attempt_started_ms,
+                            dispatch_finished_ms=int(time.time() * 1000),
+                            action_dispatched=True,
+                            retry_class=recovery_kind,
+                            retry_reason=gate.reason,
+                        )
+                        attempt_audit["recovery_action"] = dict(recovery_action)
+                        attempt_audit["recovery_frame_ids"] = [
+                            frame["frame_id"] for frame in recovery_frames
+                        ]
+                        attempt_evidence.append(attempt_audit)
+                        evidence["retry_class"] = recovery_kind
+                        evidence["retry_reason"] = gate.reason
+                        evidence["attempt_evidence"] = list(attempt_evidence)
                         history.append(
                             json.dumps(
                                 {
@@ -461,8 +653,36 @@ class MobiAgentStepExecutor:
                             )
                         )
                         continue
-                    elif _retry_is_safe(step, action_record):
-                        continue
+                if gate.gate_decision == StepGateDecision.RETRY:
+                    gate = replace(
+                        gate,
+                        gate_decision=StepGateDecision.INCONCLUSIVE,
+                        reason=(
+                            "a dispatched action was not proven safe to repeat; "
+                            "no business action was re-dispatched"
+                        ),
+                    )
+                    evidence["requested_gate_decision"] = StepGateDecision.RETRY
+                    evidence["retry_class"] = "NO_REDISPATCH"
+                    evidence["retry_reason"] = gate.reason
+                    evidence["step_gate"] = gate.as_dict()
+                    evidence["gate_decision"] = gate.gate_decision
+                attempt_evidence.append(
+                    _build_attempt_evidence(
+                        attempt=attempts,
+                        action_index=action_index,
+                        pre_frame=current_frame,
+                        action_record=action_record,
+                        post_frames=gate_post_frames,
+                        gate=gate,
+                        dispatch_started_ms=attempt_started_ms,
+                        dispatch_finished_ms=int(time.time() * 1000),
+                        action_dispatched=True,
+                        retry_class=evidence.get("retry_class") or "NO_REDISPATCH",
+                        retry_reason=evidence.get("retry_reason") or gate.reason,
+                    )
+                )
+                evidence["attempt_evidence"] = list(attempt_evidence)
                 status = _step_status_from_gate(gate.gate_decision)
                 step_results.append(
                     StepExecutionResult(
@@ -2115,10 +2335,114 @@ def _step_status_from_gate(gate_decision: str) -> str:
     return StepStatus.STEP_FAILED
 
 
-def _retry_is_safe(step: TestStep, action_record: Mapping[str, Any]) -> bool:
-    if step.action_type in {"WAIT", "BACK"}:
+def _has_dispatched_action(action_record: Mapping[str, Any] | None) -> bool:
+    if not isinstance(action_record, Mapping):
+        return False
+    raw_ids = action_record.get("action_ids")
+    if isinstance(raw_ids, (list, tuple)) and any(
+        isinstance(item, int) and not isinstance(item, bool) for item in raw_ids
+    ):
         return True
-    return not bool(action_record.get("action_ids") or action_record.get("action_index"))
+    return isinstance(action_record.get("action_index"), int) and not isinstance(
+        action_record.get("action_index"), bool
+    )
+
+
+def _frame_attempt_evidence(frame: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(frame, Mapping):
+        return None
+    return {
+        "frame_id": frame.get("frame_id"),
+        "timestamp_ms": frame.get("timestamp_ms"),
+        "relative_to_action_ms": frame.get("relative_to_action_ms"),
+        "observation_phase": frame.get("observation_phase"),
+        "stability": frame.get("stability"),
+        "screenshot": frame.get("screenshot"),
+        "screenshot_sha256": frame.get("screenshot_sha256"),
+        "hierarchy": frame.get("hierarchy"),
+        "hierarchy_sha256": frame.get("hierarchy_sha256"),
+        "visible_texts": list(frame.get("visible_texts", ())),
+    }
+
+
+def _build_attempt_evidence(
+    *,
+    attempt: int,
+    action_index: int,
+    pre_frame: Mapping[str, Any] | None,
+    action_record: Mapping[str, Any] | None,
+    post_frames: tuple[Mapping[str, Any], ...],
+    gate: Any,
+    dispatch_started_ms: int,
+    dispatch_finished_ms: int,
+    action_dispatched: bool,
+    retry_class: str,
+    retry_reason: str | None,
+    error: str | None = None,
+) -> dict[str, Any]:
+    action = dict(action_record) if isinstance(action_record, Mapping) else None
+    action_ids = []
+    if isinstance(action, Mapping):
+        raw_ids = action.get("action_ids")
+        if isinstance(raw_ids, (list, tuple)):
+            action_ids = [item for item in raw_ids if isinstance(item, int)]
+        elif isinstance(action.get("action_index"), int):
+            action_ids = [action["action_index"]]
+    if not action_ids and gate is not None:
+        action_ids = list(getattr(gate, "action_ids", ()) or ())
+    frame_evidence = [_frame_attempt_evidence(frame) for frame in post_frames]
+    frame_evidence = [item for item in frame_evidence if item is not None]
+    immediate = [
+        item for item in frame_evidence if item.get("relative_to_action_ms") == 0
+    ]
+    delayed = [
+        item for item in frame_evidence if item.get("relative_to_action_ms") not in (None, 0)
+    ]
+    gate_payload = gate.as_dict() if hasattr(gate, "as_dict") else None
+    return {
+        "schema_version": "app-test-mobiagent-attempt-evidence-v1",
+        "attempt": attempt,
+        "action_index": action_index,
+        "action_dispatched": bool(action_dispatched),
+        "action_ids": action_ids,
+        "pre_frame": _frame_attempt_evidence(pre_frame),
+        "dispatch": {
+            "started_ms": dispatch_started_ms,
+            "finished_ms": dispatch_finished_ms,
+            "duration_ms": max(0, dispatch_finished_ms - dispatch_started_ms),
+        },
+        "action": action,
+        "immediate_post_frames": immediate,
+        "delayed_post_frames": delayed,
+        "post_frames": frame_evidence,
+        "target_evidence": gate_payload.get("target_evidence") if gate_payload else None,
+        "progress_evidence": {
+            "progress_status": gate_payload.get("progress_status") if gate_payload else None,
+            "action_conformance": gate_payload.get("action_conformance") if gate_payload else None,
+            "next_step_target_evidence": (
+                gate_payload.get("next_step_target_evidence") if gate_payload else None
+            ),
+        },
+        "environment_signal": gate_payload.get("environment_signal") if gate_payload else None,
+        "gate_decision": gate_payload.get("gate_decision") if gate_payload else None,
+        "gate_reason": gate_payload.get("reason") if gate_payload else None,
+        "gate": gate_payload,
+        "retry_class": retry_class,
+        "retry_reason": retry_reason,
+        "error": error,
+    }
+
+
+def _retry_is_safe(step: TestStep, action_record: Mapping[str, Any]) -> bool:
+    """Return true only for a pre-dispatch retry opportunity.
+
+    Once an action index or runner action id exists, the action may have
+    changed App state.  WAIT/BACK are not exceptions here: an observation
+    deficit is handled by re-observation, never by replaying a business step.
+    """
+
+    del step
+    return not _has_dispatched_action(action_record)
 
 
 def _needs_navigation_context_recovery(
@@ -2131,7 +2455,7 @@ def _needs_navigation_context_recovery(
     if step.action_type != "CLICK" or str(action_record.get("type") or "").lower() != "click":
         return False
     target = step.target if isinstance(step.target, Mapping) else {}
-    return str(target.get("role") or "").casefold() in {
+    if str(target.get("role") or "").casefold() not in {
         "conversation",
         "contact",
         "chat",
@@ -2139,8 +2463,76 @@ def _needs_navigation_context_recovery(
         "tab",
         "section",
         "navigation",
-        "floating_action_button",
-    }
+    }:
+        return False
+    if not _safe_navigation_recovery_action(step, action_record):
+        return False
+    return True
+
+
+def _safe_navigation_recovery_action(
+    step: TestStep,
+    action_record: Mapping[str, Any],
+) -> bool:
+    """Require proof that a destination click was read-only before recovery."""
+
+    if not _has_dispatched_action(action_record) or action_record.get("target_match") is not True:
+        return False
+    if action_record.get("micro_actions") or action_record.get("micro_gates"):
+        return False
+    target = step.target if isinstance(step.target, Mapping) else {}
+    role = str(target.get("role") or "").casefold()
+    if role not in {"conversation", "contact", "chat", "thread", "tab", "section", "navigation"}:
+        return False
+    signature = " ".join(
+        str(value or "")
+        for value in (
+            step.instruction,
+            target.get("label"),
+            target.get("text"),
+            target.get("name"),
+            target.get("role"),
+        )
+    ).casefold()
+    if any(
+        marker in signature
+        for marker in (
+            "publish", "post", "send", "delete", "pay", "payment", "submit",
+            "confirm", "like", "follow", "发布", "发送", "删除", "支付",
+            "提交", "确认", "点赞", "关注",
+        )
+    ):
+        return False
+    if action_record.get("selector_clicked") is True:
+        return True
+    point = action_record.get("click_point")
+    if not isinstance(point, (list, tuple)) or len(point) != 2:
+        return False
+    try:
+        x, y = int(point[0]), int(point[1])
+    except (TypeError, ValueError):
+        return False
+    hit_test = action_record.get("xml_hit_test_result")
+    bounds: list[tuple[int, int, int, int]] = []
+    if isinstance(hit_test, Mapping):
+        nodes = list(hit_test.get("direct_hits", ()) or ())
+        if isinstance(hit_test.get("selected_node"), Mapping):
+            nodes.append(hit_test["selected_node"])
+        for node in nodes:
+            if isinstance(node, Mapping):
+                parsed = _parse_bounds(node.get("bounds"))
+                if parsed is not None:
+                    bounds.append(parsed)
+    for key in ("runtime_bounds", "resolved_bounds"):
+        parsed = _parse_bounds(action_record.get(key))
+        if parsed is not None:
+            bounds.append(parsed)
+    source = str(action_record.get("target_source") or "").casefold()
+    if source.startswith("hierarchy_"):
+        parsed = _parse_bounds(action_record.get("bounds"))
+        if parsed is not None:
+            bounds.append(parsed)
+    return any(x1 <= x <= x2 and y1 <= y <= y2 for x1, y1, x2, y2 in bounds)
 
 
 def _action_has_external_overlay(
