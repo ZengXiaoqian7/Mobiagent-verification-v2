@@ -62,6 +62,11 @@ tests/
 **/*.rst
 !/README.md
 
+# The root regression suite is synthetic and safe to publish. Keep nested
+# third-party/local test trees excluded by the broad rules above.
+!/tests/
+!/tests/**/*.py
+
 # Local credentials and runtime output must never enter source control.
 api-key-file.txt
 .env
@@ -84,3 +89,4 @@ output.txt
 /dist/
 /MobiAgentVerifierPC.spec
 /output_pc_client/
+/output_pc_acceptance/

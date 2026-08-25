@@ -21,7 +21,18 @@
 
 ## 环境准备
 
-要求：Python 3.10+、已安装项目依赖、已连接并可调试的 Android 或 HarmonyOS 设备，以及 OpenAI 兼容的视觉模型服务。
+要求 Python 3.10+。离线回放、Mock、报告生成和 PC 客户端不要求安装真机或大模型依赖；按实际用途选择依赖层：
+
+| 依赖文件 | 用途 |
+| --- | --- |
+| `requirements-core.txt` | PC 核心、离线回放、Mock 与预检 |
+| `requirements-test.txt` | 本地回归测试 |
+| `requirements-ci-lock.txt` | Windows/Python 3.12 可复现 CI 与打包 |
+| `requirements-package.txt` | 本地 PyInstaller 打包 |
+| `requirements-device-android.txt` | Android 真机执行 |
+| `requirements-device-harmony.txt` | HarmonyOS 真机执行 |
+
+原 `requirements.txt` 保留为包含 OCR、RAG、模型与设备框架的完整研究环境，不建议仅为使用 PC 客户端而安装。
 
 ```powershell
 $root = "D:\Lab\MobiAgent-verifier-enhanced"
@@ -30,7 +41,7 @@ $env:PYTHONPATH = $root
 
 python -m venv .venv
 & .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-test.txt
 
 # 不要将密钥写入文件或提交到 Git。
 $env:MOBIAGENT_API_KEY = "<your-api-key>"
@@ -40,7 +51,26 @@ $env:MOBIAGENT_MODEL = "<your-vision-model>"
 
 HarmonyOS 真实执行还需要已可用的 `hdc`、设备序列号和应用登录态。涉及发帖、发送消息或发布笔记的用例会产生真实业务副作用，请使用测试账号。
 
+可在不连接设备的情况下检查各运行环境：
+
+```powershell
+python -m verification_benchmark.tools.check_pc_environment --profile core
+python -m verification_benchmark.tools.check_pc_environment --profile package
+python -m verification_benchmark.tools.check_pc_environment --profile android
+python -m verification_benchmark.tools.check_pc_environment --profile harmony
+```
+
 ## 运行测试
+
+### 一键 PC 验收
+
+以下命令依次运行依赖检查、完整回归、源码 Mock、可用的本地真实轨迹基线、Windows 打包和打包后 Mock，全程不会操作真实设备：
+
+```powershell
+.\verify_pc_release.ps1
+```
+
+在没有真实轨迹的干净环境可使用 `-SkipRealReplay`；只做快速源码验收可再加 `-SkipBuild`。临时验证可通过 `-OutputRoot <path>` 与正式验收报告隔离。GitHub Actions 使用同一脚本和 `requirements-ci-lock.txt`，保证本地与 CI 执行入口一致。
 
 ### PC 客户端
 
@@ -52,10 +82,10 @@ python -m pc_client
 
 客户端复用下文同一套评测内核，支持离线 Manifest 回放、Mock 自检、无设备操作的真机预检，以及需要二次副作用确认的真机执行。离线回放默认从 raw `actions.json` 与 observation frames 使用当前规则重算 Step Gate，不采信历史 gate 标签。密钥仍只从环境变量读取，客户端不保存密钥。
 
-如需打包为 Windows 客户端目录，先安装 PyInstaller，再运行：
+如需打包为 Windows 客户端目录，安装打包依赖后运行：
 
 ```powershell
-python -m pip install pyinstaller
+python -m pip install -r requirements-package.txt
 .\build_pc_client.ps1
 ```
 
@@ -144,4 +174,4 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 ## 安全与版本控制
 
-密钥只通过环境变量或本机受保护的密钥文件提供。`docs/`、`tests/`、运行产物、设备截图、构建缓存和密钥文件均不进入发布分支；`README.md` 是唯一随源码发布的说明文档。
+密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件均不进入发布分支，`README.md` 是唯一随源码发布的说明文档。

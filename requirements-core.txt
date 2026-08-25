@@ -1,0 +1,4 @@
+# PC verifier core: offline replay, Mock evaluation, reports and preflight.
+Pillow>=12.2,<13
+PyYAML>=6,<7
+requests>=2.32,<3
