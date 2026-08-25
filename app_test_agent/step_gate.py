@@ -650,8 +650,6 @@ def _target_conformance(
     if action_type not in {"click", "click_input"}:
         return ActionConformance.CONFORMANT
     target_match = action_record.get("target_match")
-    if target_match is True:
-        return ActionConformance.CONFORMANT
     if target_match is False:
         return ActionConformance.NON_CONFORMANT
     xml_result = _xml_hit_test_conformance(
@@ -660,19 +658,26 @@ def _target_conformance(
         intent=intent,
         app_package=app_package,
     )
-    if xml_result is not None:
+    if xml_result in {"OVERLAY_BLOCKED", ActionConformance.NON_CONFORMANT}:
         return xml_result
-    if action_record.get("selector_clicked") is True:
-        return ActionConformance.CONFORMANT
     visual = action_record.get("visual_target_check")
     if isinstance(visual, Mapping):
-        if visual.get("matches_target") is True:
-            return ActionConformance.CONFORMANT
         if visual.get("matches_target") is False:
             return ActionConformance.NON_CONFORMANT
-    bounds_result = _click_bounds_conformance(action_record)
-    if bounds_result == ActionConformance.NON_CONFORMANT:
-        return bounds_result
+    dispatch_result = _click_dispatch_conformance(action_record)
+    if dispatch_result == ActionConformance.NON_CONFORMANT:
+        return dispatch_result
+    semantic_match = (
+        target_match is True
+        or xml_result == ActionConformance.CONFORMANT
+        or action_record.get("selector_clicked") is True
+        or (
+            isinstance(visual, Mapping)
+            and visual.get("matches_target") is True
+        )
+    )
+    if semantic_match and dispatch_result == ActionConformance.CONFORMANT:
+        return ActionConformance.CONFORMANT
     return ActionConformance.UNKNOWN
 
 
@@ -796,25 +801,94 @@ def _allowed_runner_action_types(action_family: str) -> set[str]:
     }.get(action_family, set())
 
 
-def _click_bounds_conformance(action_record: Mapping[str, Any]) -> str | None:
-    point = action_record.get("click_point")
-    bounds = action_record.get("bounds")
-    if point is None or bounds is None:
+def _click_dispatch_conformance(action_record: Mapping[str, Any]) -> str | None:
+    """Require an actual click point inside a runtime-resolved target region."""
+
+    raw_point = action_record.get("click_point")
+    if raw_point is None:
         return None
-    if not isinstance(point, (list, tuple)) or len(point) != 2:
+    point = _coordinate_pair(raw_point)
+    if point is None:
         return ActionConformance.NON_CONFORMANT
-    if not isinstance(bounds, (list, tuple)) or len(bounds) != 4:
+    x, y = point
+    xml_bounds = _xml_runtime_bounds(action_record.get("xml_hit_test_result"))
+    if xml_bounds:
+        return (
+            ActionConformance.CONFORMANT
+            if any(x1 <= x <= x2 and y1 <= y <= y2 for x1, y1, x2, y2 in xml_bounds)
+            else ActionConformance.NON_CONFORMANT
+        )
+    raw_bounds = next(
+        (
+            action_record.get(key)
+            for key in ("runtime_bounds", "resolved_bounds")
+            if action_record.get(key) is not None
+        ),
+        None,
+    )
+    if raw_bounds is None and _plain_bounds_have_runtime_provenance(action_record):
+        raw_bounds = action_record.get("bounds")
+    if raw_bounds is None:
+        return None
+    bounds = _coordinate_bounds(raw_bounds)
+    if bounds is None:
         return ActionConformance.NON_CONFORMANT
-    try:
-        x, y = int(point[0]), int(point[1])
-        x1, y1, x2, y2 = (int(item) for item in bounds)
-    except (TypeError, ValueError):
-        return ActionConformance.NON_CONFORMANT
+    x1, y1, x2, y2 = bounds
     return (
         ActionConformance.CONFORMANT
         if x1 <= x <= x2 and y1 <= y <= y2
         else ActionConformance.NON_CONFORMANT
     )
+
+
+def _plain_bounds_have_runtime_provenance(action_record: Mapping[str, Any]) -> bool:
+    source = str(action_record.get("target_source") or "").strip().casefold()
+    return action_record.get("selector_clicked") is True or source.startswith("hierarchy_")
+
+
+def _xml_runtime_bounds(value: Any) -> tuple[tuple[int, int, int, int], ...]:
+    if not isinstance(value, Mapping):
+        return ()
+    raw_nodes: list[Any] = []
+    selected = value.get("selected_node")
+    if isinstance(selected, Mapping):
+        raw_nodes.append(selected)
+    direct_hits = value.get("direct_hits")
+    if isinstance(direct_hits, list):
+        raw_nodes.extend(direct_hits)
+    bounds = []
+    for node in raw_nodes:
+        if not isinstance(node, Mapping):
+            continue
+        parsed = _coordinate_bounds(node.get("bounds"))
+        if parsed is not None and parsed not in bounds:
+            bounds.append(parsed)
+    return tuple(bounds)
+
+
+def _coordinate_pair(value: Any) -> tuple[int, int] | None:
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        return None
+    if any(isinstance(item, bool) for item in value):
+        return None
+    try:
+        return int(value[0]), int(value[1])
+    except (TypeError, ValueError):
+        return None
+
+
+def _coordinate_bounds(value: Any) -> tuple[int, int, int, int] | None:
+    if not isinstance(value, (list, tuple)) or len(value) != 4:
+        return None
+    if any(isinstance(item, bool) for item in value):
+        return None
+    try:
+        x1, y1, x2, y2 = (int(item) for item in value)
+    except (TypeError, ValueError):
+        return None
+    if x2 < x1 or y2 < y1:
+        return None
+    return x1, y1, x2, y2
 
 
 def _xml_hit_test_conformance(

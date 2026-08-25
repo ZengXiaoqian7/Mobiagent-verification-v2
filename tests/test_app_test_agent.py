@@ -331,6 +331,8 @@ def test_step_gate_rejects_input_dispatch_when_declared_value_never_reaches_ui()
             "action_index": 2,
             "text": expected_value,
             "target_match": True,
+            "click_point": [500, 500],
+            "runtime_bounds": [400, 400, 600, 600],
             "input_effect": {
                 "status": "NON_CONFORMANT",
                 "expected_value": expected_value,
@@ -1664,6 +1666,28 @@ def test_stage_c_step_gate_missing_target_evidence_is_not_recovered_by_generic_p
     assert gate.gate_decision == "INCONCLUSIVE"
 
 
+def test_stage_c_target_match_without_dispatch_geometry_cannot_continue_on_page_change():
+    spec = load_test_case(CASE)
+    gate = evaluate_step_gate(
+        test_case=spec,
+        step=spec.steps[0],
+        action_record={
+            "type": "click",
+            "action_index": 1,
+            "target_match": True,
+        },
+        attempt=1,
+        pre_frame=_frame(0, ("Feed", "Post"), 0),
+        post_frames=(_frame(1, ("Unrelated page",), 500),),
+        next_step=spec.steps[1],
+    )
+
+    assert gate.target_evidence == "UNKNOWN"
+    assert gate.action_conformance == "UNKNOWN"
+    assert gate.progress_status == "PAGE_CHANGED"
+    assert gate.gate_decision == "INCONCLUSIVE"
+
+
 def test_stage_c_step_gate_wrong_click_target_is_non_conformant():
     spec = load_test_case(CASE)
     gate = evaluate_step_gate(
@@ -1673,7 +1697,7 @@ def test_stage_c_step_gate_wrong_click_target_is_non_conformant():
             "type": "click",
             "action_index": 1,
             "click_point": [500, 500],
-            "bounds": [0, 0, 100, 100],
+            "runtime_bounds": [0, 0, 100, 100],
         },
         attempt=1,
         pre_frame=_frame(0, ("Feed", "Post"), 0),
@@ -1965,6 +1989,7 @@ def test_stage7_semantically_snapped_button_is_conformant_without_direct_hits():
         action_record={
             "type": "click",
             "action_index": 1,
+            "click_point": [949, 1344],
             "xml_hit_test_result": {
                 "snapped": True,
                 "alignment_basis": "target_semantic_match",
@@ -2043,6 +2068,38 @@ def test_stage7_target_conformance_does_not_accept_model_bounds_alone():
     )
     assert gate.target_evidence == "UNKNOWN"
     assert gate.gate_decision == "INCONCLUSIVE"
+
+
+def test_stage7_xml_runtime_bounds_override_stale_model_bounds():
+    spec = load_test_case(CASE)
+    gate = evaluate_step_gate(
+        test_case=spec,
+        step=spec.steps[0],
+        action_record={
+            "type": "click",
+            "action_index": 1,
+            "click_point": [933, 1897],
+            "bounds": [788, 1604, 986, 1800],
+            "xml_hit_test_result": {
+                "snapped": True,
+                "alignment_basis": "visual_fab_hierarchy_match",
+                "direct_hits": [],
+                "selected_node": {
+                    "tag": "ViewGroup",
+                    "bounds": [855, 1819, 1011, 1975],
+                    "attributes": {"type": "ViewGroup"},
+                },
+            },
+        },
+        attempt=1,
+        pre_frame=_frame(0, ("Feed", "Post"), 0),
+        post_frames=(_frame(1, ("Editor",), 500),),
+        next_step=spec.steps[1],
+    )
+
+    assert gate.target_evidence == "CONFORMANT"
+    assert gate.action_conformance == "CONFORMANT"
+    assert gate.gate_decision == "CONTINUE"
 
 
 def test_stage7_exact_hierarchy_text_target_uses_unique_text_node_without_model_grounding(tmp_path):
@@ -2296,6 +2353,7 @@ def test_stage7_input_step_accepts_a_semantic_chat_input_container():
             "type": "click_input",
             "action_index": 1,
             "text": "hello test 123",
+            "click_point": [540, 2200],
             "xml_hit_test_result": {
                 "alignment_basis": "direct_supported_hit",
                 "direct_hits": [
