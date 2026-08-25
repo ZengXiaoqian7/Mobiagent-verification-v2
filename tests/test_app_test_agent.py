@@ -3802,6 +3802,36 @@ def test_stage8_conversation_surface_accepts_target_contact_context():
     assert report["overall_result"] == OverallResult.APP_PASS
 
 
+def test_stage8_business_conversation_surface_accepts_fresh_message_result():
+    payload = _case_payload()
+    expected_text = "hello from the verifier"
+    payload["test_data"]["post_content"] = expected_text
+    payload["expected_results"][0]["surface"] = "conversation"
+    spec = AppTestCaseSpec.from_json(payload)
+    record = _scripted_record(
+        spec,
+        visible_texts=("消息", "Alice", expected_text),
+        initial_texts=("Feed", "消息", "Alice"),
+        after_submit_texts=("消息", "Alice", expected_text),
+    )
+
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(record),
+        run_id="business-conversation-fresh-message",
+    )
+
+    direct = report["direct_app_behavior_result"]
+    assertion = direct["assertion_results"][0]
+    assert assertion["status"] == "SATISFIED"
+    offline_assertion = report["business_offline_review"]["assertion_reviews"][0]
+    assert offline_assertion["evidence"]["source"].startswith(
+        "business_surface:conversation:"
+    )
+    assert report["verification_runner_result"]["status"] == "NOT_RUN"
+    assert report["overall_result"] == OverallResult.APP_PASS
+
+
 def test_stage7_minimal_user_view_auto_verification_intent_finds_result():
     payload = json.loads(MINIMAL_USER_CASE.read_text(encoding="utf-8"))
     payload["metadata"]["verification_runner"] = {

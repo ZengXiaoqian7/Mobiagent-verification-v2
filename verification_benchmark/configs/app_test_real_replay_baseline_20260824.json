@@ -1,6 +1,6 @@
 {
   "schema_version": "app-test-replay-baseline-v1",
-  "description": "Five protected real-trace cases for the PC App-test agent; paths resolve under --asset-root.",
+  "description": "Six protected real-trace cases for the PC App-test agent; paths resolve under --asset-root.",
   "cases": [
     {
       "case_id": "cloudmusic_create_note_fixed5",
@@ -15,10 +15,19 @@
       "case_id": "cloudmusic_create_note_fixed4",
       "test_case_path": "cloudmusic_create_note_real_run_fixed4/test_case.normalized.json",
       "manifest_path": "cloudmusic_create_note_real_run_fixed4/test_execution_manifest.json",
-      "ground_truth": "INCONCLUSIVE",
-      "key_frames": [],
-      "truth_reason": "Historical APP_FAIL is not accepted as defect truth; this asset must be replayed after it is restored.",
-      "allowed_verification_policy": ["NOT_RUN", "COMPLETED", "INCONCLUSIVE"]
+      "ground_truth": "APP_FAIL",
+      "key_frames": [21, 24, 25, 26, 27, 28],
+      "truth_reason": "The title TEST and body 评测智能体 are present before publish and the App reports publish success, but both remain absent from the stable published-note landing surface.",
+      "allowed_verification_policy": ["NOT_RUN"]
+    },
+    {
+      "case_id": "xhs_chat_qingwen_235150",
+      "test_case_path": "xhs_chat_qingwen_20260724_235150/test_case.normalized.json",
+      "manifest_path": "xhs_chat_qingwen_20260724_235150/test_execution_manifest.json",
+      "ground_truth": "APP_PASS",
+      "key_frames": [13, 16, 17, 18, 19, 20],
+      "truth_reason": "The declared message exists only in the editor before send, then appears as a separate outgoing message bubble and remains visible on the conversation surface through frame 20.",
+      "allowed_verification_policy": ["NOT_RUN"]
     },
     {
       "case_id": "xhs_chat_qingwen_212856",

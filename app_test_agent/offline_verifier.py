@@ -1606,6 +1606,8 @@ def _surface_name_candidates(surface: str | None) -> tuple[str, ...]:
     text = str(surface or "").strip()
     folded = text.casefold()
     values: list[str] = []
+    if any(term in folded for term in ("conversation", "chat", "message", "私信", "消息", "聊天")):
+        values.extend(["Conversation", "Messages", "Chat", "消息", "聊天", "私信", "发消息"])
     if any(term in folded for term in ("feed", "timeline", "列表", "动态")):
         values.extend(["Feed", "列表", "动态"])
     if any(term in folded for term in ("post", "note", "笔记", "帖子", "内容")):
