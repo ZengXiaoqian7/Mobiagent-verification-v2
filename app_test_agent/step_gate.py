@@ -1095,6 +1095,8 @@ def _dispatch_failure_is_retryable(error: str) -> bool:
         for marker in (
             "target was not found",
             "target was not located",
+            "no usable target geometry",
+            "target alignment rejected before dispatch",
             "not visible",
             "temporarily unavailable",
             "locator returned no target",

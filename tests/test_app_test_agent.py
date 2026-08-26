@@ -42,7 +42,11 @@ from app_test_agent.schema import (
     TestCaseSpec as AppTestCaseSpec,
     load_test_case,
 )
-from app_test_agent.step_gate import evaluate_micro_action_gate, evaluate_step_gate
+from app_test_agent.step_gate import (
+    evaluate_dispatch_failure_gate,
+    evaluate_micro_action_gate,
+    evaluate_step_gate,
+)
 from app_test_agent.verifier import OverallResult
 from app_test_agent.verification_runner import (
     MobiAgentVerificationRunner,
@@ -1804,6 +1808,34 @@ def test_stage7_malformed_grounder_response_enters_target_retry_path(tmp_path, m
         )
 
 
+def test_stage7_alignment_rejection_uses_remaining_pre_dispatch_retry_budget():
+    spec = load_test_case(CASE)
+    error = (
+        "runner grounder returned no usable target geometry: "
+        "target alignment rejected before dispatch: weak_geometry_without_semantics"
+    )
+    gate = evaluate_dispatch_failure_gate(
+        test_case=spec,
+        step=spec.steps[0],
+        attempt=1,
+        pre_frame=_frame(0, ("Feed",), 0),
+        error=error,
+        max_retries=1,
+    )
+    assert gate.gate_decision == "RETRY"
+    assert gate.reason == "target was not located before dispatch; retrying within budget"
+
+    exhausted = evaluate_dispatch_failure_gate(
+        test_case=spec,
+        step=spec.steps[0],
+        attempt=2,
+        pre_frame=_frame(0, ("Feed",), 0),
+        error=error,
+        max_retries=1,
+    )
+    assert exhausted.gate_decision == "TEST_EXECUTION_FAIL"
+
+
 def test_stage7_external_window_hit_is_retryable_overlay_block():
     spec = load_test_case(CASE)
     gate = evaluate_step_gate(
@@ -2298,6 +2330,34 @@ def test_stage7_exact_hierarchy_text_target_uses_unique_text_node_without_model_
     assert device.clicks == [(540, 2250)]
     assert action["target_source"] == "hierarchy_exact_text"
     assert action["target_match"] is True
+
+
+def test_stage7_unique_navigation_text_target_uses_hierarchy_without_model(tmp_path):
+    spec = load_test_case(CASE)
+    step = replace(
+        spec.steps[0],
+        step_id="open_messages",
+        instruction="Open the Messages navigation tab",
+        target={"role": "navigation", "text_candidates": ["消息"]},
+    )
+    frame = {
+        **_frame(0, ("Feed", "消息"), 0),
+        "xml_nodes": [
+            {
+                "tag": "Text",
+                "text": "消息",
+                "bounds": [706, 2251, 806, 2326],
+                "clickable": False,
+                "enabled": True,
+                "visible": True,
+                "attributes": {"type": "Text", "text": "消息"},
+            }
+        ],
+    }
+    resolved = _resolve_hierarchy_control_target(frame, step, wants_text_input=False)
+    assert resolved is not None
+    assert resolved["center"] == (756, 2288)
+    assert resolved["source"] == "hierarchy_exact_text"
 
 
 def test_stage7_real_default_keeps_grounder_refinement_for_decider_bbox(tmp_path):

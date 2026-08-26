@@ -3443,7 +3443,15 @@ def _prefer_exact_hierarchy_target(step: TestStep) -> bool:
     if target.get("prefer_hierarchy_exact_text") is True:
         return True
     role = str(target.get("role") or "").casefold()
-    return role in {"conversation", "contact", "chat", "thread"}
+    return role in {
+        "conversation",
+        "contact",
+        "chat",
+        "thread",
+        "navigation",
+        "tab",
+        "section",
+    }
 
 
 def _resolve_hierarchy_control_target(
