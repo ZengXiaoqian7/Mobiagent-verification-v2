@@ -1367,6 +1367,7 @@ class MobiAgentStepExecutor:
                 if (
                     "Grounder response must contain" in message
                     or "Grounder response validation failed" in message
+                    or "target alignment rejected before dispatch" in message
                 ):
                     raise _TargetNotFound(
                         f"runner grounder returned no usable target geometry: {message}"

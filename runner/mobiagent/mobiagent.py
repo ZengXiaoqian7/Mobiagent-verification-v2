@@ -2374,6 +2374,22 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
     return (center_x, center_y), audit
 
 
+def _alignment_rejection_blocks_click(audit):
+    """Return whether XML alignment has disproved a safe click target.
+
+    ``direct_hits`` is retained in these audits for diagnosis, but a weak
+    intersection with an unrelated node must never reach ``device.click``.
+    """
+    if not isinstance(audit, dict):
+        return False
+    return str(audit.get("rejection_reason") or "").strip().casefold() in {
+        "wrong_target",
+        "outside_target",
+        "weak_geometry_without_semantics",
+        "geometry_only_rejects_low_information_container",
+    }
+
+
 def _bboxes_do_not_overlap(first, second):
     """Return true only when two native-coordinate target boxes are disjoint."""
     try:
@@ -2593,6 +2609,11 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
             )
             if xml_hit_test.get("snapped"):
                 logging.info("XML-aligned click point %s -> (%s, %s), node=%s", raw_click_point, position_x, position_y, xml_hit_test.get("selected_node"))
+            if _alignment_rejection_blocks_click(xml_hit_test):
+                reason = str(xml_hit_test.get("rejection_reason") or "unknown")
+                raise ValueError(
+                    f"target alignment rejected before dispatch: {reason}"
+                )
         _clear_input_focus(device)
         device.click(position_x, position_y)
         append_action_and_history(actions, history, decider_response, {

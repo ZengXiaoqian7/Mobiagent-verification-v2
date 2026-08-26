@@ -1950,6 +1950,79 @@ def test_stage7_runner_alignment_does_not_hijack_fab_with_adjacent_unlabeled_con
     assert audit["snapped"] is False
     assert audit["candidate_center_in_model_bounds"] is False
     assert audit["rejection_reason"] == "geometry_only_rejects_low_information_container"
+    assert runner._alignment_rejection_blocks_click(audit) is True
+
+
+def test_stage7_runner_does_not_dispatch_weak_xml_alignment(tmp_path, monkeypatch):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner = _import_original_mobiagent()
+    image_path = tmp_path / "frame.jpg"
+    Image.new("RGB", (1080, 2444), "white").save(image_path)
+
+    class Recorder:
+        def __init__(self):
+            self.clicks = []
+
+        def click(self, x, y):
+            self.clicks.append((x, y))
+
+    monkeypatch.setattr(
+        runner,
+        "call_model_with_validation_retry",
+        lambda *_args, **_kwargs: {"bbox": [100, 100, 200, 200]},
+    )
+    device = Recorder()
+    actions = []
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "__Common__",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "bounds": "[548,1254][1065,2213]",
+                }
+            },
+            {
+                "attributes": {
+                    "type": "Text",
+                        "text": "消息",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "bounds": "[0,0][100,100]",
+                }
+            },
+        ],
+    }
+    with pytest.raises(ValueError, match="target alignment rejected before dispatch"):
+        runner.handle_click_action(
+            {
+                "reasoning": "navigate to the Messages tab",
+                "parameters": {
+                    "bbox": [324, 914, 427, 988],
+                    "target_element": "底部导航栏的消息标签",
+                },
+            },
+            device,
+            Image.open(image_path),
+            "",
+            "{reasoning} {description}",
+            "{reasoning} {description}",
+            True,
+            False,
+            False,
+            str(tmp_path),
+            {"current_dir": str(tmp_path), "screenshot_name": image_path.name},
+            image_path.name,
+            1,
+            actions,
+            [],
+            hierarchy,
+        )
+    assert device.clicks == []
+    assert actions == []
 
 
 def test_stage7_runner_visual_fab_resolver_uses_red_compact_lower_right_control():
