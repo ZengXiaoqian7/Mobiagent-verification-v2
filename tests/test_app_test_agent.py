@@ -7,6 +7,7 @@ from pathlib import Path
 from PIL import Image
 import pytest
 
+import app_test_agent.mobiagent_executor as mobiagent_executor_module
 from app_test_agent.executor import (
     EvidenceState,
     ExecutionRecord,
@@ -26,6 +27,7 @@ from app_test_agent.mobiagent_executor import (
     _resolve_hierarchy_control_target,
     _needs_navigation_context_recovery,
     _retry_is_safe,
+    _TargetNotFound,
     prepare_mobiagent_preflight,
     reject_unimplemented_device_execution,
 )
@@ -1730,6 +1732,76 @@ def test_stage7_target_conformance_prefers_xml_wrong_target_over_model_bounds():
     )
     assert gate.target_evidence == "NON_CONFORMANT"
     assert gate.gate_decision == "TEST_EXECUTION_FAIL"
+
+
+def test_stage7_weak_xml_hit_with_direct_node_is_not_conformant():
+    """A raw hit on an unrelated card must not satisfy a semantic tab target."""
+    spec = load_test_case(CASE)
+    gate = evaluate_step_gate(
+        test_case=spec,
+        step=spec.steps[0],
+        action_record={
+            "type": "click",
+            "action_index": 1,
+            "click_point": [751, 1902],
+            "xml_hit_test_result": {
+                "candidate_center_in_model_bounds": False,
+                "direct_hits": [
+                    {
+                        "tag": "__Common__",
+                        "text": "曾经北京的西城第一，考上北大元培后",
+                        "bounds": [548, 1254, 1065, 2213],
+                    }
+                ],
+                "intersection_ratio": 0.0615,
+                "rejection_reason": "weak_geometry_without_semantics",
+                "semantic_score": 0,
+                "snapped": False,
+            },
+        },
+        attempt=1,
+        pre_frame=_frame(0, ("Feed",), 0),
+        post_frames=(_frame(1, ("Feed", "Article"), 500),),
+        next_step=spec.steps[1],
+    )
+    assert gate.target_evidence == "NON_CONFORMANT"
+    assert gate.action_conformance == "NON_CONFORMANT"
+    assert gate.gate_decision == "TEST_EXECUTION_FAIL"
+
+
+def test_stage7_malformed_grounder_response_enters_target_retry_path(tmp_path, monkeypatch):
+    image_path = tmp_path / "frame.jpg"
+    Image.new("RGB", (1080, 2444), "white").save(image_path)
+
+    class _MalformedGrounderRunner:
+        factor = 0.5
+
+        @staticmethod
+        def load_prompt(_name):
+            return "{reasoning} {description}"
+
+        @staticmethod
+        def handle_click_action(*_args, **_kwargs):
+            raise ValueError("Grounder response must contain 'coordinates' or 'bbox' field")
+
+    monkeypatch.setattr(
+        mobiagent_executor_module,
+        "_import_original_mobiagent",
+        lambda: _MalformedGrounderRunner,
+    )
+    executor = MobiAgentStepExecutor(output_dir=tmp_path)
+    with pytest.raises(_TargetNotFound, match="no usable target geometry"):
+        executor._dispatch_runner_decision(
+            _FakeMobiAgentDevice(),
+            {"action": "click", "parameters": {"target_element": "消息"}},
+            action_index=1,
+            raw_trace_dir=tmp_path,
+            current_frame={
+                "screenshot_abs": str(image_path),
+                "screenshot": image_path.name,
+            },
+            history=[],
+        )
 
 
 def test_stage7_external_window_hit_is_retryable_overlay_block():

@@ -1338,24 +1338,40 @@ class MobiAgentStepExecutor:
         }
         if action == "click":
             grounder_bbox, grounder_no_bbox = self._grounder_prompt_templates(runner_mobiagent)
-            runner_mobiagent.handle_click_action(
-                decision,
-                device,
-                img,
-                screenshot_resize,
-                grounder_bbox,
-                grounder_no_bbox,
-                self.bbox_flag,
-                self.use_qwen3,
-                self._use_direct_decider_geometry(),
-                str(raw_trace_dir),
-                device_paths,
-                device_paths["screenshot_name"],
-                action_index,
-                actions,
-                history,
-                hierarchy_text,
-            )
+            try:
+                runner_mobiagent.handle_click_action(
+                    decision,
+                    device,
+                    img,
+                    screenshot_resize,
+                    grounder_bbox,
+                    grounder_no_bbox,
+                    self.bbox_flag,
+                    self.use_qwen3,
+                    self._use_direct_decider_geometry(),
+                    str(raw_trace_dir),
+                    device_paths,
+                    device_paths["screenshot_name"],
+                    action_index,
+                    actions,
+                    history,
+                    hierarchy_text,
+                )
+            except ValueError as exc:
+                # A malformed Grounder response cannot have dispatched a
+                # device action. Normalize this narrow runner failure into
+                # the executor's pre-dispatch retry path; letting it escape
+                # as a generic ValueError incorrectly hard-fails the step
+                # without consuming its safe retry budget.
+                message = str(exc)
+                if (
+                    "Grounder response must contain" in message
+                    or "Grounder response validation failed" in message
+                ):
+                    raise _TargetNotFound(
+                        f"runner grounder returned no usable target geometry: {message}"
+                    ) from exc
+                raise
         elif action == "click_input":
             runner_mobiagent.handle_click_input_action(
                 decision,

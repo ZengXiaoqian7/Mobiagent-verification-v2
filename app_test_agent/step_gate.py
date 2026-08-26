@@ -910,6 +910,21 @@ def _xml_hit_test_conformance(
         return ActionConformance.NON_CONFORMANT
     if _hit_is_external_overlay(nodes, app_package):
         return "OVERLAY_BLOCKED"
+    # A direct XML hit only proves that the raw point intersected *some*
+    # accessibility node.  The alignment layer can deliberately retain such
+    # a node as diagnostic evidence even when it rejected the match because
+    # the geometry was weak and there was no target semantics.  Do not let
+    # that diagnostic hit turn an unrelated card/container into a conformant
+    # target (the real-device trace otherwise clicked a feed card instead of
+    # the Messages tab).
+    rejection_reason = str(value.get("rejection_reason") or "").strip().casefold()
+    if rejection_reason in {
+        "wrong_target",
+        "outside_target",
+        "weak_geometry_without_semantics",
+        "geometry_only_rejects_low_information_container",
+    }:
+        return ActionConformance.NON_CONFORMANT
     direct_hits = value.get("direct_hits")
     if isinstance(direct_hits, list) and direct_hits:
         return ActionConformance.CONFORMANT
