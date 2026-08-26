@@ -3531,18 +3531,34 @@ def _evaluate_post_action_context(
     spec = _post_action_context_spec(step)
     if spec is None:
         return None
+    candidates = list(spec["text_candidates"])
+    observed_frames: list[tuple[Mapping[str, Any], list[str], list[str]]] = []
+    for frame in post_frames:
+        if not isinstance(frame, Mapping):
+            continue
+        visible_texts = [
+            str(item) for item in frame.get("visible_texts", ()) if str(item).strip()
+        ]
+        matched = [
+            candidate
+            for candidate in candidates
+            if any(
+                _normalize_target_text(candidate) in _normalize_target_text(text)
+                for text in visible_texts
+            )
+        ]
+        observed_frames.append((frame, visible_texts, matched))
+    matched_frame = next(
+        (item for item in reversed(observed_frames) if item[2]),
+        None,
+    )
     final_frame = post_frames[-1] if post_frames else None
-    visible_texts = (
+    visible_texts = matched_frame[1] if matched_frame else (
         [str(item) for item in final_frame.get("visible_texts", ()) if str(item).strip()]
         if isinstance(final_frame, Mapping)
         else []
     )
-    candidates = list(spec["text_candidates"])
-    matched = [
-        candidate
-        for candidate in candidates
-        if any(_normalize_target_text(candidate) in _normalize_target_text(text) for text in visible_texts)
-    ]
+    matched = matched_frame[2] if matched_frame else []
     if matched:
         status = "CONFORMANT"
     elif not visible_texts:
@@ -3557,7 +3573,12 @@ def _evaluate_post_action_context(
         "required": spec["required"],
         "text_candidates": candidates,
         "matched_candidates": matched,
-        "frame_id": final_frame.get("frame_id") if isinstance(final_frame, Mapping) else None,
+        "frame_id": matched_frame[0].get("frame_id") if matched_frame else (
+            final_frame.get("frame_id") if isinstance(final_frame, Mapping) else None
+        ),
+        "observed_frame_ids": [
+            frame.get("frame_id") for frame, _texts, _matched in observed_frames
+        ],
         "visible_texts": visible_texts,
     }
 

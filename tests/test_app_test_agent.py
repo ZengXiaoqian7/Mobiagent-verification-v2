@@ -28,6 +28,7 @@ from app_test_agent.mobiagent_executor import (
     _needs_navigation_context_recovery,
     _retry_is_safe,
     _TargetNotFound,
+    _evaluate_post_action_context,
     prepare_mobiagent_preflight,
     reject_unimplemented_device_execution,
 )
@@ -2358,6 +2359,27 @@ def test_stage7_unique_navigation_text_target_uses_hierarchy_without_model(tmp_p
     assert resolved is not None
     assert resolved["center"] == (756, 2288)
     assert resolved["source"] == "hierarchy_exact_text"
+
+
+def test_stage7_destination_context_accepts_transient_matching_observation():
+    spec = load_test_case(CASE)
+    step = replace(
+        spec.steps[0],
+        step_id="open_chat",
+        target={"role": "conversation", "text_candidates": ["青文"]},
+    )
+    context = _evaluate_post_action_context(
+        step,
+        (
+            _frame(7, ("你好呀我是评测智能体", "青文"), 0),
+            _frame(8, ("你好呀我是评测智能体",), 500),
+        ),
+    )
+    assert context is not None
+    assert context["status"] == "CONFORMANT"
+    assert context["matched_candidates"] == ["青文"]
+    assert context["frame_id"] == 7
+    assert context["observed_frame_ids"] == [7, 8]
 
 
 def test_stage7_real_default_keeps_grounder_refinement_for_decider_bbox(tmp_path):
