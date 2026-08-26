@@ -6,7 +6,7 @@
     "package": "com.xingin.xhs_hos",
     "version": "9.38.3"
   },
-  "feature": "create_text_note",
+  "feature": "create_text_note_with_generated_image",
   "preconditions": [
     {
       "condition_id": "logged_in",
@@ -43,12 +43,11 @@
     },
     {
       "step_id": "open_publish_entry",
-      "instruction": "Tap the bottom center publish plus entry",
+      "instruction": "点击底部导航中间的发布加号，打开发布方式选择面板",
       "action_type": "CLICK",
       "target": {
-        "label": "bottom publish plus",
-        "coordinates": [540, 2289],
-        "confirmed_bounds": "[432,2220][648,2358]",
+        "role": "button",
+        "label": "底部发布加号",
         "text_candidates": ["+"]
       },
       "timeout_seconds": 10,
@@ -56,12 +55,11 @@
     },
     {
       "step_id": "select_write_text_entry",
-      "instruction": "Tap the write-text publishing entry",
+      "instruction": "在发布方式面板中点击“写文字”，进入文字笔记编辑器",
       "action_type": "CLICK",
       "target": {
+        "role": "button",
         "label": "写文字",
-        "coordinates": [540, 2060],
-        "confirmed_bounds": "[465,2031][615,2090]",
         "text_candidates": ["写文字"]
       },
       "timeout_seconds": 10,
@@ -69,13 +67,11 @@
     },
     {
       "step_id": "input_post_content",
-      "instruction": "Input this run's unique text into the text-note editor",
+      "instruction": "在文字笔记编辑器的正文输入区域输入本轮唯一测试内容",
       "action_type": "INPUT",
       "target": {
         "label": "说说你的想法吧",
         "role": "text_input",
-        "coordinates": [543, 971],
-        "confirmed_bounds": "[143,835][937,944]",
         "text_candidates": ["说说你的想法吧"]
       },
       "value_ref": "post_content",
@@ -83,43 +79,51 @@
       "max_retries": 1
     },
     {
-      "step_id": "continue_after_text",
-      "instruction": "Continue from the text editor to the card selection page",
+      "step_id": "open_image_generation",
+      "instruction": "点击文字编辑器右上角的“生成”，进入“一句话生成配图”流程；不要把这个按钮理解为普通的卡片模板选择",
       "action_type": "CLICK",
       "target": {
-        "label": "top-right continue",
-        "coordinates": [931, 190],
-        "confirmed_bounds": "[833,146][1030,234]",
-        "text_candidates": ["下一步", "生成"]
+        "label": "右上角生成",
+        "text_candidates": ["生成"]
       },
       "timeout_seconds": 20,
       "max_retries": 1
     },
     {
-      "step_id": "select_basic_card",
-      "instruction": "Select the basic card style",
+      "step_id": "wait_for_generated_images",
+      "instruction": "等待配图生成完成，直到页面出现“选择配图”和生成出的配图缩略图；等待期间不要点击“取消”或其他按钮",
+      "action_type": "WAIT",
+      "target": {
+        "surface_text_candidates": ["选择配图", "确定"]
+      },
+      "timeout_seconds": 40,
+      "max_retries": 0
+    },
+    {
+      "step_id": "select_generated_image",
+      "instruction": "在“选择配图”页面点击第一张已经生成的配图缩略图；不要点击“换搭配”或“确定”",
       "action_type": "CLICK",
       "target": {
-        "role": "button",
-        "text_candidates": ["基础卡片", "基础", "基础模板"]
+        "role": "image",
+        "label": "第一张已生成的配图缩略图"
       },
       "timeout_seconds": 20,
       "max_retries": 1
     },
     {
-      "step_id": "continue_after_basic_card",
-      "instruction": "Continue after selecting the basic card",
+      "step_id": "confirm_generated_image",
+      "instruction": "点击“确定”确认当前选择的配图，进入发布编辑页面",
       "action_type": "CLICK",
       "target": {
         "role": "button",
-        "text_candidates": ["下一步"]
+        "text_candidates": ["确定"]
       },
       "timeout_seconds": 20,
       "max_retries": 1
     },
     {
       "step_id": "publish_note",
-      "instruction": "Publish the note",
+      "instruction": "在发布编辑页面点击“发布”提交这条测试笔记",
       "action_type": "CLICK",
       "target": {
         "role": "button",
@@ -155,8 +159,6 @@
       "action_type": "NAVIGATE",
       "target": {
         "label": "我",
-        "coordinates": [972, 2289],
-        "confirmed_bounds": "[910,2220][1034,2358]",
         "text_candidates": ["我"],
         "surface_text_candidates": ["笔记", "收藏", "赞过"]
       },
@@ -228,13 +230,6 @@
     "test_account_required": true,
     "package_confirmed_by_hdc": "com.xingin.xhs_hos",
     "ability_confirmed_by_hdc": "EntryAbility",
-    "hierarchy_confirmations": {
-      "bottom_publish_plus": "[432,2220][648,2358]",
-      "write_text_entry": "[465,2031][615,2090]",
-      "text_editor": "[143,835][937,944]",
-      "top_right_continue_observed_as_generate": "[833,146][1030,234]",
-      "me_tab": "[910,2220][1034,2358]"
-    },
-    "manual_runtime_note": "If the live Xiaohongshu build labels the text-card transition as 生成 instead of 下一步, this case accepts that label for the continue_after_text step. The real result is still judged only after the read-only verification runner observes the own note list."
+    "manual_runtime_note": "已根据 2026-08-26 实机轨迹确认：文字编辑器的“生成”会进入“一句话生成配图”，随后异步出现“选择配图”页面；发布结果仍只在只读 Verification Runner 观察本人笔记列表后判定。"
   }
 }

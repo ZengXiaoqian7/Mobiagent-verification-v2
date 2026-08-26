@@ -1,0 +1,103 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "xiaohongshu-text-note-editor-001",
+  "app_under_test": {
+    "name": "小红书",
+    "package": "com.xingin.xhs_hos",
+    "version": "runtime-confirmed"
+  },
+  "feature": "text_note_editor_observation",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["请先登录", "登录后查看", "Log in"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "测试账号已经登录"
+    },
+    {
+      "condition_id": "network_available",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["网络异常", "无网络", "未连接", "重试"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "小红书可以正常访问网络"
+    }
+  ],
+  "test_data": {
+    "draft_content": "app_test_${run_id}"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true
+  },
+  "steps": [
+    {
+      "step_id": "open_xiaohongshu",
+      "instruction": "打开小红书",
+      "action_type": "OPEN_APP",
+      "timeout_seconds": 15,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_publish_entry",
+      "instruction": "点击底部导航中间的发布加号，打开发布方式选择面板",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "label": "底部发布加号",
+        "text_candidates": ["+"]
+      },
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "select_write_text_entry",
+      "instruction": "在发布方式面板中点击“写文字”，进入文字笔记编辑器",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["写文字"]
+      },
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_draft_content",
+      "instruction": "在文字笔记编辑器的正文输入区域输入本轮唯一测试内容；本用例到此停止，不点击生成、不选择配图、不发布",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input",
+        "text_candidates": ["说说你的想法吧"]
+      },
+      "value_ref": "draft_content",
+      "timeout_seconds": 15,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "draft_content_visible_in_text_editor",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "draft_content",
+      "surface": "text_editor",
+      "after_step": "input_draft_content",
+      "historical_match_not_sufficient": true,
+      "requires_verification_runner": false,
+      "required": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "LOW",
+  "metadata": {
+    "stage": "real-commercial-editor-observation",
+    "real_device_required": true,
+    "test_account_required": true,
+    "manual_review_required": true,
+    "business_write": false,
+    "publish": false,
+    "verification_runner_disabled_reason": "唯一结果是当前文字编辑器内可直接观察的本轮输入内容，不需要离开当前页面查找发布结果",
+    "manual_cleanup_note": "运行结束后如页面保留草稿，请由用户手动返回并按应用提示放弃草稿；评测器不会自动执行发布或删除"
+  }
+}
