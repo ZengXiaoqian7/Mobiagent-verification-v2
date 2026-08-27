@@ -91,7 +91,7 @@
     },
     {
       "step_id": "wait_for_generated_images",
-      "instruction": "等待配图生成完成，直到页面出现“选择配图”和生成出的配图缩略图；等待期间不要点击“取消”或其他按钮",
+      "instruction": "等待配图生成完成，直到页面出现“选择配图”、默认已选中的配图和“确定”按钮；等待期间不要点击“取消”或切换配图",
       "action_type": "WAIT",
       "target": {
         "surface_text_candidates": ["选择配图", "确定"]
@@ -100,19 +100,8 @@
       "max_retries": 0
     },
     {
-      "step_id": "select_generated_image",
-      "instruction": "在“选择配图”页面点击第一张已经生成的配图缩略图；不要点击“换搭配”或“确定”",
-      "action_type": "CLICK",
-      "target": {
-        "role": "image",
-        "label": "第一张已生成的配图缩略图"
-      },
-      "timeout_seconds": 20,
-      "max_retries": 1
-    },
-    {
       "step_id": "confirm_generated_image",
-      "instruction": "点击“确定”确认当前选择的配图，进入发布编辑页面",
+      "instruction": "直接点击“确定”确认页面默认已选中的配图，进入发布编辑页面；本用例不要求切换或重新选择配图",
       "action_type": "CLICK",
       "target": {
         "role": "button",
