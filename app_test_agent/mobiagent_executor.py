@@ -216,6 +216,7 @@ class MobiAgentStepExecutor:
                     actions.append(action_record)
                 except _TargetNotFound as exc:
                     dispatch_finished_ms = int(time.time() * 1000)
+                    model_decision = getattr(exc, "model_decision", None)
                     gate = evaluate_dispatch_failure_gate(
                         test_case=test_case,
                         step=step,
@@ -243,6 +244,7 @@ class MobiAgentStepExecutor:
                             ),
                             retry_reason=gate.reason,
                             error=str(exc),
+                            model_decision=model_decision,
                         )
                     )
                     if gate.gate_decision == StepGateDecision.RETRY:
@@ -269,6 +271,7 @@ class MobiAgentStepExecutor:
                                 "gate_decision": gate.gate_decision,
                                 "target_evidence": gate.target_evidence,
                                 "action_conformance": gate.action_conformance,
+                                "model_decision": model_decision,
                             },
                         )
                     )
@@ -1191,14 +1194,21 @@ class MobiAgentStepExecutor:
                 return emitted
             if wants_text_input and intent.value is not None:
                 decision.setdefault("parameters", {})["text"] = intent.value
-            emitted = self._dispatch_runner_decision(
-                device,
-                decision,
-                action_index=action_index,
-                raw_trace_dir=raw_trace_dir,
-                current_frame=current_frame,
-                history=history,
-            )
+            try:
+                emitted = self._dispatch_runner_decision(
+                    device,
+                    decision,
+                    action_index=action_index,
+                    raw_trace_dir=raw_trace_dir,
+                    current_frame=current_frame,
+                    history=history,
+                )
+            except _TargetNotFound as exc:
+                # Preserve the already-issued model decision when Grounder
+                # fails before a device action is emitted. The outer executor
+                # records it in the pre-dispatch attempt audit.
+                exc.model_decision = dict(decision)
+                raise
             break
         emitted.update(
             {
@@ -1374,7 +1384,8 @@ class MobiAgentStepExecutor:
                     or "target alignment rejected before dispatch" in message
                 ):
                     raise _TargetNotFound(
-                        f"runner grounder returned no usable target geometry: {message}"
+                        f"runner grounder returned no usable target geometry: {message}",
+                        model_decision=decision,
                     ) from exc
                 raise
         elif action == "click_input":
@@ -2400,6 +2411,7 @@ def _build_attempt_evidence(
     retry_class: str,
     retry_reason: str | None,
     error: str | None = None,
+    model_decision: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     action = dict(action_record) if isinstance(action_record, Mapping) else None
     action_ids = []
@@ -2420,7 +2432,7 @@ def _build_attempt_evidence(
         item for item in frame_evidence if item.get("relative_to_action_ms") not in (None, 0)
     ]
     gate_payload = gate.as_dict() if hasattr(gate, "as_dict") else None
-    return {
+    evidence = {
         "schema_version": "app-test-mobiagent-attempt-evidence-v1",
         "attempt": attempt,
         "action_index": action_index,
@@ -2452,6 +2464,9 @@ def _build_attempt_evidence(
         "retry_reason": retry_reason,
         "error": error,
     }
+    if isinstance(model_decision, Mapping):
+        evidence["model_decision"] = dict(model_decision)
+    return evidence
 
 
 def _retry_is_safe(step: TestStep, action_record: Mapping[str, Any]) -> bool:
@@ -2726,7 +2741,14 @@ def reject_unimplemented_device_execution() -> None:
 
 
 class _TargetNotFound(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        model_decision: Mapping[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.model_decision = dict(model_decision) if isinstance(model_decision, Mapping) else None
 
 
 class _UnsupportedRealAction(RuntimeError):

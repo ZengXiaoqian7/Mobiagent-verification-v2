@@ -1796,10 +1796,11 @@ def test_stage7_malformed_grounder_response_enters_target_retry_path(tmp_path, m
         lambda: _MalformedGrounderRunner,
     )
     executor = MobiAgentStepExecutor(output_dir=tmp_path)
-    with pytest.raises(_TargetNotFound, match="no usable target geometry"):
+    decision = {"action": "click", "parameters": {"target_element": "消息"}}
+    with pytest.raises(_TargetNotFound, match="no usable target geometry") as error:
         executor._dispatch_runner_decision(
             _FakeMobiAgentDevice(),
-            {"action": "click", "parameters": {"target_element": "消息"}},
+            decision,
             action_index=1,
             raw_trace_dir=tmp_path,
             current_frame={
@@ -1808,6 +1809,7 @@ def test_stage7_malformed_grounder_response_enters_target_retry_path(tmp_path, m
             },
             history=[],
         )
+    assert error.value.model_decision == decision
 
 
 def test_stage7_alignment_rejection_uses_remaining_pre_dispatch_retry_budget():
