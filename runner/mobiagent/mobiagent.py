@@ -2106,6 +2106,22 @@ def _target_wants_floating_action_button(target_element):
         or "右下角+" in target
         or ("新建" in target and "笔记" in target)
         or ("创建" in target and "笔记" in target)
+        # Some apps expose a primary create action as an unlabeled plus in
+        # the bottom navigation rather than as a conventional FAB.  Keep
+        # this semantic and visual fallback generic: it is enabled only when
+        # the target describes an add/create action and a plus icon.
+        or (
+            ("+" in target or "plus" in target or "加号" in target)
+            and any(word in target for word in ("发布", "创建", "新建", "添加", "add", "create", "plus"))
+        )
+    )
+
+
+def _target_wants_bottom_navigation_add_control(target_element):
+    target = _normalized_text(target_element)
+    return (
+        _target_wants_floating_action_button(target_element)
+        and any(word in target for word in ("底部", "bottom", "导航", "navigation"))
     )
 
 
@@ -2146,6 +2162,7 @@ def find_visual_floating_action_button(target_element, hierarchy, image, surface
     """
     if not _target_wants_floating_action_button(target_element):
         return None
+    bottom_navigation_add = _target_wants_bottom_navigation_add_control(target_element)
     candidates = []
     for node in _android_clickable_nodes(hierarchy, surface_width, surface_height):
         if not _node_is_compact_clickable_control(node):
@@ -2153,7 +2170,10 @@ def find_visual_floating_action_button(target_element, hierarchy, image, surface
         x1, y1, x2, y2 = node["bounds"]
         center_x = (x1 + x2) // 2
         center_y = (y1 + y2) // 2
-        if center_x < surface_width * 0.65 or not (surface_height * 0.35 <= center_y <= surface_height * 0.88):
+        if bottom_navigation_add:
+            if not (surface_height * 0.78 <= center_y <= surface_height * 0.99):
+                continue
+        elif center_x < surface_width * 0.65 or not (surface_height * 0.35 <= center_y <= surface_height * 0.88):
             continue
         red_pixels, red_ratio = _red_pixel_ratio(image, node["bounds"])
         if red_pixels < 1200 or red_ratio < 0.18:

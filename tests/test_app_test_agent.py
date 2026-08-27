@@ -2091,6 +2091,45 @@ def test_stage7_runner_visual_fab_resolver_uses_red_compact_lower_right_control(
     assert result["red_pixel_ratio"] > 0.5
 
 
+def test_stage7_runner_visual_fab_resolver_finds_unlabeled_bottom_navigation_add_control():
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+    from PIL import ImageDraw
+
+    runner = _import_original_mobiagent()
+    image = Image.new("RGB", (1080, 2444), "white")
+    ImageDraw.Draw(image).rectangle((432, 2220, 648, 2358), fill=(240, 45, 45))
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "Row",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "bounds": "[432,2220][648,2358]",
+                }
+            },
+            {
+                "attributes": {
+                    "type": "Row",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "bounds": "[669,2220][843,2358]",
+                }
+            },
+        ],
+    }
+    result = runner.find_visual_floating_action_button(
+        "底部导航中间的发布加号按钮",
+        hierarchy,
+        image,
+        1080,
+        2444,
+    )
+    assert result is not None
+    assert result["click_point"] == [540, 2289]
+
+
 def test_stage7_runner_input_reactivates_only_the_latest_click_input_target():
     from app_test_agent.mobiagent_executor import _import_original_mobiagent
 
