@@ -1048,6 +1048,12 @@ class MobiAgentStepExecutor:
         if current_frame is None:
             raise _TargetNotFound(f"step {step.step_id} has no pre-frame for model grounding")
         intent = compile_step_execution_intent(step, test_case)
+        # The test case supplies semantic intent; the original MobiAgent
+        # Decider/Grounder owns the actual control choice in the default path.
+        # A hierarchy shortcut is retained only for an explicitly replaced
+        # decision method used by deterministic tests/integrations. An exact
+        # label (or editable node) must not silently replace the model's
+        # decision on a dynamic page.
         hierarchy_target = (
             _resolve_hierarchy_control_target(
                 current_frame,
@@ -1055,17 +1061,12 @@ class MobiAgentStepExecutor:
                 wants_text_input=wants_text_input,
             )
             if (
-                self.step_decider is None
-                and self.target_locator is None
-                and not self.allow_legacy_target_hints
-                # An instance-level model replacement is a deterministic
-                # integration/test hook. Preserve its authority except for
-                # identity-critical exact-text navigation, where its output
-                # cannot safely broaden the selected conversation/contact.
-                and (
-                    "_decide_with_mobiagent" not in self.__dict__
-                    or _prefer_exact_hierarchy_target(step)
-                )
+                # An instance-level replacement is a deterministic test or
+                # integration hook.  Keep its explicit identity-critical
+                # hierarchy behavior, while the production method always
+                # remains the source of the operation decision.
+                "_decide_with_mobiagent" in self.__dict__
+                and _prefer_exact_hierarchy_target(step)
             )
             else None
         )
@@ -1153,13 +1154,16 @@ class MobiAgentStepExecutor:
                 raise _TargetNotFound(
                     f"runner chose action {action!r} for step {step.step_id}; expected one of {sorted(expected_runner_actions)}"
                 )
+            # Do not replace a default model click with a hierarchy selector.
+            # The original Grounder receives the same hierarchy below and may
+            # use it for generic geometric refinement; this branch is reserved
+            # for explicitly configured legacy integrations.
             aligned_target = (
                 _resolve_decider_aligned_text_target(current_frame, step.target, decision)
                 if (
                     action == "click"
-                    and self.step_decider is None
-                    and self.target_locator is None
-                    and not self.allow_legacy_target_hints
+                    and "_decide_with_mobiagent" in self.__dict__
+                    and _prefer_exact_hierarchy_target(step)
                 )
                 else None
             )

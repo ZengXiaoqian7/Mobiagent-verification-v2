@@ -1953,6 +1953,38 @@ def test_stage7_runner_alignment_uses_descendant_text_for_clickable_container():
     assert audit["selected_node"]["bounds"] == [706, 2251, 806, 2326]
 
 
+def test_stage7_runner_alignment_accepts_unlabeled_compact_clickable_control_from_geometry():
+    """A generic compact control needs no app- or icon-specific recognizer."""
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner = _import_original_mobiagent()
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "Row",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "bounds": "[432,2220][648,2358]",
+                }
+            }
+        ],
+    }
+    point, audit = runner.align_click_to_xml_node(
+        (540, 2360),
+        [420, 2200, 660, 2400],
+        "the primary create control",
+        hierarchy,
+        1080,
+        2444,
+        action_type="click",
+    )
+    assert point == (540, 2289)
+    assert audit["snapped"] is True
+    assert audit["alignment_basis"] == "compact_button_geometry_match"
+
+
 def test_stage7_runner_alignment_does_not_hijack_fab_with_adjacent_unlabeled_control():
     """A partial overlap cannot move a correct FAB click onto a nearby icon."""
     from app_test_agent.mobiagent_executor import _import_original_mobiagent

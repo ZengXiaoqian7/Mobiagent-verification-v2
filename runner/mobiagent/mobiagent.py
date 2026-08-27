@@ -2271,8 +2271,7 @@ def _alignment_acceptance_reason(
         # move a model click to a node whose centre is outside the model box;
         # that is how a nearby control can hijack an otherwise correct click.
         if (
-            _target_wants_button_like_control(target_element)
-            and _node_is_compact_clickable_control(node)
+            _node_is_compact_clickable_control(node)
             and node_center_in_model_bounds
             and overlap >= 0.50
             and distance <= 96
@@ -2605,35 +2604,21 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
         position_x = (x1 + x2) // 2
         position_y = (y1 + y2) // 2
         raw_click_point = [position_x, position_y]
-        visual_fab = find_visual_floating_action_button(
-            target_element, hierarchy, img, target_width, target_height,
+        # The Decider/Grounder point remains authoritative. Hierarchy is used
+        # only for generic geometric alignment and evidence; a
+        # screenshot-specific FAB/add-button resolver must not redirect a
+        # model decision to a control selected by a special case.
+        (position_x, position_y), xml_hit_test = align_click_to_xml_node(
+            (position_x, position_y), [x1, y1, x2, y2], target_element,
+            hierarchy, target_width, target_height, action_type="click",
         )
-        if visual_fab is not None:
-            position_x, position_y = visual_fab["click_point"]
-            xml_hit_test = {
-                "raw_point": raw_click_point,
-                "direct_hits": [],
-                "snapped": True,
-                "selected_node": visual_fab["selected_node"],
-                "candidate_count": visual_fab["candidate_count"],
-                "red_pixel_count": visual_fab["red_pixel_count"],
-                "red_pixel_ratio": visual_fab["red_pixel_ratio"],
-                "alignment_basis": "visual_fab_hierarchy_match",
-                "target_wants_text_entry": False,
-            }
-            logging.info("Visual FAB click point %s -> (%s, %s), node=%s", raw_click_point, position_x, position_y, visual_fab["selected_node"])
-        else:
-            (position_x, position_y), xml_hit_test = align_click_to_xml_node(
-                (position_x, position_y), [x1, y1, x2, y2], target_element,
-                hierarchy, target_width, target_height, action_type="click",
+        if xml_hit_test.get("snapped"):
+            logging.info("XML-aligned click point %s -> (%s, %s), node=%s", raw_click_point, position_x, position_y, xml_hit_test.get("selected_node"))
+        if _alignment_rejection_blocks_click(xml_hit_test):
+            reason = str(xml_hit_test.get("rejection_reason") or "unknown")
+            raise ValueError(
+                f"target alignment rejected before dispatch: {reason}"
             )
-            if xml_hit_test.get("snapped"):
-                logging.info("XML-aligned click point %s -> (%s, %s), node=%s", raw_click_point, position_x, position_y, xml_hit_test.get("selected_node"))
-            if _alignment_rejection_blocks_click(xml_hit_test):
-                reason = str(xml_hit_test.get("rejection_reason") or "unknown")
-                raise ValueError(
-                    f"target alignment rejected before dispatch: {reason}"
-                )
         _clear_input_focus(device)
         device.click(position_x, position_y)
         append_action_and_history(actions, history, decider_response, {
