@@ -11,6 +11,7 @@ import base64
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 import time
 from typing import Any, Callable, Mapping, Protocol
 
@@ -74,6 +75,48 @@ DANGEROUS_VERIFICATION_TERMS = (
     "编辑",
     "输入",
     "保存",
+)
+# These words describe the result/surface being observed.  They are allowed
+# after a dangerous term in read-only instructions such as "wait for the
+# publish result page".  A dangerous term followed by an actual object (for
+# example, "publish the note" or "发布笔记") is still rejected.
+READ_ONLY_RESULT_CONTEXTS = (
+    "result",
+    "results",
+    "outcome",
+    "status",
+    "state",
+    "transition",
+    "feed",
+    "confirmation",
+    "success",
+    "completion",
+    "record",
+    "evidence",
+    "history",
+    "结果",
+    "状态",
+    "转场",
+    "过渡",
+    "完成",
+    "成功",
+    "记录",
+    "证据",
+    "历史",
+)
+TARGET_INTERACTION_FIELDS = frozenset(
+    {
+        "action",
+        "command",
+        "content_description",
+        "id",
+        "label",
+        "operation",
+        "resource_id",
+        "selector",
+        "text",
+        "text_candidates",
+    }
 )
 ENV_BLOCKER_TERMS = (
     "login",
@@ -984,17 +1027,74 @@ def _first_unsupported_real_step(
 
 
 def _dangerous_step_text(step: Mapping[str, Any]) -> bool:
+    if _contains_dangerous_semantics(str(step.get("instruction") or "")):
+        return True
+
     target = step.get("target", {})
-    text = " ".join(
-        str(value)
-        for value in (
-            step.get("instruction"),
-            json.dumps(target, ensure_ascii=False, sort_keys=True)
-            if isinstance(target, Mapping)
-            else target,
-        )
-    ).casefold()
-    return any(term.casefold() in text for term in DANGEROUS_VERIFICATION_TERMS)
+    if not isinstance(target, Mapping):
+        return False
+    return any(
+        _contains_dangerous_semantics(text)
+        for text in _target_interaction_texts(target)
+    )
+
+
+def _target_interaction_texts(target: Mapping[str, Any]):
+    """Yield only target fields that can identify an actionable control.
+
+    Surface hints are observational context.  Scanning them as if they were
+    buttons caused labels such as "发布结果" to be treated as write actions.
+    """
+
+    for key, value in target.items():
+        if str(key).casefold() not in TARGET_INTERACTION_FIELDS:
+            continue
+        if isinstance(value, Mapping):
+            yield from _target_interaction_texts(value)
+        elif isinstance(value, (list, tuple, set)):
+            for item in value:
+                if isinstance(item, Mapping):
+                    yield from _target_interaction_texts(item)
+                else:
+                    yield str(item)
+        else:
+            yield str(value)
+
+
+def _contains_dangerous_semantics(text: str) -> bool:
+    normalized = " ".join(text.casefold().split())
+    if not normalized:
+        return False
+    for term in DANGEROUS_VERIFICATION_TERMS:
+        term_normalized = term.casefold()
+        if re.fullmatch(r"[a-z0-9 ]+", term_normalized):
+            matches = (
+                (match.start(), match.end())
+                for match in re.finditer(
+                    rf"(?<![a-z0-9]){re.escape(term_normalized)}(?![a-z0-9])",
+                    normalized,
+                )
+            )
+        else:
+            matches = (
+                (index, index + len(term_normalized))
+                for index in _substring_indexes(normalized, term_normalized)
+            )
+        for _, match_end in matches:
+            suffix = normalized[match_end:].lstrip(" \t:：-_/()[]")
+            if not any(suffix.startswith(context) for context in READ_ONLY_RESULT_CONTEXTS):
+                return True
+    return False
+
+
+def _substring_indexes(text: str, term: str):
+    start = 0
+    while True:
+        index = text.find(term, start)
+        if index < 0:
+            return
+        yield index
+        start = index + max(len(term), 1)
 
 
 def _failed_verification_step(

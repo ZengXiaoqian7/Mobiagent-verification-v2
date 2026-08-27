@@ -55,6 +55,7 @@ from app_test_agent.verification_runner import (
     VerificationRunResult,
     VerificationRunStatus,
     VerificationStepResult,
+    _dangerous_step_text,
 )
 from app_test_agent.verification_intent import (
     compile_verification_intent,
@@ -3172,6 +3173,37 @@ def test_stage6_real_verification_runner_collects_read_only_observations(tmp_pat
         "mobiagent_real_verification"
     )
     assert report["overall_result"] == OverallResult.APP_PASS
+
+
+def test_verification_danger_filter_allows_result_reference_but_blocks_write_semantics():
+    assert not _dangerous_step_text(
+        {
+            "action_type": "WAIT",
+            "instruction": "Wait briefly for the publish result page or feed transition to settle",
+            "target": {},
+        }
+    )
+    assert not _dangerous_step_text(
+        {
+            "action_type": "OBSERVE",
+            "instruction": "Observe the 发布结果页面 for the unique content",
+            "target": {"surface_text_candidates": ["发布结果"]},
+        }
+    )
+    assert _dangerous_step_text(
+        {
+            "action_type": "WAIT",
+            "instruction": "Wait, then publish the note",
+            "target": {},
+        }
+    )
+    assert _dangerous_step_text(
+        {
+            "action_type": "NAVIGATE",
+            "instruction": "Navigate to the verification surface",
+            "target": {"text_candidates": ["发布笔记"]},
+        }
+    )
 
 
 def test_real_verification_runner_assigns_unique_frame_ids_across_retries(tmp_path):
