@@ -85,6 +85,22 @@ def _case_payload() -> dict:
     return json.loads(CASE.read_text(encoding="utf-8"))
 
 
+def test_original_mobiagent_runtime_prompt_assets_are_present():
+    required_prompts = (
+        "grounder_qwen3_bbox.md",
+        "grounder_qwen3_coordinates.md",
+        "grounder_bbox.md",
+        "grounder_coordinates.md",
+        "decider_v2.md",
+        "planner_oneshot.md",
+        "planner_oneshot_harmony.md",
+    )
+    missing = [
+        name for name in required_prompts if not (ROOT / "prompts" / name).is_file()
+    ]
+    assert not missing, f"missing original MobiAgent runtime prompt assets: {missing}"
+
+
 def _frame(frame_id: int, texts: tuple[str, ...], relative: int = 500) -> dict:
     return {
         "frame_id": frame_id,
