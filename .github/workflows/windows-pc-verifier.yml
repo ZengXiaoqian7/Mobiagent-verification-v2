@@ -34,6 +34,8 @@ jobs:
       - name: Run PC verifier acceptance
         shell: powershell
         env:
+          PYTHONPATH: ${{ github.workspace }}
+          PYTHONNOUSERSITE: "1"
           PYTEST_ADDOPTS: "--tb=long --showlocals --junitxml=output_pc_acceptance/pytest-junit.xml"
         run: .\verify_pc_release.ps1 -SkipRealReplay
 
