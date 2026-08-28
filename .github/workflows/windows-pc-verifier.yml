@@ -33,7 +33,20 @@ jobs:
 
       - name: Run PC verifier acceptance
         shell: powershell
+        env:
+          PYTEST_ADDOPTS: "--tb=long --junitxml=output_pc_acceptance/pytest-junit.xml"
         run: .\verify_pc_release.ps1 -SkipRealReplay
+
+      - name: Upload PC verifier diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MobiAgentVerifierDiagnostics-${{ github.run_id }}
+          path: |
+            output_pc_acceptance/
+            .pytest_cache/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload manually requested PC build
         if: github.event_name == 'workflow_dispatch'
