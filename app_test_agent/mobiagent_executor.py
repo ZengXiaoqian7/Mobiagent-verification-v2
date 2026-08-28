@@ -310,6 +310,12 @@ class MobiAgentStepExecutor:
                     break
                 except Exception as exc:  # noqa: BLE001
                     dispatch_finished_ms = int(time.time() * 1000)
+                    LOGGER.exception(
+                        "MobiAgent step execution raised before a gate decision "
+                        "(step_id=%s, action_index=%s)",
+                        step.step_id,
+                        action_index,
+                    )
                     attempt_evidence.append(
                         _build_attempt_evidence(
                             attempt=attempts,

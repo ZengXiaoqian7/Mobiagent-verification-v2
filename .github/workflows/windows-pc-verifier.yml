@@ -34,7 +34,7 @@ jobs:
       - name: Run PC verifier acceptance
         shell: powershell
         env:
-          PYTEST_ADDOPTS: "--tb=long --junitxml=output_pc_acceptance/pytest-junit.xml"
+          PYTEST_ADDOPTS: "--tb=long --showlocals --junitxml=output_pc_acceptance/pytest-junit.xml"
         run: .\verify_pc_release.ps1 -SkipRealReplay
 
       - name: Upload PC verifier diagnostics
