@@ -40,7 +40,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--execute-runner",
         action="store_true",
-        help="reserved for real MobiAgent device execution; Stage 4 supports preflight only",
+        help="execute the real step-bound MobiAgent path; omit for non-mutating preflight",
     )
     parser.add_argument(
         "--mock-scenario",
