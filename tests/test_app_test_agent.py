@@ -198,6 +198,35 @@ def _scripted_record(
     )
 
 
+def test_report_indexes_durable_business_model_events(tmp_path):
+    spec = load_test_case(CASE)
+    model_events_path = tmp_path / "mobiagent_step_trace" / "model_events.jsonl"
+    record = _scripted_record(spec)
+    record = replace(
+        record,
+        metadata={
+            **dict(record.metadata),
+            "model_events_path": str(model_events_path),
+            "model_event_count": 6,
+            "model_events_sha256": "a" * 64,
+        },
+    )
+
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(record),
+        output_dir=tmp_path,
+        run_id="report-model-events",
+    )
+
+    assert report["artifacts"]["model_events"] == str(model_events_path)
+    assert report["business_execution_trace"]["model_events"]["event_count"] == 6
+    assert report["business_execution_trace"]["model_events"]["sha256"] == "a" * 64
+    markdown = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "Model events:" in markdown
+    assert "6 events at" in markdown
+
+
 def test_raw_step_gate_replay_rejects_historical_success_for_wrong_raw_target(tmp_path):
     spec = load_test_case(CASE)
     step = spec.steps[0]
@@ -2481,6 +2510,211 @@ def test_stage7_real_default_keeps_grounder_refinement_for_decider_bbox(tmp_path
     )._use_direct_decider_geometry() is True
 
 
+def test_default_original_decider_grounder_chain_runs_offline_without_locator_injection(
+    tmp_path,
+    monkeypatch,
+):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    payload = _case_payload()
+    payload["test_case_id"] = "default-decider-grounder-offline-001"
+    payload["steps"] = [
+        {
+            "step_id": "open_post_editor",
+            "instruction": "Tap the post creation button",
+            "action_type": "CLICK",
+            "target": {
+                "role": "button",
+                "text_candidates": ["Post", "Create"],
+            },
+            "timeout_seconds": 5,
+            "max_retries": 0,
+        }
+    ]
+    payload["expected_results"] = [
+        {
+            "assertion_id": "editor_visible",
+            "type": "TEXT_VISIBLE",
+            "expected_value": "正文",
+            "surface": "post_editor",
+            "after_step": "open_post_editor",
+        }
+    ]
+    payload["forbidden_effects"] = []
+    spec = AppTestCaseSpec.from_json(payload).with_runtime_context(
+        run_id="default-chain-offline"
+    )
+    runner = _import_original_mobiagent()
+    model_calls: list[dict] = []
+
+    def offline_model_transport(context, model, messages, temperature, timeout, max_tokens):
+        model_calls.append(
+            {
+                "context": context,
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "timeout": timeout,
+                "max_tokens": max_tokens,
+            }
+        )
+        if context == "Decider":
+            return json.dumps(
+                {
+                    "reasoning": "The semantic Post control opens the editor",
+                    "action": "click",
+                    "parameters": {
+                        "target_element": "Post",
+                        "bbox": _runner_bbox((400, 2100, 680, 2400)),
+                    },
+                }
+            )
+        if context == "Grounder":
+            return json.dumps(
+                {"bbox": _runner_bbox((400, 2100, 680, 2400))}
+            )
+        raise AssertionError(f"unexpected model context: {context}")
+
+    monkeypatch.setattr(runner, "validate_model_service_environment", lambda: None)
+    monkeypatch.setattr(runner, "_requests_chat_completion", offline_model_transport)
+    monkeypatch.setattr(runner, "decider_client", object())
+    monkeypatch.setattr(runner, "grounder_client", object())
+    monkeypatch.setattr(runner, "decider_model", "offline-decider")
+    monkeypatch.setattr(runner, "grounder_model", "offline-grounder")
+    monkeypatch.setattr(runner, "DECIDER_COORD_MODE", runner.COORD_MODE_RESIZED_PIXEL)
+
+    device = _FakeMobiAgentDevice()
+    live_model_events: list[dict] = []
+    executor = MobiAgentStepExecutor(
+        output_dir=tmp_path,
+        device_instance=device,
+        model_event_sink=lambda event: live_model_events.append(dict(event)),
+    )
+    assert executor.step_decider is None
+    assert executor.target_locator is None
+    assert executor.allow_legacy_target_hints is False
+
+    record = executor.execute(spec)
+
+    assert [call["context"] for call in model_calls] == ["Decider", "Grounder"]
+    decider_text = json.dumps(model_calls[0]["messages"], ensure_ascii=False)
+    grounder_text = json.dumps(model_calls[1]["messages"], ensure_ascii=False)
+    assert "Step id: open_post_editor" in decider_text
+    assert "Do not decide whether the App feature passed" in decider_text
+    assert "Coordinate contract" in grounder_text
+    assert device.clicks == [(540, 2250)]
+    assert [result.status for result in record.step_results] == ["STEP_COMPLETED"]
+    evidence = record.step_results[0].evidence
+    assert evidence["target_source"] == "runner_mobiagent_decider"
+    assert evidence["bbox_source"] == "grounder"
+    assert evidence["xml_hit_test_result"]["direct_hits"][0]["text"] == "Post"
+    assert evidence["action_conformance"] == "CONFORMANT"
+    assert evidence["gate_decision"] == "CONTINUE"
+    assert record.metadata["primary_locator"] == (
+        "runner.mobiagent.decider_grounder_step_bound"
+    )
+    model_events_path = tmp_path / "mobiagent_step_trace" / "model_events.jsonl"
+    model_events = [
+        json.loads(line)
+        for line in model_events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert model_events == live_model_events
+    assert [event["event_index"] for event in model_events] == list(
+        range(1, len(model_events) + 1)
+    )
+    assert [
+        (event["role"], event["event_type"])
+        for event in model_events
+    ] == [
+        ("Decider", "MODEL_REQUEST_STARTED"),
+        ("Decider", "MODEL_RESPONSE_RECEIVED"),
+        ("Decider", "MODEL_VALIDATION_SUCCEEDED"),
+        ("Grounder", "MODEL_REQUEST_STARTED"),
+        ("Grounder", "MODEL_RESPONSE_RECEIVED"),
+        ("Grounder", "MODEL_VALIDATION_SUCCEEDED"),
+    ]
+    assert all(event["step_id"] == "open_post_editor" for event in model_events)
+    assert all(event["business_attempt"] == 1 for event in model_events)
+    decider_response_event = model_events[1]
+    assert "The semantic Post control opens the editor" in (
+        decider_response_event["response_text"]
+    )
+    serialized_events = json.dumps(model_events, ensure_ascii=False)
+    assert "MOBIAGENT_API_KEY" not in serialized_events
+    assert '"messages"' not in serialized_events
+    assert record.metadata["model_event_count"] == 6
+    assert record.metadata["model_events_sha256"]
+    actions_payload = json.loads(
+        (tmp_path / "mobiagent_step_trace" / "actions.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert actions_payload["model_events"]["event_count"] == 6
+    assert actions_payload["model_events"]["path"] == "model_events.jsonl"
+
+
+def test_original_mobiagent_model_events_record_validation_retry(monkeypatch):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+    from runner.mobiagent.model_events import model_event_scope
+
+    runner = _import_original_mobiagent()
+    responses = iter(
+        [
+            "not-json",
+            json.dumps(
+                {
+                    "reasoning": "second response is valid",
+                    "action": "wait",
+                    "parameters": {"seconds": 1},
+                }
+            ),
+        ]
+    )
+    monkeypatch.setattr(
+        runner,
+        "_requests_chat_completion",
+        lambda *_args, **_kwargs: next(responses),
+    )
+    monkeypatch.setattr(runner.time, "sleep", lambda _seconds: None)
+    events: list[dict] = []
+
+    with model_event_scope(
+        lambda event: events.append(dict(event)),
+        test_case_id="retry-model-events",
+        step_id="wait_for_page",
+        business_attempt=1,
+    ):
+        result = runner.call_model_with_validation_retry(
+            object(),
+            "offline-model",
+            [{"role": "user", "content": "omitted from event journal"}],
+            validator_func=lambda parsed: runner.validate_decider_response(parsed),
+            parser_func=json.loads,
+            max_retries=2,
+            max_tokens=64,
+            context="Decider",
+        )
+
+    assert result["reasoning"] == "second response is valid"
+    assert [event["event_type"] for event in events] == [
+        "MODEL_REQUEST_STARTED",
+        "MODEL_RESPONSE_RECEIVED",
+        "MODEL_ATTEMPT_FAILED",
+        "MODEL_REQUEST_STARTED",
+        "MODEL_RESPONSE_RECEIVED",
+        "MODEL_VALIDATION_SUCCEEDED",
+    ]
+    failure = events[2]
+    assert failure["error_type"] == "JSONDecodeError"
+    assert failure["retry_scheduled"] is True
+    assert failure["response_text"] == "not-json"
+    assert events[-1]["parsed_response"]["reasoning"] == (
+        "second response is valid"
+    )
+    serialized_events = json.dumps(events, ensure_ascii=False)
+    assert "omitted from event journal" not in serialized_events
+
+
 def test_stage7_hierarchy_control_selector_prefers_editable_leaf_and_exact_button():
     spec = load_test_case(ROOT / "examples" / "qq_send_hello_zhexi_app_test.json")
     frame = {
@@ -3210,8 +3444,36 @@ class _RetryingReadOnlyVerificationDevice(_FakeReadOnlyVerificationDevice):
     def click(self, x, y):
         self.click_attempts += 1
         if self.click_attempts == 1:
+            # Simulate a transport error after the device accepted the click.
+            # The runner cannot prove dispatch did not happen and must not retry.
+            self.state = "profile"
             raise RuntimeError("temporary navigation failure")
         super().click(x, y)
+
+
+class _PostDispatchCaptureFailureDevice(_FakeReadOnlyVerificationDevice):
+    def __init__(self, expected_text: str):
+        super().__init__(expected_text)
+        self.profile_dump_attempts = 0
+
+    def dump_hierarchy(self):
+        if self.state == "profile":
+            self.profile_dump_attempts += 1
+            if self.profile_dump_attempts == 1:
+                raise RuntimeError("temporary hierarchy capture failure")
+        return super().dump_hierarchy()
+
+
+class _AmbiguousReadOnlyNavigationDevice(_FakeReadOnlyVerificationDevice):
+    def dump_hierarchy(self):
+        if self.state == "post_publish_page":
+            return (
+                "<hierarchy>"
+                '<node text="我" bounds="[40,200][180,320]" />'
+                '<node text="我" bounds="[900,2200][1040,2380]" />'
+                "</hierarchy>"
+            )
+        return super().dump_hierarchy()
 
 
 def test_stage6_real_verification_runner_collects_read_only_observations(tmp_path):
@@ -3225,7 +3487,8 @@ def test_stage6_real_verification_runner_collects_read_only_observations(tmp_pat
             "action_type": "NAVIGATE",
             "target": {
                 "label": "我",
-                "coordinates": [970, 2280],
+                "role": "navigation",
+                "text_candidates": ["我"],
                 "surface_text_candidates": ["笔记"],
             },
         },
@@ -3253,6 +3516,7 @@ def test_stage6_real_verification_runner_collects_read_only_observations(tmp_pat
         verification_runner=MobiAgentVerificationRunner(
             output_dir=tmp_path,
             device_instance=_FakeReadOnlyVerificationDevice("app_test_real_verify"),
+            observation_sleep_scale=0.0,
         ),
     )
     assert report["direct_app_behavior_result"]["status"] == "UNKNOWN_EVIDENCE"
@@ -3261,6 +3525,27 @@ def test_stage6_real_verification_runner_collects_read_only_observations(tmp_pat
     assert report["verification_runner_result"]["observation_record"]["executor"] == (
         "mobiagent_real_verification"
     )
+    runner_result = report["verification_runner_result"]
+    assert [
+        item["dispatch_state"] for item in runner_result["metadata"]["attempt_audits"]
+    ] == ["DISPATCHED", "NO_DEVICE_DISPATCH"]
+    for step_result in runner_result["step_results"]:
+        burst = step_result["evidence"]["observation_burst"]
+        assert burst["scheduled_offsets_ms"] == [0, 500, 1000]
+        assert burst["complete"] is True
+        assert len(step_result["observation_frames"]) == 3
+    actions_payload = json.loads(
+        (
+            tmp_path
+            / "mobiagent_verification_trace"
+            / "verification_actions.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert actions_payload["schema_version"] == (
+        "app-test-mobiagent-verification-actions-v2"
+    )
+    assert actions_payload["retry_boundary"] == "PRE_DISPATCH_ONLY"
+    assert actions_payload["attempt_count"] == 2
     assert report["overall_result"] == OverallResult.APP_PASS
 
 
@@ -3295,11 +3580,114 @@ def test_verification_danger_filter_allows_result_reference_but_blocks_write_sem
     )
 
 
-def test_real_verification_runner_assigns_unique_frame_ids_across_retries(tmp_path):
+def test_real_verification_runner_rejects_coordinates_without_exact_runtime_semantics(
+    tmp_path,
+):
+    payload = _payload_with_verification_steps()
+    payload["verification_steps"] = [
+        {
+            "verification_step_id": "navigate_by_coordinates_only",
+            "instruction": "Navigate to the profile page",
+            "action_type": "NAVIGATE",
+            "target": {
+                "role": "navigation",
+                "coordinates": [970, 2290],
+                "surface_text_candidates": ["笔记"],
+            },
+        }
+    ]
+    payload["verification_policy"] = {
+        "max_steps": 1,
+        "timeout_seconds": 10,
+        "max_retries": 0,
+    }
+    spec = AppTestCaseSpec.from_json(payload)
+    device = _FakeReadOnlyVerificationDevice("coordinate_only_must_not_click")
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(_direct_unknown_record(spec)),
+        run_id="verification-coordinate-only-rejected",
+        verification_runner=MobiAgentVerificationRunner(
+            output_dir=tmp_path,
+            device_instance=device,
+            observation_sleep_scale=0.0,
+            target_locator=lambda *_args: {
+                "x": 970,
+                "y": 2290,
+                "target_element": "我",
+                "confidence": 0.99,
+            },
+        ),
+    )
+
+    result = report["verification_runner_result"]
+    assert device.clicks == []
+    assert result["status"] == "ROUTE_FAILED"
+    assert result["metadata"]["attempt_audits"][0]["dispatch_state"] == (
+        "NOT_DISPATCHED"
+    )
+    assert result["metadata"]["attempt_audits"][0]["failure_phase"] == (
+        "PRE_DISPATCH"
+    )
+    assert report["overall_result"] == OverallResult.INCONCLUSIVE
+
+
+def test_real_verification_runner_does_not_treat_persistent_nav_label_as_surface(
+    tmp_path,
+):
+    payload = _payload_with_verification_steps()
+    payload["verification_steps"] = [
+        {
+            "verification_step_id": "navigate_to_profile_no_effect",
+            "instruction": "Navigate to the profile page",
+            "action_type": "NAVIGATE",
+            "target": {
+                "role": "navigation",
+                "text_candidates": ["我"],
+                "surface_text_candidates": ["笔记"],
+            },
+        }
+    ]
+    payload["verification_policy"] = {
+        "max_steps": 1,
+        "timeout_seconds": 10,
+        "max_retries": 0,
+    }
+    spec = AppTestCaseSpec.from_json(payload)
+
+    class NoEffectNavigationDevice(_FakeReadOnlyVerificationDevice):
+        def click(self, x, y):
+            self.clicks.append((x, y))
+
+    device = NoEffectNavigationDevice("surface_marker_never_visible")
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(_direct_unknown_record(spec)),
+        run_id="verification-nav-label-is-not-surface",
+        verification_runner=MobiAgentVerificationRunner(
+            output_dir=tmp_path,
+            device_instance=device,
+            observation_sleep_scale=0.0,
+        ),
+    )
+
+    result = report["verification_runner_result"]
+    assert device.clicks == [(970, 2290)]
+    assert result["status"] == "COMPLETED"
+    assert result["reached_surface"] is False
+    assert result["observation_sufficient"] is False
+    assert report["overall_result"] == OverallResult.INCONCLUSIVE
+
+
+def test_real_verification_runner_never_retries_uncertain_navigation_dispatch(tmp_path):
     payload = _payload_with_verification_steps()
     payload["test_data"]["post_content"] = "app_test_editor_text"
     payload["verification_steps"][0]["max_retries"] = 1
-    payload["verification_steps"][0]["target"]["surface_text_candidates"] = ["我"]
+    payload["verification_steps"][0]["target"] = {
+        "role": "navigation",
+        "text_candidates": ["我"],
+        "surface_text_candidates": ["笔记"],
+    }
     payload["verification_steps"][2]["target"]["surface_text_candidates"] = ["笔记"]
     payload["verification_policy"] = {
         "max_steps": 3,
@@ -3307,17 +3695,146 @@ def test_real_verification_runner_assigns_unique_frame_ids_across_retries(tmp_pa
         "max_retries": 1,
     }
     spec = AppTestCaseSpec.from_json(payload)
+    device = _RetryingReadOnlyVerificationDevice("app_test_editor_text")
     report = run_app_test(
         spec,
         ScriptedStepExecutor(_direct_unknown_record(spec)),
         run_id="verification-unique-frame-ids",
         verification_runner=MobiAgentVerificationRunner(
             output_dir=tmp_path,
-            device_instance=_RetryingReadOnlyVerificationDevice("app_test_editor_text"),
+            device_instance=device,
+            observation_sleep_scale=0.0,
         ),
     )
     observation = report["verification_runner_result"]["observation_record"]
     frame_ids = [frame["frame_id"] for frame in observation["metadata"]["frames"]]
+    assert frame_ids == [0]
+    assert device.click_attempts == 1
+    assert report["verification_runner_result"]["status"] == "ROUTE_FAILED"
+    audit = report["verification_runner_result"]["metadata"]["attempt_audits"]
+    assert len(audit) == 1
+    assert audit[0]["dispatch_state"] == "UNKNOWN"
+    assert audit[0]["retry_taken"] is False
+    assert report["overall_result"] == OverallResult.INCONCLUSIVE
+
+
+def test_real_verification_runner_reobserves_after_capture_failure_without_redispatch(tmp_path):
+    payload = _payload_with_verification_steps()
+    payload["test_data"]["post_content"] = "app_test_capture_recovery"
+    payload["verification_steps"] = [
+        {
+            "verification_step_id": "navigate_to_profile",
+            "instruction": "Navigate to the profile page",
+            "action_type": "NAVIGATE",
+            "target": {
+                "role": "navigation",
+                "text_candidates": ["我"],
+                "surface_text_candidates": ["笔记"],
+            },
+            "max_retries": 1,
+        }
+    ]
+    payload["verification_policy"] = {
+        "max_steps": 1,
+        "timeout_seconds": 10,
+        "max_retries": 1,
+    }
+    spec = AppTestCaseSpec.from_json(payload)
+    device = _PostDispatchCaptureFailureDevice("app_test_capture_recovery")
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(_direct_unknown_record(spec)),
+        run_id="verification-capture-recovery",
+        verification_runner=MobiAgentVerificationRunner(
+            output_dir=tmp_path,
+            device_instance=device,
+            observation_sleep_scale=0.0,
+        ),
+    )
+
+    result = report["verification_runner_result"]
+    assert device.clicks == [(970, 2290)]
+    assert result["status"] == "COMPLETED"
+    assert result["observation_sufficient"] is False
+    assert result["metadata"]["retry_budget_remaining"] == 1
+    audit = result["metadata"]["attempt_audits"]
+    assert len(audit) == 1
+    assert audit[0]["dispatch_state"] == "DISPATCHED"
+    assert audit[0]["retry_taken"] is False
+    assert len(audit[0]["observation_burst"]["capture_errors"]) == 1
+    frame_ids = [
+        frame["frame_id"]
+        for frame in result["observation_record"]["metadata"]["frames"]
+    ]
+    assert frame_ids == [0, 2, 3]
+    assert report["overall_result"] == OverallResult.INCONCLUSIVE
+
+
+def test_real_verification_runner_retries_proven_pre_dispatch_lookup_only(tmp_path):
+    payload = _payload_with_verification_steps()
+    payload["test_data"]["post_content"] = "app_test_predispatch_ok"
+    payload["verification_steps"] = [
+        {
+            "verification_step_id": "navigate_to_profile",
+            "instruction": "Navigate to the profile page",
+            "action_type": "NAVIGATE",
+            "target": {
+                "role": "navigation",
+                "text_candidates": ["我"],
+                "surface_text_candidates": ["笔记"],
+            },
+            "max_retries": 1,
+        }
+    ]
+    payload["verification_policy"] = {
+        "max_steps": 1,
+        "timeout_seconds": 10,
+        "max_retries": 1,
+    }
+    spec = AppTestCaseSpec.from_json(payload)
+    locator_calls = {"count": 0}
+
+    def locator(_step, _test_case, _current_frame):
+        locator_calls["count"] += 1
+        if locator_calls["count"] == 1:
+            return None
+        return {
+            "x": 970,
+            "y": 2290,
+            "target_element": "我",
+            "confidence": 0.99,
+            "reason": "second offline lookup resolved the ambiguous label",
+        }
+
+    device = _AmbiguousReadOnlyNavigationDevice("app_test_predispatch_ok")
+    report = run_app_test(
+        spec,
+        ScriptedStepExecutor(_direct_unknown_record(spec)),
+        run_id="verification-predispatch-retry",
+        verification_runner=MobiAgentVerificationRunner(
+            output_dir=tmp_path,
+            device_instance=device,
+            observation_sleep_scale=0.0,
+            target_locator=locator,
+        ),
+    )
+
+    result = report["verification_runner_result"]
+    assert locator_calls["count"] == 2
+    assert device.clicks == [(970, 2290)]
+    assert result["status"] == "COMPLETED"
+    assert result["observation_sufficient"] is True
+    audit = result["metadata"]["attempt_audits"]
+    assert [item["dispatch_state"] for item in audit] == [
+        "NOT_DISPATCHED",
+        "DISPATCHED",
+    ]
+    assert audit[0]["retry_taken"] is True
+    assert audit[1]["retry_taken"] is False
+    frame_ids = [
+        frame["frame_id"]
+        for frame in result["observation_record"]["metadata"]["frames"]
+    ]
     assert frame_ids == [0, 1, 2, 3]
     assert len(frame_ids) == len(set(frame_ids))
     assert report["overall_result"] == OverallResult.APP_PASS
@@ -3358,7 +3875,8 @@ def test_stage7_goal_runner_completes_stage_then_read_only_verifier_confirms_res
             "action_type": "NAVIGATE",
             "target": {
                 "label": "我",
-                "coordinates": [970, 2280],
+                "role": "navigation",
+                "text_candidates": ["我"],
                 "surface_text_candidates": ["笔记"],
             },
         },
@@ -3386,6 +3904,7 @@ def test_stage7_goal_runner_completes_stage_then_read_only_verifier_confirms_res
         verification_runner=MobiAgentVerificationRunner(
             output_dir=tmp_path / "verification",
             device_instance=_FakeReadOnlyVerificationDevice("app_test_xhs-goal_post_content"),
+            observation_sleep_scale=0.0,
         ),
     )
     step = report["step_results"][0]

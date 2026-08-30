@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 import re
 import time
@@ -21,10 +22,14 @@ from .contract import AppTestContract
 from .executor import EvidenceState, ExecutionRecord
 from .model_client import extract_json_object, model_config_from_env, post_chat_completion
 from .mobiagent_executor import (
-    _declared_coordinate_target,
     _file_sha256,
+    _frame_stability,
+    _observation_burst_summary,
+    _observation_schedule,
+    _parse_bounds,
     _parse_hierarchy_dump,
-    _resolve_target,
+    _resolve_exact_text_target,
+    _stable_frames_required,
     _visible_texts,
 )
 from .schema import READ_ONLY_VERIFICATION_ACTION_TYPES, TestCaseSpec
@@ -117,6 +122,16 @@ TARGET_INTERACTION_FIELDS = frozenset(
         "text",
         "text_candidates",
     }
+)
+READ_ONLY_NAVIGATION_ROLES = frozenset(
+    {"navigation", "tab", "menu", "profile", "list", "detail", "conversation"}
+)
+# A bare control label such as "Post" is ambiguous between a read-only content
+# surface and a write entry point.  Verification may observe such a surface,
+# but it must not click that label without stronger, independently auditable
+# read-only semantics.
+AMBIGUOUS_WRITE_CONTROL_LABELS = frozenset(
+    {"post", "new", "create", "compose", "add", "+", "新增", "新建", "创建"}
 )
 ENV_BLOCKER_TERMS = (
     "login",
@@ -560,6 +575,7 @@ class MobiAgentVerificationRunner:
     runner_root: Path | None = None
     device_instance: Any | None = None
     target_locator: Callable[[Mapping[str, Any], TestCaseSpec, Mapping[str, Any]], Mapping[str, Any] | None] | None = None
+    observation_sleep_scale: float | None = None
     name: str = "mobiagent_real_verification"
 
     def execute(
@@ -576,6 +592,7 @@ class MobiAgentVerificationRunner:
         policy = dict(test_case.verification_policy)
         timeout_seconds = float(policy.get("timeout_seconds", 30.0))
         retry_budget = int(policy.get("max_retries", 0))
+        initial_retry_budget = retry_budget
         intent = compile_verification_intent(test_case)
         verification_steps = effective_verification_steps(test_case)
         max_steps = int(policy.get("max_steps", len(verification_steps)))
@@ -606,6 +623,7 @@ class MobiAgentVerificationRunner:
         frames: list[dict[str, Any]] = []
         frame_visible_texts: dict[str, list[str]] = {}
         actions: list[dict[str, Any]] = []
+        attempt_audits: list[dict[str, Any]] = []
         step_results: list[VerificationStepResult] = []
         next_frame_id = 1
         try:
@@ -620,7 +638,12 @@ class MobiAgentVerificationRunner:
             frame_visible_texts["0"] = list(initial["visible_texts"])
             blocker = _environment_blocker_frame(initial)
             if blocker is not None:
-                self._write_actions(trace_dir, test_case, actions)
+                self._write_actions(
+                    trace_dir,
+                    test_case,
+                    actions,
+                    attempt_audits=attempt_audits,
+                )
                 return self._env_blocked_result(
                     test_case,
                     contract,
@@ -647,120 +670,267 @@ class MobiAgentVerificationRunner:
                         step,
                         status=VerificationRunStatus.ROUTE_FAILED,
                         error="verification_policy.timeout_seconds was exceeded",
+                        attempts=0,
                     )
                 )
                 break
             attempts_allowed = 1 + min(step.max_retries, retry_budget)
             last_error: str | None = None
             completed = False
+            step_attempts: list[dict[str, Any]] = []
             for attempt in range(1, attempts_allowed + 1):
+                pre_frame = frames[-1] if frames else None
+                attempt_started_ms = int(time.time() * 1000)
+                attempt_audit: dict[str, Any] = {
+                    "verification_step_id": step.verification_step_id,
+                    "action_type": step.action_type,
+                    "attempt": attempt,
+                    "pre_frame": (
+                        pre_frame.get("frame_id")
+                        if isinstance(pre_frame, Mapping)
+                        else None
+                    ),
+                    "dispatch_state": "NOT_DISPATCHED",
+                    "retry_eligible": False,
+                    "retry_taken": False,
+                    "started_ms": attempt_started_ms,
+                }
                 try:
                     action = self._execute_one_step(
                         device,
                         step.as_dict(),
                         test_case,
-                        current_frame=frames[-1] if frames else None,
+                        current_frame=pre_frame,
                     )
-                    actions.append(
+                except _VerificationPreDispatchError as exc:
+                    last_error = f"{type(exc).__name__}: {exc}"
+                    retry_allowed = attempt < attempts_allowed and retry_budget > 0
+                    attempt_audit.update(
                         {
-                            **action,
-                            "verification_step_id": step.verification_step_id,
-                            "attempt": attempt,
-                            "action_index": len(actions) + 1,
+                            "finished_ms": int(time.time() * 1000),
+                            "error": last_error,
+                            "failure_phase": "PRE_DISPATCH",
+                            "retry_eligible": retry_allowed,
+                            "retry_taken": retry_allowed,
+                            "result": "RETRY" if retry_allowed else "FAILED",
                         }
                     )
-                    post = self._capture_frame(
-                        device,
-                        trace_dir,
-                        frame_id=next_frame_id,
-                        relative_to_action_ms=500,
+                    step_attempts.append(attempt_audit)
+                    attempt_audits.append(attempt_audit)
+                    if retry_allowed:
+                        retry_budget -= 1
+                        continue
+                    break
+                except _VerificationDispatchUncertain as exc:
+                    last_error = f"{type(exc).__name__}: {exc}"
+                    attempt_audit.update(
+                        {
+                            "finished_ms": int(time.time() * 1000),
+                            "dispatch_state": "UNKNOWN",
+                            "error": last_error,
+                            "failure_phase": "DISPATCH",
+                            "retry_blocked_reason": (
+                                "device dispatch may already have taken effect; "
+                                "read-only route actions are never repeated when dispatch is uncertain"
+                            ),
+                            "result": "FAILED_CLOSED",
+                        }
                     )
-                    next_frame_id += 1
-                    frames.append(post)
+                    step_attempts.append(attempt_audit)
+                    attempt_audits.append(attempt_audit)
+                    break
+                except Exception as exc:  # noqa: BLE001 - unknown dispatch state fails closed.
+                    last_error = f"{type(exc).__name__}: {exc}"
+                    attempt_audit.update(
+                        {
+                            "finished_ms": int(time.time() * 1000),
+                            "dispatch_state": "UNKNOWN",
+                            "error": last_error,
+                            "failure_phase": "UNKNOWN",
+                            "retry_blocked_reason": (
+                                "runner could not prove that no device action was dispatched"
+                            ),
+                            "result": "FAILED_CLOSED",
+                        }
+                    )
+                    step_attempts.append(attempt_audit)
+                    attempt_audits.append(attempt_audit)
+                    break
+
+                action_entry = {
+                    **action,
+                    "verification_step_id": step.verification_step_id,
+                    "attempt": attempt,
+                    "action_index": len(actions) + 1,
+                }
+                actions.append(action_entry)
+                dispatch_state = (
+                    "NO_DEVICE_DISPATCH"
+                    if action_entry.get("type") in {"wait", "observe"}
+                    else "DISPATCHED"
+                )
+                attempt_audit.update(
+                    {
+                        "dispatch_state": dispatch_state,
+                        "dispatch_finished_ms": int(time.time() * 1000),
+                        "action_index": action_entry["action_index"],
+                        "action": action_entry,
+                    }
+                )
+                post_frames, next_frame_id, burst_audit = self._capture_observation_burst(
+                    device,
+                    trace_dir,
+                    next_frame_id=next_frame_id,
+                    pre_frame=pre_frame,
+                    policy=test_case.observation_policy,
+                    force_full_schedule=True,
+                )
+                frames.extend(post_frames)
+                for post in post_frames:
                     frame_visible_texts[str(post["frame_id"])] = list(post["visible_texts"])
-                    blocker = _environment_blocker_frame(post)
-                    if blocker is not None:
-                        step_results.append(
-                            VerificationStepResult(
-                                verification_step_id=step.verification_step_id,
-                                status=VerificationRunStatus.ENV_BLOCKED,
-                                action_type=step.action_type,
-                                attempts=attempt,
-                                target=step.target,
-                                observation_frames=(post["frame_id"],),
-                                blocker=blocker,
-                                error=f"environment blocker observed: {blocker}",
-                                evidence=action,
-                            )
-                        )
-                        self._write_actions(trace_dir, test_case, actions)
-                        return self._env_blocked_result(
-                            test_case,
-                            contract,
-                            reason=f"environment blocked verification route: {blocker}",
-                            blocker=blocker,
-                            frames=frames,
-                            frame_visible_texts=frame_visible_texts,
-                            step_results=tuple(step_results),
-                            trace_dir=trace_dir,
-                        )
+                attempt_audit.update(
+                    {
+                        "finished_ms": int(time.time() * 1000),
+                        "observation_burst": burst_audit,
+                        "result": (
+                            "COMPLETED"
+                            if post_frames and burst_audit["complete"]
+                            else "OBSERVATION_INCOMPLETE"
+                        ),
+                    }
+                )
+                step_attempts.append(attempt_audit)
+                attempt_audits.append(attempt_audit)
+
+                blocker_frame = next(
+                    (
+                        (post, _environment_blocker_frame(post))
+                        for post in post_frames
+                        if _environment_blocker_frame(post) is not None
+                    ),
+                    None,
+                )
+                if blocker_frame is not None:
+                    post, blocker = blocker_frame
+                    assert blocker is not None
                     step_results.append(
                         VerificationStepResult(
                             verification_step_id=step.verification_step_id,
-                            status=VerificationRunStatus.COMPLETED,
+                            status=VerificationRunStatus.ENV_BLOCKED,
                             action_type=step.action_type,
                             attempts=attempt,
                             target=step.target,
-                            observation_frames=(post["frame_id"],),
-                            reached_surface=_surface_reached(step.target, post["visible_texts"]),
-                            evidence=action,
-                        )
-                    )
-                    completed = True
-                    break
-                except _VerificationRouteBlocked as exc:
-                    blocker = str(exc)
-                    step_results.append(
-                        _failed_verification_step(
-                            step,
-                            status=VerificationRunStatus.ENV_BLOCKED,
-                            error=blocker,
+                            observation_frames=tuple(
+                                frame["frame_id"] for frame in post_frames
+                            ),
                             blocker=blocker,
-                            attempts=attempt,
+                            error=f"environment blocker observed: {blocker}",
+                            evidence={
+                                **action_entry,
+                                "attempt_audit": list(step_attempts),
+                                "observation_burst": burst_audit,
+                                "blocker_frame": post["frame_id"],
+                            },
                         )
                     )
-                    self._write_actions(trace_dir, test_case, actions)
+                    self._write_actions(
+                        trace_dir,
+                        test_case,
+                        actions,
+                        attempt_audits=attempt_audits,
+                    )
                     return self._env_blocked_result(
                         test_case,
                         contract,
-                        reason=blocker,
+                        reason=f"environment blocked verification route: {blocker}",
                         blocker=blocker,
                         frames=frames,
                         frame_visible_texts=frame_visible_texts,
                         step_results=tuple(step_results),
                         trace_dir=trace_dir,
+                        attempt_audits=attempt_audits,
                     )
-                except Exception as exc:  # noqa: BLE001
-                    last_error = f"{type(exc).__name__}: {exc}"
-                    if attempt <= retry_budget:
-                        retry_budget -= 1
-                        continue
+
+                if not post_frames:
+                    last_error = "verification action dispatched but no post-action observation was captured"
+                    break
+
+                surface_frame = next(
+                    (
+                        post["frame_id"]
+                        for post in post_frames
+                        if _surface_reached(step.target, post["visible_texts"]) is True
+                    ),
+                    None,
+                )
+                reached_values = [
+                    _surface_reached(step.target, post["visible_texts"])
+                    for post in post_frames
+                ]
+                reached_surface = (
+                    True
+                    if any(value is True for value in reached_values)
+                    else False
+                    if any(value is False for value in reached_values)
+                    else None
+                )
+                step_results.append(
+                    VerificationStepResult(
+                        verification_step_id=step.verification_step_id,
+                        status=VerificationRunStatus.COMPLETED,
+                        action_type=step.action_type,
+                        attempts=attempt,
+                        target=step.target,
+                        observation_frames=tuple(
+                            post["frame_id"] for post in post_frames
+                        ),
+                        reached_surface=reached_surface,
+                        evidence={
+                            **action_entry,
+                            "attempt_audit": list(step_attempts),
+                            "observation_burst": burst_audit,
+                            "surface_reached_frame": surface_frame,
+                        },
+                    )
+                )
+                completed = True
+                break
             if not completed:
                 step_results.append(
                     _failed_verification_step(
                         step,
                         status=VerificationRunStatus.ROUTE_FAILED,
                         error=last_error or "verification step did not complete",
-                        attempts=attempts_allowed,
+                        attempts=len(step_attempts),
+                        evidence={"attempt_audit": list(step_attempts)},
                     )
                 )
                 break
 
-        self._write_actions(trace_dir, test_case, actions)
+        self._write_actions(
+            trace_dir,
+            test_case,
+            actions,
+            attempt_audits=attempt_audits,
+        )
         final_frame = frames[-1] if frames else {}
         final_texts = tuple(str(item) for item in final_frame.get("visible_texts", ()) if str(item))
         reached_surface = _route_reached_surface(verification_steps, tuple(step_results), final_texts)
-        observation_sufficient = bool(reached_surface and frames and final_frame.get("hierarchy_sha256"))
+        all_steps_completed = len(step_results) == len(verification_steps) and all(
+            result.status == VerificationRunStatus.COMPLETED for result in step_results
+        )
+        observation_bursts_complete = bool(step_results) and all(
+            isinstance(result.evidence.get("observation_burst"), Mapping)
+            and result.evidence["observation_burst"].get("complete") is True
+            for result in step_results
+        )
+        observation_sufficient = bool(
+            all_steps_completed
+            and reached_surface
+            and observation_bursts_complete
+            and final_frame.get("screenshot_sha256")
+            and final_frame.get("hierarchy_sha256")
+        )
         observation_record = ExecutionRecord(
             test_case_id=test_case.test_case_id,
             executor=self.name,
@@ -782,17 +952,19 @@ class MobiAgentVerificationRunner:
                 "frames": frames,
                 "frame_visible_texts": frame_visible_texts,
                 "actions_path": str(trace_dir / "verification_actions.json"),
+                "attempt_audits": attempt_audits,
+                "observation_policy": dict(test_case.observation_policy),
             },
         )
-        all_steps_completed = len(step_results) == len(verification_steps) and all(
-            result.status == VerificationRunStatus.COMPLETED for result in step_results
-        )
         status = VerificationRunStatus.COMPLETED if all_steps_completed else VerificationRunStatus.ROUTE_FAILED
-        reason = (
-            "verification runner reached target surface and collected observations"
-            if status == VerificationRunStatus.COMPLETED and reached_surface
-            else "verification runner did not reach the declared observation surface"
-        )
+        if status != VerificationRunStatus.COMPLETED:
+            reason = "verification runner route did not complete"
+        elif not reached_surface:
+            reason = "verification runner did not reach the declared observation surface"
+        elif not observation_sufficient:
+            reason = "verification runner reached the target surface but its observation burst was incomplete"
+        else:
+            reason = "verification runner reached target surface and collected a complete observation burst"
         return VerificationRunResult(
             status=status,
             used_runner=True,
@@ -806,7 +978,11 @@ class MobiAgentVerificationRunner:
             metadata={
                 "trace_dir": str(trace_dir),
                 "elapsed_seconds": round(time.monotonic() - start_time, 3),
+                "retry_budget_initial": initial_retry_budget,
                 "retry_budget_remaining": retry_budget,
+                "attempt_count": len(attempt_audits),
+                "attempt_audits": attempt_audits,
+                "observation_policy": dict(test_case.observation_policy),
                 "verification_intent": intent.as_dict(),
                 "verification_intent_sha256": intent.sha256,
                 "generated_verification_steps": not bool(test_case.verification_steps),
@@ -839,48 +1015,96 @@ class MobiAgentVerificationRunner:
         action_type = str(step["action_type"]).upper()
         if action_type == "WAIT":
             seconds = min(float(step.get("timeout_seconds") or 1.0), 5.0)
-            time.sleep(seconds)
+            self._sleep(seconds)
             return {"type": "wait", "seconds": seconds, "read_only_action": True}
         if action_type == "OBSERVE":
             return {"type": "observe", "read_only_action": True}
         if action_type == "BACK":
             key = "back" if self.device == "Android" else 2
-            device.keyevent(key)
+            try:
+                device.keyevent(key)
+            except Exception as exc:  # noqa: BLE001 - dispatch outcome is not knowable.
+                raise _VerificationDispatchUncertain(
+                    f"BACK dispatch failed with an uncertain device outcome: {exc}"
+                ) from exc
             return {"type": "press_back", "read_only_action": True}
         if action_type == "SCROLL":
             direction = _direction(step.get("target"), default="up")
-            device.swipe(direction)
+            try:
+                device.swipe(direction)
+            except Exception as exc:  # noqa: BLE001 - dispatch outcome is not knowable.
+                raise _VerificationDispatchUncertain(
+                    f"SCROLL dispatch failed with an uncertain device outcome: {exc}"
+                ) from exc
             return {"type": "scroll", "direction": direction, "read_only_action": True}
         if action_type == "REFRESH":
-            device.swipe("down")
+            try:
+                device.swipe("down")
+            except Exception as exc:  # noqa: BLE001 - dispatch outcome is not knowable.
+                raise _VerificationDispatchUncertain(
+                    f"REFRESH dispatch failed with an uncertain device outcome: {exc}"
+                ) from exc
             return {"type": "refresh", "direction": "down", "read_only_action": True}
         if action_type == "NAVIGATE":
             step_target = step.get("target", {})
-            target = None
-            if isinstance(step_target, Mapping):
-                target = _declared_coordinate_target(
-                    step_target,
-                    fallback_label=str(step.get("instruction") or "navigation target"),
+            try:
+                target = (
+                    _resolve_exact_text_target(
+                        current_frame,
+                        step_target,
+                        wants_text_input=False,
+                    )
+                    if isinstance(step_target, Mapping)
+                    else None
                 )
+                if target is None:
+                    target = self._locate_with_vision(step, test_case, current_frame)
+                target = _validated_read_only_navigation_target(
+                    step_target,
+                    current_frame,
+                    target,
+                )
+            except Exception as exc:  # noqa: BLE001 - target resolution cannot dispatch.
+                raise _VerificationPreDispatchError(
+                    f"navigation target resolution failed before dispatch: {exc}"
+                ) from exc
             if target is None:
-                target = _resolve_target(current_frame, step_target, wants_text_input=False)
-            if target is None:
-                target = self._locate_with_vision(step, test_case, current_frame)
-            if target is None:
-                raise RuntimeError("navigation target was not found")
-            x, y = target["center"]
-            device.click(x, y)
+                raise _VerificationPreDispatchError("navigation target was not found")
+            try:
+                x, y = target["center"]
+                x = int(x)
+                y = int(y)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise _VerificationPreDispatchError(
+                    f"navigation target geometry is invalid: {target}"
+                ) from exc
+            try:
+                device.click(x, y)
+            except Exception as exc:  # noqa: BLE001 - a failed RPC may still have clicked.
+                raise _VerificationDispatchUncertain(
+                    f"NAVIGATE dispatch failed with an uncertain device outcome: {exc}"
+                ) from exc
             return {
                 "type": "navigate",
-                "target_element": target["text"],
+                "target_element": target.get("matched_declared_candidate")
+                or target["text"],
                 "position_x": x,
                 "position_y": y,
                 "click_point": [x, y],
                 "bounds": list(target["bounds"]),
+                "runtime_bounds": list(target["runtime_bounds"]),
+                "runtime_hit_node": target["runtime_hit_node"],
+                "read_only_role": target["read_only_role"],
+                "declared_text_candidates": target["declared_text_candidates"],
+                "read_only_target_validated": target[
+                    "read_only_target_validated"
+                ],
                 "target_source": target.get("source", "hierarchy"),
                 "read_only_action": True,
             }
-        raise RuntimeError(f"unsupported real verification action type: {action_type}")
+        raise _VerificationPreDispatchError(
+            f"unsupported real verification action type: {action_type}"
+        )
 
     def _locate_with_vision(
         self,
@@ -939,19 +1163,129 @@ class MobiAgentVerificationRunner:
             "xml_nodes": nodes,
         }
 
+    def _capture_observation_burst(
+        self,
+        device: Any,
+        trace_dir: Path,
+        *,
+        next_frame_id: int,
+        pre_frame: Mapping[str, Any] | None,
+        policy: Mapping[str, Any],
+        force_full_schedule: bool = False,
+    ) -> tuple[list[dict[str, Any]], int, dict[str, Any]]:
+        """Collect post-dispatch evidence without ever repeating the action.
+
+        Capture failures consume a unique frame id and are retained in the
+        audit.  Later scheduled captures may still recover useful evidence,
+        but any missing capture keeps the burst insufficient and therefore
+        prevents the Verification Runner from authorizing an App verdict.
+        """
+
+        schedule = _observation_schedule(policy)
+        frames: list[dict[str, Any]] = []
+        capture_errors: list[dict[str, Any]] = []
+        previous: Mapping[str, Any] | None = pre_frame
+        elapsed_ms = 0
+        consecutive_stable = 0
+        stable_frames_required = _stable_frames_required(policy)
+        stop_reason: str | None = None
+        for burst_index, delay_ms in enumerate(schedule):
+            sleep_ms = max(0, delay_ms - elapsed_ms)
+            self._sleep(sleep_ms / 1000.0)
+            elapsed_ms = delay_ms
+            frame_id = next_frame_id
+            next_frame_id += 1
+            try:
+                frame = self._capture_frame(
+                    device,
+                    trace_dir,
+                    frame_id=frame_id,
+                    relative_to_action_ms=delay_ms,
+                )
+            except Exception as exc:  # noqa: BLE001 - observations are safe to retry.
+                capture_errors.append(
+                    {
+                        "observation_burst_index": burst_index,
+                        "frame_id": frame_id,
+                        "relative_to_action_ms": delay_ms,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+                consecutive_stable = 0
+                continue
+            frame["observation_burst_index"] = burst_index
+            frame["observation_phase"] = "immediate" if delay_ms == 0 else "delayed"
+            frame["stability"] = _frame_stability(previous, frame)
+            frames.append(frame)
+            previous = frame
+            if frame["stability"] == "STABLE":
+                consecutive_stable += 1
+            else:
+                consecutive_stable = 0
+            if (
+                not force_full_schedule
+                and policy.get("adaptive_capture", False) is True
+                and policy.get("stop_when_stable", True) is True
+                and consecutive_stable >= stable_frames_required
+                and burst_index < len(schedule) - 1
+            ):
+                stop_reason = "consecutive_stable_frames"
+                frame["observation_stop_reason"] = stop_reason
+                break
+
+        summary = _observation_burst_summary(frames, policy=policy)
+        expected_capture_count = len(schedule) if stop_reason is None else len(frames)
+        summary.update(
+            {
+                "scheduled_offsets_ms": schedule,
+                "capture_attempt_count": len(frames) + len(capture_errors),
+                "expected_capture_count": expected_capture_count,
+                "capture_errors": capture_errors,
+                "complete": not capture_errors and len(frames) == expected_capture_count,
+                "force_full_schedule": force_full_schedule,
+                "stop_reason": stop_reason or "schedule_complete",
+            }
+        )
+        return frames, next_frame_id, summary
+
+    def _sleep(self, seconds: float) -> None:
+        if seconds <= 0:
+            return
+        scale = self._observation_sleep_scale()
+        if scale <= 0:
+            return
+        time.sleep(seconds * scale)
+
+    def _observation_sleep_scale(self) -> float:
+        if self.observation_sleep_scale is not None:
+            return max(0.0, float(self.observation_sleep_scale))
+        raw = os.getenv("APP_TEST_OBSERVATION_SLEEP_SCALE")
+        if raw:
+            try:
+                return max(0.0, float(raw))
+            except ValueError:
+                return 1.0
+        return 1.0
+
     def _write_actions(
         self,
         trace_dir: Path,
         test_case: TestCaseSpec,
         actions: list[dict[str, Any]],
+        *,
+        attempt_audits: list[dict[str, Any]] | None = None,
     ) -> None:
+        attempts = list(attempt_audits or ())
         payload = {
-            "schema_version": "app-test-mobiagent-verification-actions-v1",
+            "schema_version": "app-test-mobiagent-verification-actions-v2",
             "test_case_id": test_case.test_case_id,
             "app_name": test_case.app_under_test.name,
             "package": test_case.app_under_test.package,
             "action_count": len(actions),
             "actions": actions,
+            "attempt_count": len(attempts),
+            "attempts": attempts,
+            "retry_boundary": "PRE_DISPATCH_ONLY",
         }
         (trace_dir / "verification_actions.json").write_text(
             json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
@@ -969,7 +1303,9 @@ class MobiAgentVerificationRunner:
         frame_visible_texts: dict[str, list[str]],
         step_results: tuple[VerificationStepResult, ...],
         trace_dir: Path,
+        attempt_audits: list[dict[str, Any]] | None = None,
     ) -> VerificationRunResult:
+        attempts = list(attempt_audits or ())
         record = ExecutionRecord(
             test_case_id=test_case.test_case_id,
             executor=self.name,
@@ -987,6 +1323,7 @@ class MobiAgentVerificationRunner:
                 "observation_sufficient": False,
                 "frames": frames,
                 "frame_visible_texts": frame_visible_texts,
+                "attempt_audits": attempts,
             },
         )
         return VerificationRunResult(
@@ -999,8 +1336,21 @@ class MobiAgentVerificationRunner:
             step_results=step_results,
             observation_record=record,
             contract_sha256=contract.sha256,
-            metadata={"trace_dir": str(trace_dir), "blocker": blocker},
+            metadata={
+                "trace_dir": str(trace_dir),
+                "blocker": blocker,
+                "attempt_count": len(attempts),
+                "attempt_audits": attempts,
+            },
         )
+
+
+class _VerificationPreDispatchError(RuntimeError):
+    """A verification step failed before any device action could be issued."""
+
+
+class _VerificationDispatchUncertain(RuntimeError):
+    """A device call failed without proving whether its action took effect."""
 
 
 class _VerificationRouteBlocked(RuntimeError):
@@ -1087,6 +1437,139 @@ def _contains_dangerous_semantics(text: str) -> bool:
     return False
 
 
+def _validated_read_only_navigation_target(
+    target_spec: Any,
+    current_frame: Mapping[str, Any] | None,
+    target: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Require declared semantics and runtime hit evidence for NAVIGATE.
+
+    Coordinates are never sufficient on their own.  The selected point must
+    hit a visible/enabled runtime node whose semantic label agrees with an
+    exact declared candidate, and the declaration must identify a read-only
+    navigation role.  Ambiguity fails before dispatch.
+    """
+
+    if target is None:
+        return None
+    if not isinstance(target_spec, Mapping):
+        raise ValueError("NAVIGATE target must be a mapping")
+    role = str(target_spec.get("role") or "").strip().casefold()
+    if role not in READ_ONLY_NAVIGATION_ROLES:
+        raise ValueError(
+            "NAVIGATE target must declare an explicit read-only navigation role"
+        )
+    requested = tuple(
+        _normalized_navigation_label(item)
+        for item in target_spec.get("text_candidates", ())
+        if _normalized_navigation_label(item)
+    )
+    if not requested:
+        raise ValueError("NAVIGATE target requires exact text_candidates")
+    try:
+        x, y = (int(value) for value in target["center"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("NAVIGATE target is missing an integer center") from exc
+
+    runtime_hit = target.get("hit_node")
+    if not isinstance(runtime_hit, Mapping):
+        runtime_hit = _runtime_navigation_hit_node(current_frame, x, y)
+    if not isinstance(runtime_hit, Mapping):
+        raise ValueError("NAVIGATE point has no visible enabled runtime hit node")
+    bounds = _parse_bounds(runtime_hit.get("bounds"))
+    if bounds is None or not (bounds[0] <= x <= bounds[2] and bounds[1] <= y <= bounds[3]):
+        raise ValueError("NAVIGATE point is outside its audited runtime hit node")
+
+    matched_text_node = target.get("matched_text_node")
+    matched_text_node = matched_text_node if isinstance(matched_text_node, Mapping) else {}
+    runtime_semantic_values = tuple(
+        value
+        for value in (
+            str(runtime_hit.get("text") or ""),
+            str(runtime_hit.get("semantic_text") or ""),
+            str(matched_text_node.get("text") or ""),
+            str(matched_text_node.get("semantic_text") or ""),
+        )
+        if value.strip()
+    )
+    normalized_values = tuple(
+        _normalized_navigation_label(value) for value in runtime_semantic_values
+    )
+    matched_candidate = next(
+        (
+            candidate
+            for candidate in requested
+            for value in normalized_values
+            if candidate == value or candidate in value.split(" | ")
+        ),
+        None,
+    )
+    if matched_candidate is None:
+        raise ValueError(
+            "NAVIGATE runtime hit node does not match an exact declared text candidate"
+        )
+    safety_values = (*runtime_semantic_values, str(target.get("text") or ""))
+    if any(_contains_dangerous_semantics(value) for value in safety_values):
+        raise ValueError("NAVIGATE runtime hit node has write-like semantics")
+    if any(value in AMBIGUOUS_WRITE_CONTROL_LABELS for value in normalized_values):
+        raise ValueError("NAVIGATE runtime hit node is ambiguous with a write entry point")
+
+    validated = dict(target)
+    validated.update(
+        {
+            "center": (x, y),
+            "bounds": bounds,
+            "runtime_bounds": bounds,
+            "runtime_hit_node": dict(runtime_hit),
+            "read_only_role": role,
+            "declared_text_candidates": list(target_spec.get("text_candidates", ())),
+            "matched_declared_candidate": matched_candidate,
+            "read_only_target_validated": True,
+        }
+    )
+    return validated
+
+
+def _runtime_navigation_hit_node(
+    current_frame: Mapping[str, Any] | None,
+    x: int,
+    y: int,
+) -> dict[str, Any] | None:
+    if not isinstance(current_frame, Mapping):
+        return None
+    nodes = current_frame.get("xml_nodes")
+    if not isinstance(nodes, list):
+        return None
+    matches: list[tuple[int, dict[str, Any]]] = []
+    for node in nodes:
+        if not isinstance(node, Mapping):
+            continue
+        if node.get("visible") is False or node.get("enabled") is False:
+            continue
+        bounds = _parse_bounds(node.get("bounds"))
+        if bounds is None or not (bounds[0] <= x <= bounds[2] and bounds[1] <= y <= bounds[3]):
+            continue
+        attrs = node.get("attributes") if isinstance(node.get("attributes"), Mapping) else {}
+        summary = {
+            "tag": node.get("tag"),
+            "text": node.get("text"),
+            "semantic_text": node.get("semantic_text"),
+            "bounds": list(bounds),
+            "clickable": bool(node.get("clickable")),
+            "enabled": node.get("enabled") is not False,
+            "attributes": dict(attrs),
+        }
+        area = max(1, bounds[2] - bounds[0]) * max(1, bounds[3] - bounds[1])
+        matches.append((area, summary))
+    if not matches:
+        return None
+    return min(matches, key=lambda item: item[0])[1]
+
+
+def _normalized_navigation_label(value: Any) -> str:
+    return " ".join(str(value or "").casefold().split())
+
+
 def _substring_indexes(text: str, term: str):
     start = 0
     while True:
@@ -1104,6 +1587,7 @@ def _failed_verification_step(
     error: str,
     blocker: str | None = None,
     attempts: int = 1,
+    evidence: Mapping[str, Any] | None = None,
 ) -> VerificationStepResult:
     return VerificationStepResult(
         verification_step_id=step.verification_step_id,
@@ -1113,6 +1597,7 @@ def _failed_verification_step(
         target=step.target,
         blocker=blocker,
         error=error,
+        evidence=dict(evidence or {}),
     )
 
 
@@ -1156,12 +1641,20 @@ def _environment_blocker_frame(frame: Mapping[str, Any]) -> str | None:
 
 
 def _surface_reached(target: Mapping[str, Any], texts: tuple[str, ...] | list[str]) -> bool | None:
-    candidates = tuple(
+    surface_candidates = tuple(
         str(item).strip()
-        for key in ("surface_text_candidates", "text_candidates")
-        for item in target.get(key, ())
+        for item in target.get("surface_text_candidates", ())
         if str(item).strip()
     )
+    candidates = tuple(
+        str(item).strip()
+        for item in target.get("text_candidates", ())
+        if str(item).strip()
+    )
+    # A navigation label often remains visible on every tab.  Once the route
+    # declares target-surface evidence, that stronger evidence must be used
+    # exclusively; otherwise a no-op click could falsely "reach" the route.
+    candidates = surface_candidates or candidates
     if not candidates:
         return None
     joined = "\n".join(str(item) for item in texts)

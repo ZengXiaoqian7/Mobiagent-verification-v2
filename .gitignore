@@ -62,6 +62,13 @@ tests/
 **/*.rst
 !/README.md
 
+# Current architecture documents are release inputs and must stay reviewable.
+!/PLAN.md
+!/APP_TEST_AGENT_README.md
+!/docs/
+docs/*
+!/docs/STAGE4_MOBIAGENT_PREFLIGHT.md
+
 # MobiAgent runtime prompt assets are source inputs, not documentation.
 !prompts/
 prompts/*.md

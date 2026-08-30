@@ -5,11 +5,15 @@
 ## 评测闭环
 
 ```text
-测试用例 JSON → 契约编译 → MobiAgent Runner 执行业务动作
-                                      ↓
-                           截图 + Harmony UI 层级 + 动作记录
-                                      ↓
-                      时序离线验证器 → 评测报告与可追溯证据
+用户视角测试用例 → 契约编译 → 原 MobiAgent Decider/Grounder → 设备动作
+                                                        ↓
+                                  Step Gate（顺序、动作证据、观察窗口、安全审计）
+                                                        ↓
+                                           App Verifier 检查最终预期
+                                                        ↓ 证据不足时
+                                      只读 Verification Runner → App Verifier 复核
+                                                        ↓
+                                            归因、报告与可追溯证据
 ```
 
 - `app_test_agent/`：用例契约、步骤编排、设备执行和证据汇总。
@@ -17,7 +21,7 @@
 - `verification_benchmark/`：时序验证、规则检查、报告生成和命令行入口。
 - `examples/`：可直接执行的应用测试用例。
 
-真实设备运行时，每个步骤都保存动作前后状态。发布等终态步骤保留延时观测窗口，验证器只以该窗口内的可见 UI 证据判定结果，不以模型的“完成”声明判定成功。
+真实设备运行时，每个步骤都保存动作前后状态。发布等终态步骤保留延时观测窗口，验证器只以该窗口内的可见 UI 证据判定结果，不以模型的“完成”声明判定成功。Runner 的 `done` 只终止当前步骤或已确认的 GOAL；`ACTION_DISPATCHED`、`CONFORMANT` 和 Step Gate 的 `CONTINUE` 均不等于 `APP_PASS`。已派发的写操作、`INPUT` 或 GOAL 内部副作用动作不得整体重派发；证据不足必须返回 `INCONCLUSIVE`。
 
 ## 环境准备
 
@@ -64,7 +68,7 @@ python -m verification_benchmark.tools.check_pc_environment --profile harmony
 
 ### 一键 PC 验收
 
-以下命令依次运行依赖检查、完整回归、源码 Mock、可用的本地真实轨迹基线、Windows 打包和打包后 Mock，全程不会操作真实设备：
+以下命令依次运行依赖检查、完整回归、源码 Mock、可用的本地真实轨迹基线、Windows 打包和打包后 Mock，全程不会操作真实设备。源码与冻结进程的 Mock smoke 都会实际读取七个原 MobiAgent runtime prompt，避免 Mock 成功掩盖打包资源缺失：
 
 ```powershell
 .\verify_pc_release.ps1
@@ -82,6 +86,8 @@ python -m pc_client
 
 客户端复用下文同一套评测内核，支持离线 Manifest 回放、Mock 自检、无设备操作的真机预检，以及需要二次副作用确认的真机执行。离线回放默认从 raw `actions.json` 与 observation frames 使用当前规则重算 Step Gate，不采信历史 gate 标签。密钥仍只从环境变量读取，客户端不保存密钥。
 
+真机执行期间，源码 CLI 会继续显示原 MobiAgent 的 Decider/Grounder 响应；无控制台的 PC 客户端会把同一结构化事件实时转发到日志框。每次模型请求、原始响应、解析校验、失败重试和耗时还会按 step/attempt 写入 `mobiagent_step_trace/model_events.jsonl`。事件不会主动复制请求 prompt、截图 payload、消息正文或 API key；完整模型响应保留用于本地调试和审计，因此模型自行复述的 UI 文本仍可能包含敏感信息，trace 必须按设备截图同级保护。
+
 如需打包为 Windows 客户端目录，安装打包依赖后运行：
 
 ```powershell
@@ -89,7 +95,7 @@ python -m pip install -r requirements-package.txt
 .\build_pc_client.ps1
 ```
 
-构建产物位于 `dist\MobiAgentVerifierPC\`。
+构建产物位于 `dist\MobiAgentVerifierPC\`。`build_pc_client.ps1` 会在构建前校验七个必需 prompt，并把 `prompts/` 收集到冻结客户端；缺失或空 prompt 会使验收失败。
 
 打包程序是否具备真机执行能力取决于构建环境：Android 需要 `uiautomator2`，HarmonyOS 需要 `hmdriver2`，模型调用需要 `openai`。缺少这些依赖时，离线回放、Mock 自检和真机预检仍可使用，但真机执行只能返回环境阻断；正式发布前应在依赖齐全的环境重新构建，并连接测试设备完成验收。
 
@@ -150,7 +156,7 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 | `harmony_probe_capability_app_test.json` | HarmonyOS 设备能力探测 |
 | `minimal_user_view_app_test.json` | 最小只读用例 |
 
-新增用例时，至少定义：`test_case_id`、初始状态、按序 `steps`、每步后的预期上下文，以及 `expected_results`。对有副作用的操作，应使用唯一测试文本，并把最终断言绑定到发布后的界面证据。
+新增用例时，至少定义：`test_case_id`、必要的初始状态、用户能够描述的按序 `steps`，以及最终可观察的 `expected_results`。测试作者不必提供坐标、控件 ID、逐步 `expected_after` 或 Verification Runner 路线；这些只能作为运行时内部证据。对有副作用的操作，应使用唯一测试文本，并把最终断言绑定到发布后的界面证据。
 
 ## 输出与判读
 
@@ -160,9 +166,13 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 | --- | --- |
 | `report.md` | 最终结论与断言结果 |
 | `execution_result.json` | 步骤执行是否按序完成 |
+| `direct_app_behavior_result.json` | 启动 Verification Runner 前的直接 App 证据结论 |
 | `app_behavior_result.json` | 业务结果断言 |
 | `mobiagent_step_trace/` | 截图、原始 UI 层级和 `actions.json` |
+| `mobiagent_step_trace/model_events.jsonl` | Decider/Grounder 请求、返回、显式 reasoning、校验、重试和耗时 |
 | `business_offline_review.json` | 时序证据、命中帧与诊断信息 |
+| `verification_runner_result.json` | 条件启动的只读验证轨迹、burst 与 attempt 审计 |
+| `attribution_result.json` / `run_envelope.json` | 归因与端到端 hash/时序边界 |
 
 优先查看 `report.md`：
 
@@ -174,4 +184,6 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 ## 安全与版本控制
 
-密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件均不进入发布分支，`README.md` 是唯一随源码发布的说明文档。
+密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`PLAN.md`、`APP_TEST_AGENT_README.md` 与 `docs/STAGE4_MOBIAGENT_PREFLIGHT.md` 作为当前架构说明一并维护，其余 `docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件不进入发布分支。
+
+当前离线验收基线（2026-08-30）：`199 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。

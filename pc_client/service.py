@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from app_test_agent.mobiagent_executor import (
     MobiAgentStepExecutor,
@@ -54,6 +54,7 @@ class PcEvaluationRequest:
     device_serial: str | None = None
     runner_root: Path | None = None
     device_mutation_confirmation: str | None = None
+    model_event_sink: Callable[[Mapping[str, Any]], None] | None = None
 
     def validated(self) -> "PcEvaluationRequest":
         mode = str(self.mode).strip().upper()
@@ -91,6 +92,7 @@ class PcEvaluationRequest:
             device_serial=serial,
             runner_root=runner_root,
             device_mutation_confirmation=self.device_mutation_confirmation,
+            model_event_sink=self.model_event_sink,
         )
 
 
@@ -162,6 +164,7 @@ def run_pc_evaluation(request: PcEvaluationRequest) -> PcEvaluationResult:
             device=request.device,
             device_serial=request.device_serial,
             runner_root=request.runner_root,
+            model_event_sink=request.model_event_sink,
         )
         verification_runner = MobiAgentVerificationRunner(
             output_dir=request.output_dir,
@@ -199,11 +202,45 @@ def run_pc_evaluation(request: PcEvaluationRequest) -> PcEvaluationResult:
     )
 
 
+def format_model_event_for_display(event: Mapping[str, Any]) -> str:
+    """Render one structured model event for the desktop live log."""
+
+    role = str(event.get("role") or "Model")
+    step_id = str(event.get("step_id") or "-")
+    business_attempt = event.get("business_attempt")
+    model_attempt = event.get("model_attempt")
+    event_type = str(event.get("event_type") or "MODEL_EVENT")
+    prefix = (
+        f"[{role}] step={step_id} business_attempt={business_attempt or '-'} "
+        f"model_attempt={model_attempt or '-'}"
+    )
+    if event_type == "MODEL_REQUEST_STARTED":
+        return (
+            f"{prefix} request model={event.get('model')} "
+            f"temperature={event.get('temperature')}"
+        )
+    if event_type == "MODEL_RESPONSE_RECEIVED":
+        return (
+            f"{prefix} response ({event.get('duration_ms', 0)} ms):\n"
+            f"{event.get('response_text') or ''}"
+        )
+    if event_type == "MODEL_VALIDATION_SUCCEEDED":
+        return f"{prefix} validation=PASS"
+    if event_type == "MODEL_ATTEMPT_FAILED":
+        retry = " retry_scheduled" if event.get("retry_scheduled") is True else ""
+        return (
+            f"{prefix} validation=FAIL{retry}: "
+            f"{event.get('error_type')}: {event.get('error')}"
+        )
+    return f"{prefix} {event_type}"
+
+
 __all__ = [
     "DEVICE_MUTATION_CONFIRMATION",
     "PcEvaluationMode",
     "PcEvaluationRequest",
     "PcEvaluationResult",
     "PcEvaluationValidationError",
+    "format_model_event_for_display",
     "run_pc_evaluation",
 ]

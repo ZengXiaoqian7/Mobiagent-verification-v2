@@ -43,6 +43,7 @@ from .decider_adapters import (
 )
 from .json_utils import load_json_from_text as _load_json_from_text
 from .json_utils import robust_json_loads
+from .model_events import emit_model_event
 from .user_preference_extractor import (
     PreferenceExtractor, 
     retrieve_user_preferences, 
@@ -887,8 +888,22 @@ def call_model_with_validation_retry(client, model, messages, validator_func, ma
     """
     temperature = INITIAL_TEMP
     for attempt in range(max_retries):
+        attempt_number = attempt + 1
+        response_str = None
+        parsed_response = None
+        transport = None
+        start_time = time.time()
+        emit_model_event(
+            "MODEL_REQUEST_STARTED",
+            role=context,
+            model=model or "<empty>",
+            model_attempt=attempt_number,
+            max_model_attempts=max_retries,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            message_count=len(messages) if hasattr(messages, "__len__") else None,
+        )
         try:
-            start_time = time.time()
             logging.info(
                 "%s request: model=%s max_tokens=%s temperature=%.1f",
                 context,
@@ -905,6 +920,7 @@ def call_model_with_validation_retry(client, model, messages, validator_func, ma
                 max_tokens,
             )
             if response_str is None:
+                transport = "openai_sdk"
                 response_str = client.chat.completions.create(
                     model=model,
                     messages=messages,
@@ -912,7 +928,22 @@ def call_model_with_validation_retry(client, model, messages, validator_func, ma
                     timeout=API_TIMEOUT,
                     max_tokens=max_tokens,
                 ).choices[0].message.content
+            else:
+                transport = "raw_http"
             end_time = time.time()
+            duration_ms = max(0, int((end_time - start_time) * 1000))
+            emit_model_event(
+                "MODEL_RESPONSE_RECEIVED",
+                role=context,
+                model=model or "<empty>",
+                model_attempt=attempt_number,
+                max_model_attempts=max_retries,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                duration_ms=duration_ms,
+                transport=transport,
+                response_text=str(response_str),
+            )
             logging.info(f"[evaluation] {context} time taken: {end_time - start_time:.2f} seconds")
             logging.info(f"{context} response: \n{format_model_response_for_log(context, response_str)}")
             
@@ -922,11 +953,45 @@ def call_model_with_validation_retry(client, model, messages, validator_func, ma
             
             # 执行校验函数
             validator_func(parsed_response)
+
+            emit_model_event(
+                "MODEL_VALIDATION_SUCCEEDED",
+                role=context,
+                model=model or "<empty>",
+                model_attempt=attempt_number,
+                max_model_attempts=max_retries,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                duration_ms=max(0, int((time.time() - start_time) * 1000)),
+                transport=transport,
+                parsed_response=parsed_response,
+                validation_status="PASS",
+            )
             
             return parsed_response
             
         except Exception as e:
             status_code, non_retryable = _is_non_retryable_model_error(e)
+            will_retry = not non_retryable and attempt < max_retries - 1
+            emit_model_event(
+                "MODEL_ATTEMPT_FAILED",
+                role=context,
+                model=model or "<empty>",
+                model_attempt=attempt_number,
+                max_model_attempts=max_retries,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                duration_ms=max(0, int((time.time() - start_time) * 1000)),
+                transport=transport,
+                response_text=(str(response_str) if response_str is not None else None),
+                parsed_response=parsed_response,
+                validation_status="FAIL",
+                error_type=type(e).__name__,
+                error=str(e),
+                status_code=status_code,
+                retryable=not non_retryable,
+                retry_scheduled=will_retry,
+            )
             if non_retryable:
                 logging.error(
                     "%s request rejected permanently (HTTP %s); no retry will be attempted: %s",

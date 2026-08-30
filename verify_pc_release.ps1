@@ -29,6 +29,17 @@ function Invoke-NativeStep {
     }
 }
 
+function Assert-RuntimePromptSmoke {
+    param(
+        [object]$SmokeResult,
+        [string]$Label
+    )
+    $PromptAssets = $SmokeResult.runtime_prompt_assets
+    if ($null -eq $PromptAssets -or $PromptAssets.status -ne "PASS" -or $PromptAssets.count -ne 7) {
+        throw "$Label did not load all 7 MobiAgent runtime prompts"
+    }
+}
+
 Invoke-NativeStep "Test environment" {
     python -m verification_benchmark.tools.check_pc_environment --profile test --json
 }
@@ -48,6 +59,7 @@ if ($SourceSmoke.overall_result -ne "APP_PASS") {
 if (-not (Test-Path -LiteralPath (Join-Path $SourceSmokeDir "report.md"))) {
     throw "source Mock smoke did not create report.md"
 }
+Assert-RuntimePromptSmoke $SourceSmoke "source Mock smoke"
 
 $ReplaySummary = $null
 if (-not $SkipRealReplay) {
@@ -115,6 +127,7 @@ if (-not $SkipBuild) {
     if (-not (Test-Path -LiteralPath (Join-Path $PackagedSmokeDir "report.md"))) {
         throw "packaged Mock smoke did not create report.md"
     }
+    Assert-RuntimePromptSmoke $PackagedSmoke "packaged Mock smoke"
 }
 
 $Summary = [ordered]@{

@@ -10,6 +10,7 @@ import queue
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from typing import Mapping
 import webbrowser
 
 from app_test_agent.mock_executor import MOCK_SCENARIOS
@@ -18,6 +19,7 @@ from .service import (
     DEVICE_MUTATION_CONFIRMATION,
     PcEvaluationMode,
     PcEvaluationRequest,
+    format_model_event_for_display,
     run_pc_evaluation,
 )
 from .runtime_paths import (
@@ -338,6 +340,11 @@ class MobiAgentPcApp(tk.Tk):
                 if self.confirm_mutation_var.get()
                 else None
             ),
+            model_event_sink=(
+                self._queue_model_event
+                if mode == PcEvaluationMode.DEVICE_EXECUTION
+                else None
+            ),
         )
         self._running = True
         self.run_button.configure(state="disabled")
@@ -354,11 +361,16 @@ class MobiAgentPcApp(tk.Tk):
         except Exception as exc:  # noqa: BLE001 - surfaced to the desktop operator.
             self._events.put(("error", exc))
 
+    def _queue_model_event(self, event: Mapping[str, object]) -> None:
+        self._events.put(("model_event", dict(event)))
+
     def _poll_events(self) -> None:
         try:
             while True:
                 kind, payload = self._events.get_nowait()
-                if kind == "result":
+                if kind == "model_event" and isinstance(payload, Mapping):
+                    self._append_log(format_model_event_for_display(payload))
+                elif kind == "result":
                     self._finish_success(payload)
                 else:
                     self._finish_error(payload)

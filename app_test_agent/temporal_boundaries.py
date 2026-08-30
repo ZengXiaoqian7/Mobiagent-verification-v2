@@ -156,7 +156,12 @@ def _surface_reached_frame(
     for step in verification_result.step_results:
         if step.reached_surface is not True or not step.observation_frames:
             continue
-        frame_id = step.observation_frames[0]
+        audited_frame = step.evidence.get("surface_reached_frame")
+        frame_id = (
+            audited_frame
+            if isinstance(audited_frame, int) and not isinstance(audited_frame, bool)
+            else step.observation_frames[0]
+        )
         return {
             "known": True,
             "frame": _frame_ref(frames.get(frame_id))

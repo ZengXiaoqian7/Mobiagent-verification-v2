@@ -90,11 +90,17 @@ def build_report(
             "step_results": [item.as_dict() for item in execution.step_results],
             "final_evidence_state": execution.final_state.as_dict(),
             "raw_trace_dir": execution.raw_trace_dir,
+            "model_events": {
+                "path": execution.metadata.get("model_events_path"),
+                "event_count": execution.metadata.get("model_event_count"),
+                "sha256": execution.metadata.get("model_events_sha256"),
+            },
         },
         "verification_trace": verification_trace,
         "final_evidence_state": execution.final_state.as_dict(),
         "artifacts": {
             "raw_trace_dir": execution.raw_trace_dir,
+            "model_events": execution.metadata.get("model_events_path"),
             "test_execution_manifest": "test_execution_manifest.json",
             "verification_trace": (
                 "verification_trace.json"
@@ -196,6 +202,7 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         f"- App behavior: `{behavior.get('status')}`",
         f"- Completed steps: {report.get('completed_step_count')}/{report.get('step_count')}",
         f"- Verification runner: `{_verification_status(report)}`",
+        f"- Model events: `{_model_event_summary(report)}`",
         "",
         "## Reason",
         "",
@@ -222,6 +229,18 @@ def _verification_status(report: Mapping[str, Any]) -> str:
     if not isinstance(result, Mapping):
         return "NOT_RECORDED"
     return str(result.get("status") or "UNKNOWN")
+
+
+def _model_event_summary(report: Mapping[str, Any]) -> str:
+    trace = report.get("business_execution_trace")
+    model_events = trace.get("model_events") if isinstance(trace, Mapping) else None
+    if not isinstance(model_events, Mapping):
+        return "NOT_RECORDED"
+    count = model_events.get("event_count")
+    path = model_events.get("path")
+    if not isinstance(count, int) or isinstance(count, bool) or not path:
+        return "NOT_RECORDED"
+    return f"{count} events at {path}"
 
 
 def _json_line(value: Mapping[str, Any]) -> str:

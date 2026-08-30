@@ -1,8 +1,9 @@
-"""MobiAgent step-executor adapter preparation.
+"""Step-bound original-MobiAgent execution and non-mutating preflight.
 
-Stage 4 intentionally implements the preflight side first.  It produces the
-step-bound payload and a not-yet-dispatched execution manifest that the real
-MobiAgent runner must fill in during device execution.
+The preflight mode emits a step-bound payload and an undispatched manifest.
+The real mode delegates decisions, grounding and action handlers to the
+original MobiAgent runtime, then audits every step through the independent
+Step Gate. Neither mode treats Runner completion as an App verdict.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from .manifest import (
     TestExecutionManifest,
     write_execution_manifest,
 )
+from .model_event_journal import MODEL_EVENT_JOURNAL_FILE, ModelEventJournal
 from .model_client import (
     extract_json_object,
     model_config_from_env,
@@ -45,6 +47,10 @@ from .step_gate import (
     evaluate_step_gate,
 )
 from .step_intent import StepExecutionIntent, compile_step_execution_intent
+from runner.mobiagent.model_events import (
+    MODEL_EVENT_SCHEMA_VERSION,
+    model_event_scope,
+)
 
 
 MOBIAGENT_STEP_PAYLOAD_SCHEMA_VERSION = "app-test-mobiagent-step-payload-v1"
@@ -116,11 +122,16 @@ class MobiAgentStepExecutor:
     bbox_flag: bool = True
     decider_protocol: str = "qwen_json"
     observation_sleep_scale: float | None = None
+    model_event_sink: Callable[[Mapping[str, Any]], None] | None = None
     name: str = "mobiagent_real_step"
 
     def execute(self, test_case: TestCaseSpec) -> ExecutionRecord:
         raw_trace_dir = self.output_dir.resolve() / "mobiagent_step_trace"
         raw_trace_dir.mkdir(parents=True, exist_ok=True)
+        model_event_journal = ModelEventJournal(
+            raw_trace_dir / MODEL_EVENT_JOURNAL_FILE,
+            listener=self.model_event_sink,
+        )
         frames: list[dict[str, Any]] = []
         frame_visible_texts: dict[str, list[str]] = {}
         actions: list[dict[str, Any]] = []
@@ -197,16 +208,25 @@ class MobiAgentStepExecutor:
                 current_frame = frames[-1] if frames else None
                 pre_frame = current_frame["frame_id"] if current_frame else None
                 try:
-                    action_record = self._execute_one_step(
-                        device,
-                        step,
-                        test_case,
+                    with model_event_scope(
+                        model_event_journal,
+                        test_case_id=test_case.test_case_id,
+                        step_id=step.step_id,
+                        step_ordinal=step_index + 1,
+                        business_attempt=attempts,
                         action_index=action_index,
-                        raw_trace_dir=raw_trace_dir,
-                        current_frame=current_frame,
-                        next_frame_id=next_frame_id,
-                        history=history,
-                    )
+                        pre_frame_id=pre_frame,
+                    ):
+                        action_record = self._execute_one_step(
+                            device,
+                            step,
+                            test_case,
+                            action_index=action_index,
+                            raw_trace_dir=raw_trace_dir,
+                            current_frame=current_frame,
+                            next_frame_id=next_frame_id,
+                            history=history,
+                        )
                     dispatch_finished_ms = int(time.time() * 1000)
                     action_record["dispatch_started_ms"] = attempt_started_ms
                     action_record["dispatch_finished_ms"] = dispatch_finished_ms
@@ -714,7 +734,12 @@ class MobiAgentStepExecutor:
             if step_results[-1].status != StepStatus.STEP_COMPLETED:
                 break
 
-        self._write_actions(raw_trace_dir, test_case, actions)
+        self._write_actions(
+            raw_trace_dir,
+            test_case,
+            actions,
+            model_event_journal=model_event_journal,
+        )
         final_texts = tuple(frames[-1].get("visible_texts", ())) if frames else ()
         initial_texts = tuple(frames[0].get("visible_texts", ())) if frames else ()
         return ExecutionRecord(
@@ -733,6 +758,9 @@ class MobiAgentStepExecutor:
                 "frame_visible_texts": frame_visible_texts,
                 "frames": frames,
                 "actions_path": str(raw_trace_dir / "actions.json"),
+                "model_events_path": str(model_event_journal.path),
+                "model_event_count": model_event_journal.event_count,
+                "model_events_sha256": _file_sha256(model_event_journal.path),
                 "runner_done_is_step_done_only": True,
                 "decider_history": list(history),
                 "decider_history_count": len(history),
@@ -1878,6 +1906,8 @@ class MobiAgentStepExecutor:
         raw_trace_dir: Path,
         test_case: TestCaseSpec,
         actions: list[dict[str, Any]],
+        *,
+        model_event_journal: ModelEventJournal | None = None,
     ) -> None:
         payload = {
             "schema_version": "app-test-mobiagent-step-actions-v1",
@@ -1886,6 +1916,16 @@ class MobiAgentStepExecutor:
             "package": test_case.app_under_test.package,
             "action_count": len(actions),
             "actions": actions,
+            "model_events": (
+                {
+                    "schema_version": MODEL_EVENT_SCHEMA_VERSION,
+                    "path": MODEL_EVENT_JOURNAL_FILE,
+                    "event_count": model_event_journal.event_count,
+                    "sha256": _file_sha256(model_event_journal.path),
+                }
+                if model_event_journal is not None
+                else None
+            ),
         }
         (raw_trace_dir / "actions.json").write_text(
             json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",

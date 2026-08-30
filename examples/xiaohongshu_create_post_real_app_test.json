@@ -148,6 +148,7 @@
       "action_type": "NAVIGATE",
       "target": {
         "label": "我",
+        "role": "navigation",
         "text_candidates": ["我"],
         "surface_text_candidates": ["笔记", "收藏", "赞过"]
       },
@@ -159,7 +160,7 @@
       "instruction": "Navigate to the own note list if it is not already selected",
       "action_type": "NAVIGATE",
       "target": {
-        "role": "button",
+        "role": "tab",
         "text_candidates": ["笔记", "作品", "帖子"],
         "surface_text_candidates": ["笔记", "作品", "帖子"]
       },
