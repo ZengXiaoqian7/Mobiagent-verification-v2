@@ -4,7 +4,7 @@ Date: 2026-07-22
 
 Historical branch: `codex/app-test-agent-stage4`; current implementation: `main`
 
-## Current Status (2026-08-30)
+## Current Status (2026-08-31)
 
 Stage 4 originally introduced only the non-mutating preflight contract. Current
 `main` retains that mode and also implements real step-bound device execution.
@@ -173,6 +173,6 @@ Stage 4 is accepted when:
 - real commercial-App writes, sends, posts, and payments remain manual,
   user-triggered acceptance work.
 
-Offline baseline on 2026-08-30: `199 passed`; six protected real traces are
+Offline baseline on 2026-08-31: `203 passed`; six protected real traces are
 `6/6`, exact accuracy is `1.0`, and false pass, false fail, and attribution error
 counts are zero.

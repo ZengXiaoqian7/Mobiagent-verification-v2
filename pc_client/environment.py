@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import importlib.util
+import importlib
 import shutil
 from typing import Any
 
@@ -57,12 +57,14 @@ _PROFILE_COMMANDS = {
     "android": ("adb",),
     "harmony": ("hdc",),
 }
+ENVIRONMENT_PROFILES = tuple(sorted(_PROFILE_MODULES))
 
 
 def _module_available(name: str) -> bool:
     try:
-        return importlib.util.find_spec(name) is not None
-    except (ImportError, ModuleNotFoundError, ValueError):
+        importlib.import_module(name)
+        return True
+    except Exception:  # noqa: BLE001 - any import-time failure means the runtime is unusable.
         return False
 
 
@@ -88,6 +90,7 @@ def check_environment(profile: str) -> EnvironmentReport:
 
 
 __all__ = [
+    "ENVIRONMENT_PROFILES",
     "EnvironmentReport",
     "EnvironmentRequirement",
     "check_environment",

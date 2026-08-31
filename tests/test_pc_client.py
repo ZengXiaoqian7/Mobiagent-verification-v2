@@ -1,4 +1,7 @@
 from pathlib import Path
+import json
+import subprocess
+import sys
 
 import pytest
 import pc_client.service as pc_service
@@ -33,6 +36,44 @@ def test_pc_build_and_acceptance_require_frozen_runtime_prompts():
     assert '--add-data "$RepoRoot\\prompts;prompts"' in build_script
     assert "Assert-RuntimePromptSmoke" in acceptance_script
     assert "runtime_prompt_assets" in acceptance_script
+
+
+def test_formal_acceptance_script_has_strict_release_gates():
+    acceptance_script = (ROOT / "verify_pc_release.ps1").read_text(encoding="utf-8")
+
+    assert 'ValidateSet("Offline", "Formal")' in acceptance_script
+    assert "Formal acceptance cannot use -SkipRealReplay" in acceptance_script
+    assert "Formal acceptance cannot use -SkipBuild" in acceptance_script
+    assert "evaluated_cases -ne $ReplaySummary.configured_cases" in acceptance_script
+    assert "unavailable_cases -ne 0" in acceptance_script
+    assert "exact_accuracy -ne 1.0" in acceptance_script
+    assert "false_fail_count -ne 0" in acceptance_script
+    assert "packaged device environment" in acceptance_script
+    assert "PENDING_USER_TRIGGERED_PILOT" in acceptance_script
+    assert 'model_service_probe = "NOT_RUN"' in acceptance_script
+    assert 'device_interaction = "CONNECTIVITY_CHECK_ONLY"' in acceptance_script
+
+
+def test_pc_entry_environment_check_writes_machine_readable_report(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "pc_client_entry.py"),
+            "--check-environment",
+            "core",
+            "--output-dir",
+            str(tmp_path),
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads((tmp_path / "pc_environment_report.json").read_text(encoding="utf-8"))
+    assert report["profile"] == "core"
+    assert report["ready"] is True
 
 
 def test_pc_client_mock_runs_canonical_report_pipeline(tmp_path):

@@ -1,11 +1,11 @@
 # 移动端 App 功能评测智能体施工计划
 
-## 0. 当前状态（2026-08-30）
+## 0. 当前状态（2026-08-31）
 
 阶段 A–E 已完成，当前代码已经实现本文第 5 节的目标架构；第 3、4
 节保留问题演进背景，但以本节和代码/测试为准。当前离线验收为：
 
-- 全量测试 `199 passed`；
+- 全量测试 `203 passed`；
 - 六条冻结真实 trace `6/6`，exact accuracy `1.0`；
 - false pass、false fail、attribution error 均为 `0`；
 - 默认生产路径不注入 locator，离线集成测试完整经过原始 MobiAgent
@@ -173,7 +173,7 @@ Mock 只证明控制流和归因规则，不证明真实设备、模型定位或
 
 - App-test 单元/集成测试覆盖协议、Mock、默认原 Decider/Grounder、执行
   符合性、Step Gate、App verifier、报告、冻结 prompt 和 Verification Runner。
-- 当前全量为 `199 passed`；受保护真实 trace 为 `6/6`，exact accuracy
+- 当前全量为 `203 passed`；受保护真实 trace 为 `6/6`，exact accuracy
   `1.0`，无 false pass、false fail 或归因错误。
 <!-- - 已有小红书测试样例和真实设备探索记录，但不能视为可靠的端到端成功证明。 -->
 
@@ -512,6 +512,10 @@ Codex 后续工作必须遵守：
 
 1. 由用户选择测试设备、账号与一个无发布/发送/支付副作用的商业 App
    短流程，先运行 preflight，再明确确认真实执行；
+   在此之前先从目标 Conda 环境运行 `verify_pc_release.ps1
+   -AcceptanceLevel Formal -DeviceProfile <platform> -DeviceSerial <serial>`；该门禁
+   禁止跳过完整 trace 或打包，并检查源码和冻结客户端的目标设备依赖。门禁
+   通过只代表正式试点已就绪，摘要仍将商业 App 验收标记为待用户触发；
 2. 人工核对原始 Decider/Grounder 决策、Step Gate attempt、observation
    burst、App Verifier 和归因报告；
 3. 低风险试点稳定后，再由用户手动触发小红书等有副作用流程；

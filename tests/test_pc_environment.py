@@ -29,3 +29,22 @@ def test_device_environment_reports_all_missing_requirements(monkeypatch):
 def test_environment_rejects_unknown_profile():
     with pytest.raises(ValueError, match="unsupported environment profile"):
         environment.check_environment("unknown")
+
+
+def test_environment_profiles_are_stable_and_include_real_devices():
+    assert environment.ENVIRONMENT_PROFILES == (
+        "android",
+        "core",
+        "harmony",
+        "package",
+        "test",
+    )
+
+
+def test_module_check_requires_a_successful_import(monkeypatch):
+    def broken_import(_name):
+        raise OSError("dependent DLL is missing")
+
+    monkeypatch.setattr(environment.importlib, "import_module", broken_import)
+
+    assert environment._module_available("present_but_broken") is False

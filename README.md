@@ -66,7 +66,7 @@ python -m verification_benchmark.tools.check_pc_environment --profile harmony
 
 ## 运行测试
 
-### 一键 PC 验收
+### 一键 PC 离线验收与正式准备门禁
 
 以下命令依次运行依赖检查、完整回归、源码 Mock、可用的本地真实轨迹基线、Windows 打包和打包后 Mock，全程不会操作真实设备。源码与冻结进程的 Mock smoke 都会实际读取七个原 MobiAgent runtime prompt，避免 Mock 成功掩盖打包资源缺失：
 
@@ -74,7 +74,37 @@ python -m verification_benchmark.tools.check_pc_environment --profile harmony
 .\verify_pc_release.ps1
 ```
 
-在没有真实轨迹的干净环境可使用 `-SkipRealReplay`；只做快速源码验收可再加 `-SkipBuild`。临时验证可通过 `-OutputRoot <path>` 与正式验收报告隔离。GitHub Actions 使用同一脚本和 `requirements-ci-lock.txt`，保证本地与 CI 执行入口一致。
+默认命令属于 `Offline` 验收。在没有真实轨迹的干净环境可使用
+`-SkipRealReplay`；只做快速源码验收可再加 `-SkipBuild`。只要本地存在受保护
+trace，脚本就要求完整 cohort 全部可用、exact accuracy `1.0`，并要求 false
+pass、false fail 和 attribution error 全部为零。
+
+连接设备后的正式准备门禁使用：
+
+```powershell
+conda activate mobiagent-e2e
+python -m pip install -r requirements-test.txt
+python -m pip install -r requirements-package.txt
+.\verify_pc_release.ps1 `
+  -AcceptanceLevel Formal `
+  -DeviceProfile harmony `
+  -DeviceSerial "<hdc-device-serial>"
+```
+
+`Formal` 禁止 `-SkipRealReplay` 和 `-SkipBuild`，要求显式设备序列号、完整真实
+trace、源码目标 profile READY，并在构建后从冻结 EXE 内再次检查同一 profile。
+它只证明正式真机试点的代码、依赖、设备和打包物已经就绪；摘要会明确写入
+`live_commercial_acceptance=PENDING_USER_TRIGGERED_PILOT`，不会把未执行的商业
+App 测试冒充最终验收。该门禁不调用模型、也不操作设备，摘要分别记录
+`model_service_probe=NOT_RUN` 和 `device_interaction=CONNECTIVITY_CHECK_ONLY`；模型
+服务连通性在用户触发真机试点前单独验证。临时验证可通过 `-OutputRoot <path>` 与正式报告隔离。
+GitHub Actions 仍运行可复现的 Offline 档，并明确跳过受保护 trace。
+
+源码或冻结客户端都可通过以下无设备操作入口输出机器可读依赖报告：
+
+```powershell
+python pc_client_entry.py --check-environment harmony --output-dir .\environment_check
+```
 
 ### PC 客户端
 
@@ -186,4 +216,4 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`PLAN.md`、`APP_TEST_AGENT_README.md` 与 `docs/STAGE4_MOBIAGENT_PREFLIGHT.md` 作为当前架构说明一并维护，其余 `docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件不进入发布分支。
 
-当前离线验收基线（2026-08-30）：`199 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。
+当前离线验收基线（2026-08-31）：`203 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。

@@ -35,7 +35,7 @@ Runner `done` is never an App verdict. Likewise, `ACTION_DISPATCHED`,
 write, `INPUT`, or side-effecting GOAL micro-action is never repeated as a whole;
 the system may only add safe observation or return `INCONCLUSIVE`.
 
-Current offline baseline (2026-08-30): `199 passed`; the protected six-trace
+Current offline baseline (2026-08-31): `203 passed`; the protected six-trace
 cohort is `6/6` with exact accuracy `1.0` and zero false pass, false fail, or
 attribution error. Real-device commercial-App pilots remain a separate,
 user-triggered acceptance stage.
