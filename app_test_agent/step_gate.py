@@ -659,6 +659,10 @@ def _target_conformance(
         intent=intent,
         app_package=app_package,
     )
+    if action_type == "click_input" and intent.action_family == "INPUT" and xml_result is None:
+        # A model/dispatch bbox without hierarchy role evidence is never enough
+        # to certify an INPUT target.
+        return ActionConformance.UNKNOWN
     if xml_result in {"OVERLAY_BLOCKED", ActionConformance.NON_CONFORMANT}:
         return xml_result
     visual = action_record.get("visual_target_check")
@@ -695,24 +699,33 @@ def _progress_status(
 ) -> str:
     expected_value = step.resolved_value(test_case.test_data)
     post_texts = _texts(post_frames)
-    if allow_goal_stage_result and step.step_mode == "GOAL" and expected_value is not None:
+    action_type = str(action_record.get("type") or "").lower()
+    input_action = step.action_type == "INPUT" or action_type in {"input", "click_input"}
+    if (
+        allow_goal_stage_result
+        and step.step_mode == "GOAL"
+        and expected_value is not None
+        and not input_action
+    ):
         if any(expected_value in text for text in post_texts):
             return ProgressStatus.GOAL_RESULT_CONFIRMED
-    if allow_goal_stage_result and step.step_mode == "GOAL" and _goal_stage_result_available(step, post_texts):
+    if (
+        allow_goal_stage_result
+        and step.step_mode == "GOAL"
+        and not input_action
+        and _goal_stage_result_available(step, post_texts)
+    ):
         return ProgressStatus.GOAL_RESULT_CONFIRMED
-    action_type = str(action_record.get("type") or "").lower()
     if (step.action_type == "INPUT" or action_type in {"input", "click_input"}) and expected_value is not None:
+        input_effect = action_record.get("input_effect")
+        # A device-level input call, or the same text in a historical bubble,
+        # is not evidence that the declared editable surface received it.
+        if isinstance(input_effect, Mapping):
+            if input_effect.get("status") == ActionConformance.CONFORMANT:
+                return ProgressStatus.INPUT_VALUE_CONFIRMED
+            return ProgressStatus.UNKNOWN
         if any(expected_value in text for text in post_texts):
             return ProgressStatus.INPUT_VALUE_CONFIRMED
-        # A device-level input call is not evidence that the editor had focus.
-        # The executor attaches this result after observing the actual UI.  Do
-        # not let a visible next-step button turn a failed input into progress.
-        input_effect = action_record.get("input_effect")
-        if isinstance(input_effect, Mapping) and input_effect.get("status") in {
-            ActionConformance.NON_CONFORMANT,
-            ActionConformance.UNKNOWN,
-        }:
-            return ProgressStatus.UNKNOWN
         if action_record.get("text") == expected_value:
             return ProgressStatus.INPUT_DISPATCH_CONFIRMED
     if action_type == "swipe":
@@ -981,18 +994,20 @@ def _target_role_mismatch(
     if action_type not in {"click", "click_input"}:
         return False
     if not nodes:
+        # No hit nodes means the hierarchy evidence is insufficient.  The
+        # caller will keep INPUT at UNKNOWN; only an explicit non-input hit is
+        # a NON_CONFORMANT role proof.
         return False
     if intent.action_family == "CLICK" and _intent_requests_button(intent):
         has_input = any(_node_is_text_input(node) for node in nodes)
         has_button = any(_node_is_button(node) for node in nodes)
         return has_input and not has_button
     if intent.action_family == "INPUT" and action_type == "click_input":
-        has_input = any(
-            _node_is_text_input(node) or _node_is_input_container(node)
-            for node in nodes
-        )
-        has_button = any(_node_is_button(node) for node in nodes)
-        return has_button and not has_input
+        # INPUT has a stricter contract than ordinary CLICK: a hierarchy hit
+        # must prove an actual editable role.  A Column/ListItem/ChatInputArea
+        # parent is diagnostic evidence only and cannot become CONFORMANT.
+        has_input = any(_node_is_text_input(node) for node in nodes)
+        return not has_input
     return False
 
 
@@ -1018,20 +1033,26 @@ def _node_is_text_input(value: Any) -> bool:
         return False
     attributes = value.get("attributes")
     attributes = attributes if isinstance(attributes, Mapping) else {}
-    signature = " ".join(
+    role_signature = " ".join(
         str(value.get(key) or "")
-        for key in ("tag", "text", "semantic_text", "semantic_context")
+        for key in ("tag", "type", "class", "role", "role_name", "accessibility_role")
     ) + " " + " ".join(
         str(attributes.get(key) or "")
         for key in ("id", "key", "type", "class", "resource-id", "resourceId")
     )
-    folded = signature.casefold()
+    folded = role_signature.casefold()
+    if "richeditorcontent" in folded or "textinputcontent" in folded:
+        return False
     return any(
         marker in folded
         for marker in (
             "richeditor",
             "textinput",
+            "textarea",
             "edittext",
+            "searchedit",
+            "searchinput",
+            "searchfield",
             "textfield",
             "inputfield",
             "text_input",

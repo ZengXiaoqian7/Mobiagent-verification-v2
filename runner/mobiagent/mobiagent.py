@@ -4,6 +4,7 @@ import base64
 from PIL import Image
 import json
 import io
+import hashlib
 import logging
 import time
 import re
@@ -1831,6 +1832,34 @@ def append_action_and_history(actions, history, decider_response, action_record)
     history.append(json.dumps(decider_response, ensure_ascii=False))
 
 
+def _input_attempt_record(decider_response, *, action_type, image_index, text, **fields):
+    """Create an auditable input record before any device-side mutation."""
+    record = {
+        "type": action_type,
+        "action_index": image_index,
+        "text": f"{text}",
+        "text_sha256": hashlib.sha256(str(text).encode("utf-8")).hexdigest(),
+        "input_attempted": True,
+        "click_dispatch_state": "NOT_STARTED",
+        "input_dispatch_state": "NOT_STARTED",
+        "dispatch_state": "PREPARED",
+    }
+    record.update(fields)
+    return record
+
+
+def _record_partial_input_failure(exc, action_record, *, phase):
+    """Attach a partial action so the executor can persist it after an error."""
+    action_record["dispatch_state"] = "DISPATCHED_UNCERTAIN"
+    action_record["failure_phase"] = phase
+    action_record["error"] = f"{type(exc).__name__}: {exc}"
+    action_record[f"{phase}_dispatch_state"] = "UNCERTAIN"
+    try:
+        setattr(exc, "partial_action_record", dict(action_record))
+    except Exception:
+        pass
+
+
 def save_action_point_visualization(img, data_dir, image_index, action_label, bounds, position_x, position_y):
     save_path = os.path.join(data_dir, f"{image_index}_{action_label}_highlighted.jpg")
     bounds_path = os.path.join(data_dir, f"{image_index}_{action_label}_bounds.jpg")
@@ -1903,29 +1932,48 @@ def handle_click_input_action(decider_response, device, img, data_dir, image_ind
         decider_response["parameters"].get("target_element", ""), hierarchy,
         target_width, target_height, action_type="click_input",
     )
+    if _alignment_rejection_blocks_click(xml_hit_test):
+        reason = str(xml_hit_test.get("rejection_reason") or "unknown")
+        raise ValueError(f"target alignment rejected before dispatch: {reason}")
     save_action_point_visualization(img, data_dir, image_index, "click_input", [x1, y1, x2, y2], position_x, position_y)
-    device.click(position_x, position_y)
-    _remember_input_focus(device, (position_x, position_y))
-    if CLICK_INPUT_FOCUS_WAIT > 0:
-        time.sleep(CLICK_INPUT_FOCUS_WAIT)
-    device.input(text)
-    append_action_and_history(actions, history, decider_response, {
-        "type": "click_input",
-        "target_element": decider_response["parameters"].get("target_element", ""),
-        "position_x": position_x,
-        "position_y": position_y,
-        "click_point": [position_x, position_y],
-        "bounds": [x1, y1, x2, y2],
-        "raw_model_bbox": decider_response["parameters"].get("bbox"),
-        "converted_bounds": [x1, y1, x2, y2],
-        "click_point_before_xml_alignment": raw_click_point,
-        "xml_hit_test_result": xml_hit_test,
-        "click_coordinate_size": [target_width, target_height],
-        "screenshot_size": [img.width, img.height],
-        "text": f"{text}",
-        "focus_wait_seconds": CLICK_INPUT_FOCUS_WAIT,
-        "action_index": image_index
-    })
+    action_record = _input_attempt_record(
+        decider_response,
+        action_type="click_input",
+        image_index=image_index,
+        text=text,
+        target_element=decider_response["parameters"].get("target_element", ""),
+        position_x=position_x,
+        position_y=position_y,
+        click_point=[position_x, position_y],
+        bounds=[x1, y1, x2, y2],
+        raw_model_bbox=decider_response["parameters"].get("bbox"),
+        converted_bounds=[x1, y1, x2, y2],
+        click_point_before_xml_alignment=raw_click_point,
+        xml_hit_test_result=xml_hit_test,
+        click_coordinate_size=[target_width, target_height],
+        screenshot_size=[img.width, img.height],
+        focus_wait_seconds=CLICK_INPUT_FOCUS_WAIT,
+    )
+    actions.append(action_record)
+    history.append(json.dumps(decider_response, ensure_ascii=False))
+    try:
+        action_record["click_dispatch_state"] = "STARTED"
+        device.click(position_x, position_y)
+        action_record["click_dispatch_state"] = "DISPATCHED"
+        _remember_input_focus(device, (position_x, position_y))
+        if CLICK_INPUT_FOCUS_WAIT > 0:
+            time.sleep(CLICK_INPUT_FOCUS_WAIT)
+        action_record["input_dispatch_state"] = "STARTED"
+        device.input(text)
+        action_record["input_dispatch_state"] = "DISPATCHED"
+        action_record["dispatch_state"] = "DISPATCHED"
+    except Exception as exc:
+        _record_partial_input_failure(
+            exc,
+            action_record,
+            phase="input" if action_record.get("input_dispatch_state") == "STARTED" else "click",
+        )
+        raise
 
 
 def handle_input_action(decider_response, device, image_index, actions, history):
@@ -1935,18 +1983,34 @@ def handle_input_action(decider_response, device, image_index, actions, history)
         raise ValueError(
             "Input action requires a preceding click_input target; refusing to type into unknown focus"
         )
-    device.click(*focus_point)
-    _remember_input_focus(device, focus_point)
-    if CLICK_INPUT_FOCUS_WAIT > 0:
-        time.sleep(CLICK_INPUT_FOCUS_WAIT)
-    device.input(text)
-    append_action_and_history(actions, history, decider_response, {
-        "type": "input",
-        "text": text,
-        "focus_reactivated": True,
-        "focus_point": list(focus_point),
-        "action_index": image_index
-    })
+    action_record = _input_attempt_record(
+        decider_response,
+        action_type="input",
+        image_index=image_index,
+        text=text,
+        focus_reactivated=True,
+        focus_point=list(focus_point),
+    )
+    actions.append(action_record)
+    history.append(json.dumps(decider_response, ensure_ascii=False))
+    try:
+        action_record["click_dispatch_state"] = "STARTED"
+        device.click(*focus_point)
+        action_record["click_dispatch_state"] = "DISPATCHED"
+        _remember_input_focus(device, focus_point)
+        if CLICK_INPUT_FOCUS_WAIT > 0:
+            time.sleep(CLICK_INPUT_FOCUS_WAIT)
+        action_record["input_dispatch_state"] = "STARTED"
+        device.input(text)
+        action_record["input_dispatch_state"] = "DISPATCHED"
+        action_record["dispatch_state"] = "DISPATCHED"
+    except Exception as exc:
+        _record_partial_input_failure(
+            exc,
+            action_record,
+            phase="input" if action_record.get("input_dispatch_state") == "STARTED" else "click",
+        )
+        raise
 
 
 def handle_open_app_action(decider_response, device, image_index, actions, history):
@@ -2215,7 +2279,10 @@ def _android_clickable_nodes(hierarchy, surface_width, surface_height):
                 )
                 if part
             )
-            if attrs.get("clickable") != "true" or attrs.get("enabled") == "false":
+            input_role = _node_is_text_entry({"attributes": attrs, "tag": attrs.get("type")})
+            if attrs.get("clickable") != "true" and not input_role:
+                return " ".join(part for part in (node_context, descendant_context) if part)
+            if attrs.get("enabled") == "false":
                 return " ".join(part for part in (node_context, descendant_context) if part)
             if attrs.get("visible") == "false":
                 return " ".join(part for part in (node_context, descendant_context) if part)
@@ -2256,7 +2323,10 @@ def _android_clickable_nodes(hierarchy, surface_width, surface_height):
 
     for node in root.iter("node"):
         attrs = node.attrib
-        if attrs.get("clickable") != "true" or attrs.get("enabled") == "false":
+        input_role = _node_is_text_entry({"attributes": attrs, "tag": attrs.get("class")})
+        if attrs.get("clickable") != "true" and not input_role:
+            continue
+        if attrs.get("enabled") == "false":
             continue
         if attrs.get("visible-to-user") == "false":
             continue
@@ -2452,22 +2522,45 @@ def find_visual_floating_action_button(target_element, hierarchy, image, surface
 
 
 def _node_is_text_entry(node):
-    desc, text, resource_id, class_name = _node_semantic_parts(node)
-    context = _normalized_text(node.get("semantic_context", ""))
-    signature = f"{desc}|{text}|{resource_id}|{class_name}|{context}"
-    if any(word in signature for word in (
-        "textinput", "textarea", "edittext", "searchedit", "searchinput", "searchfield",
-        "inputfield", "textfield", "输入框", "搜索框", "搜索栏",
-    )):
+    """Return true only for an explicit editable/input accessibility role.
+
+    Harmony JSON keeps the useful role and identifier in ``attributes`` while
+    the alignment layer consumes a flattened node.  Read both representations,
+    but do not infer an input from an ancestor such as ``ChatInputArea`` or from
+    geometry alone.  Those containers are a common source of unsafe clicks.
+    """
+    if not isinstance(node, dict):
+        return False
+    attributes = node.get("attributes")
+    attributes = attributes if isinstance(attributes, dict) else {}
+    role_values = [
+        node.get("tag"),
+        node.get("type"),
+        node.get("class"),
+        attributes.get("type"),
+        attributes.get("class"),
+    ]
+    identifier_values = [
+        node.get("resource_id"),
+        attributes.get("id"),
+        attributes.get("key"),
+        attributes.get("resource-id"),
+        attributes.get("resourceId"),
+    ]
+    role_signature = "|".join(_normalized_text(value) for value in role_values if value)
+    identifier_signature = "|".join(
+        _normalized_text(value) for value in identifier_values if value
+    )
+    explicit_role_markers = (
+        "richeditor", "textinput", "textarea", "edittext", "searchedit",
+        "searchinput", "searchfield", "inputfield", "textfield", "输入框",
+        "输入栏", "文本框", "搜索框", "搜索栏",
+    )
+    if any(marker in role_signature for marker in ("richeditorcontent", "textinputcontent")):
+        return False
+    if any(marker in role_signature for marker in explicit_role_markers):
         return True
-    if ("搜索" in (desc or text)) and any(word in signature for word in ("input", "edit", "field", "栏", "框")):
-        return True
-    if any(word in signature for word in ("searchcontainer", "searchbg", "searchbox", "searchbar")):
-        x1, _, x2, _ = node.get("bounds", [0, 0, 0, 0])
-        surface_width = max(1, int(node.get("surface_width") or 1))
-        if (x2 - x1) / surface_width >= 0.25:
-            return True
-    return False
+    return any(marker in identifier_signature for marker in explicit_role_markers)
 
 
 def _node_is_low_information_container(node):
@@ -2577,11 +2670,60 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
     }
     semantic_nodes_exist = any(_target_semantic_score(target_element, node) > 0 for node in nodes)
     direct_semantic_hit = any(_target_semantic_score(target_element, node) > 0 for node in direct_hits)
-    direct_text_entry_hit = any(_node_is_text_entry(node) for node in direct_hits)
-    direct_compact_control_hit = any(_node_is_compact_clickable_control(node) for node in direct_hits)
-    if direct_hits and wants_text_entry and direct_text_entry_hit:
-        audit["alignment_basis"] = "direct_text_entry_hit"
+    input_role_nodes = [node for node in nodes if _node_is_text_entry(node)]
+    direct_text_entry_nodes = [node for node in direct_hits if _node_is_text_entry(node)]
+    audit["input_role_candidate_count"] = len(input_role_nodes)
+    audit["direct_input_role_hit_count"] = len(direct_text_entry_nodes)
+    if wants_text_entry:
+        # A direct hit on exactly one editable node is the strongest evidence.
+        # A direct hit on a generic parent must not short-circuit this check.
+        if len(direct_text_entry_nodes) == 1:
+            audit["alignment_basis"] = "direct_text_entry_hit"
+            audit["selected_node"] = direct_text_entry_nodes[0]
+            return (x, y), audit
+        if len(direct_text_entry_nodes) > 1:
+            audit["rejection_reason"] = "ambiguous_text_entry_candidates"
+            audit["input_role_candidates"] = direct_text_entry_nodes
+            return (x, y), audit
+
+        # A bad model bbox may be far from the editor.  Recovery is allowed only
+        # when the whole visible/enabled hierarchy has one explicit input role;
+        # the target label must also explain that candidate.  This remains
+        # generic for RichEditor, EditText, search fields, and custom IDs.
+        if len(input_role_nodes) == 1:
+            candidate = input_role_nodes[0]
+            semantic = _target_semantic_score(target_element, candidate)
+            audit["unique_input_role_candidate"] = candidate
+            audit["unique_input_role_semantic_score"] = semantic
+            if semantic >= 4:
+                x1, y1, x2, y2 = candidate["bounds"]
+                center = ((x1 + x2) // 2, (y1 + y2) // 2)
+                audit.update({
+                    "snapped": True,
+                    "selected_node": candidate,
+                    "semantic_score": semantic,
+                    "intersection_ratio": round(_intersection_ratio(
+                        converted_bounds or [x, y, x, y], candidate["bounds"]
+                    ), 4),
+                    "center_distance": round(
+                        ((center[0] - x) ** 2 + (center[1] - y) ** 2) ** 0.5, 2
+                    ),
+                    "alignment_basis": "unique_text_entry_semantic_recovery",
+                })
+                return center, audit
+            audit["rejection_reason"] = "text_entry_candidate_semantics_insufficient"
+            return (x, y), audit
+
+        audit["rejection_reason"] = (
+            "text_entry_target_rejects_non_input_node"
+            if direct_hits
+            else "no_text_entry_candidate"
+        )
+        if input_role_nodes:
+            audit["input_role_candidates"] = input_role_nodes
         return (x, y), audit
+
+    direct_compact_control_hit = any(_node_is_compact_clickable_control(node) for node in direct_hits)
     if direct_hits and not wants_text_entry and (
         direct_semantic_hit
         or direct_compact_control_hit
@@ -2661,7 +2803,15 @@ def _alignment_rejection_blocks_click(audit):
     """
     if not isinstance(audit, dict):
         return False
-    return str(audit.get("rejection_reason") or "").strip().casefold() in {
+    rejection_reason = str(audit.get("rejection_reason") or "").strip().casefold()
+    if rejection_reason.startswith("text_entry_") or rejection_reason in {
+        "ambiguous_text_entry_candidates",
+        "no_text_entry_candidate",
+    }:
+        return True
+    if rejection_reason == "no_candidate":
+        return bool(audit.get("target_wants_text_entry"))
+    return rejection_reason in {
         "wrong_target",
         "outside_target",
         "weak_geometry_without_semantics",

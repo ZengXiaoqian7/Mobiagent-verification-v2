@@ -28,6 +28,7 @@ from app_test_agent.mobiagent_executor import (
     _needs_navigation_context_recovery,
     _retry_is_safe,
     _TargetNotFound,
+    _attach_hierarchy_hit_test_evidence,
     _evaluate_post_action_context,
     prepare_mobiagent_preflight,
     reject_unimplemented_device_execution,
@@ -400,7 +401,7 @@ def test_step_gate_rejects_input_dispatch_when_declared_value_never_reaches_ui()
         next_step=spec.steps[2],
     )
 
-    assert gate.target_evidence == "CONFORMANT"
+    assert gate.target_evidence == "UNKNOWN"
     assert gate.action_conformance == "NON_CONFORMANT"
     assert gate.gate_decision == "TEST_EXECUTION_FAIL"
     assert "input value" in gate.reason
@@ -953,7 +954,8 @@ class _FakeMobiAgentDevice:
         if self.state == "feed":
             return """<hierarchy><node text="Feed" bounds="[0,0][100,80]" /><node text="Post" clickable="true" bounds="[400,2100][680,2400]" /></hierarchy>"""
         if self.state == "editor":
-            return """<hierarchy><node text="正文" class="EditText" bounds="[80,300][1000,700]" /><node text="Post" clickable="true" bounds="[820,60][1060,180]" /></hierarchy>"""
+            editor_text = self.input_text or "正文"
+            return f"""<hierarchy><node text="{editor_text}" class="EditText" bounds="[80,300][1000,700]" /><node text="Post" clickable="true" bounds="[820,60][1060,180]" /></hierarchy>"""
         return f"""<hierarchy><node text="Feed" bounds="[0,0][100,80]" /><node text="{self.input_text}" bounds="[80,300][1000,700]" /></hierarchy>"""
 
     def click(self, x, y):
@@ -992,11 +994,12 @@ class _FakeJsonMobiAgentDevice(_FakeMobiAgentDevice):
                 "children": [],
             }
         elif self.state == "editor":
+            editor_text = self.input_text or "正文"
             extra = {
                 "attributes": {
                     "type": "EditText",
                     "originalText": "正文",
-                    "text": "正文",
+                    "text": editor_text,
                     "bounds": "[80,300][1000,700]",
                     "visible": "true",
                 },
@@ -1442,7 +1445,7 @@ def test_stage7_mobiagent_goal_step_allows_internal_micro_actions_and_generated_
         if micro["action_type"] == "click_input":
             assert micro["target_evidence"] == "CONFORMANT"
             assert micro["action_conformance"] == "CONFORMANT"
-            assert micro["progress_status"] == "INPUT_DISPATCH_CONFIRMED"
+            assert micro["progress_status"] == "INPUT_VALUE_CONFIRMED"
         else:
             assert micro["target_evidence"] == "CONFORMANT"
             assert micro["action_conformance"] == "CONFORMANT"
@@ -2064,6 +2067,125 @@ def test_stage7_runner_alignment_does_not_hijack_fab_with_adjacent_unlabeled_con
     assert audit["candidate_center_in_model_bounds"] is False
     assert audit["rejection_reason"] == "geometry_only_rejects_low_information_container"
     assert runner._alignment_rejection_blocks_click(audit) is True
+
+
+def test_stage7_failed_trace_input_bbox_is_rejected_or_safely_recovers_to_unique_editor():
+    runner = mobiagent_executor_module._import_original_mobiagent()
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "Column",
+                    "bounds": "[50,1157][893,2032]",
+                    "enabled": "true",
+                },
+                "children": [],
+            },
+            {
+                "attributes": {
+                    "type": "RichEditor",
+                    "id": "rich_editor_social_use",
+                    "description": "发消息...",
+                    "bounds": "[175,2220][756,2308]",
+                    "clickable": "true",
+                    "enabled": "true",
+                },
+                "children": [],
+            },
+        ],
+    }
+    point, audit = runner.align_click_to_xml_node(
+        (345, 1817),
+        [52, 1744, 638, 1890],
+        "底部聊天输入框（发消息...）",
+        hierarchy,
+        1080,
+        2444,
+        action_type="click_input",
+    )
+    assert point == (465, 2264)
+    assert audit["alignment_basis"] == "unique_text_entry_semantic_recovery"
+    assert audit["selected_node"]["bounds"] == [175, 2220, 756, 2308]
+    assert runner._alignment_rejection_blocks_click(audit) is False
+
+
+def test_stage7_input_alignment_rejects_multiple_editor_candidates():
+    runner = mobiagent_executor_module._import_original_mobiagent()
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "RichEditor",
+                    "id": "first_editor",
+                    "bounds": "[50,300][500,400]",
+                    "clickable": "true",
+                    "enabled": "true",
+                }
+            },
+            {
+                "attributes": {
+                    "type": "RichEditor",
+                    "id": "second_editor",
+                    "bounds": "[550,300][1000,400]",
+                    "clickable": "true",
+                    "enabled": "true",
+                }
+            },
+        ],
+    }
+    point, audit = runner.align_click_to_xml_node(
+        (540, 1800),
+        [500, 1750, 580, 1850],
+        "message input",
+        hierarchy,
+        1080,
+        2444,
+        action_type="click_input",
+    )
+    assert point == (540, 1800)
+    assert audit["rejection_reason"] == "no_text_entry_candidate"
+    assert audit["input_role_candidate_count"] == 2
+    assert runner._alignment_rejection_blocks_click(audit) is True
+
+
+def test_stage7_existing_input_alignment_rejection_is_not_overwritten_by_direct_hit():
+    action = {
+        "type": "click_input",
+        "click_point": [345, 1817],
+        "xml_hit_test_result": {
+            "target_wants_text_entry": True,
+            "rejection_reason": "text_entry_target_rejects_non_input_node",
+            "direct_hits": [],
+        },
+    }
+    frame = {
+        "xml_nodes": [
+            {
+                "tag": "Column",
+                "text": "",
+                "bounds": [50, 1157, 893, 2032],
+                "clickable": False,
+                "enabled": True,
+                "visible": True,
+                "attributes": {"type": "Column"},
+            }
+        ]
+    }
+    _attach_hierarchy_hit_test_evidence(action, {"parameters": {"target_element": "message input"}}, frame)
+    assert action["xml_hit_test_result"]["rejection_reason"] == (
+        "text_entry_target_rejects_non_input_node"
+    )
+    assert action["hierarchy_hit_test_result"]["rejection_reason"] == (
+        "text_entry_target_rejects_non_input_node"
+    )
+    assert action["xml_alignment_audit"]["rejection_reason"] == (
+        "text_entry_target_rejects_non_input_node"
+    )
+    assert mobiagent_executor_module._xml_hit_test_result_is_decisive(
+        action["xml_hit_test_result"]
+    ) is True
 
 
 def test_stage7_runner_does_not_dispatch_weak_xml_alignment(tmp_path, monkeypatch):
@@ -3004,7 +3126,7 @@ def test_stage7_button_step_rejects_a_rich_editor_hit_even_when_xml_hit_exists()
     assert gate.gate_decision == "TEST_EXECUTION_FAIL"
 
 
-def test_stage7_input_step_accepts_a_semantic_chat_input_container():
+def test_stage7_input_step_rejects_a_semantic_chat_input_container_without_editor_role():
     spec = load_test_case(CASE)
     step = spec.steps[1]
     gate = evaluate_step_gate(
@@ -3038,9 +3160,81 @@ def test_stage7_input_step_accepts_a_semantic_chat_input_container():
         post_frames=(_frame(1, ("Feed",), 500),),
         next_step=spec.steps[2],
     )
-    assert gate.target_evidence == "CONFORMANT"
-    assert gate.action_conformance == "CONFORMANT"
-    assert gate.gate_decision == "CONTINUE"
+    assert gate.target_evidence == "NON_CONFORMANT"
+    assert gate.action_conformance == "NON_CONFORMANT"
+    assert gate.gate_decision == "TEST_EXECUTION_FAIL"
+
+
+def test_stage7_unconfirmed_input_does_not_advance_to_send_or_retry_input(tmp_path):
+    class NoConfirmationDevice(_FakeMobiAgentDevice):
+        def dump_hierarchy(self):
+            if self.state == "editor":
+                return (
+                    '<hierarchy><node text="正文" class="EditText" '
+                    'bounds="[80,300][1000,700]" />'
+                    '<node text="Post" clickable="true" '
+                    'bounds="[820,60][1060,180]" /></hierarchy>'
+                )
+            return super().dump_hierarchy()
+
+    payload = _case_payload()
+    payload["test_case_id"] = "input-no-confirmation-001"
+    payload["steps"] = payload["steps"][:]
+    spec = AppTestCaseSpec.from_json(payload).with_runtime_context(run_id="input-no-confirmation")
+    device = NoConfirmationDevice()
+    record = MobiAgentStepExecutor(
+        output_dir=tmp_path,
+        device_instance=device,
+        step_decider=_fake_step_decider,
+        observation_sleep_scale=0,
+    ).execute(spec)
+    assert [step.status for step in record.step_results] == ["STEP_COMPLETED", "STEP_FAILED"]
+    assert len(device.clicks) == 2
+    assert all(y != 120 for _, y in device.clicks)
+    assert record.step_results[1].evidence["input_effect"]["status"] == "NON_CONFORMANT"
+    actions = json.loads((tmp_path / "mobiagent_step_trace" / "actions.json").read_text(encoding="utf-8"))
+    assert [item["type"] for item in actions["actions"]] == ["click", "click_input"]
+
+
+def test_stage7_input_exception_after_device_call_keeps_uncertain_dispatch_audit(tmp_path):
+    class RaisesAfterInputDevice(_FakeMobiAgentDevice):
+        def __init__(self):
+            super().__init__()
+            self.state = "editor"
+
+        def input(self, text):
+            self.input_text = text
+            raise RuntimeError("device input returned after underlying call")
+
+    payload = _case_payload()
+    payload["test_case_id"] = "input-uncertain-dispatch-001"
+    payload["steps"] = [payload["steps"][1]]
+    payload["expected_results"] = [
+        {
+            "assertion_id": "input_visible",
+            "type": "TEXT_VISIBLE",
+            "expected_value_ref": "post_content",
+            "after_step": "input_post_content",
+        }
+    ]
+    spec = AppTestCaseSpec.from_json(payload).with_runtime_context(run_id="input-uncertain")
+    record = MobiAgentStepExecutor(
+        output_dir=tmp_path,
+        device_instance=RaisesAfterInputDevice(),
+        step_decider=_fake_step_decider,
+        observation_sleep_scale=0,
+    ).execute(spec)
+    assert record.step_results[0].status == "INCONCLUSIVE"
+    attempt = record.step_results[0].evidence["attempt_evidence"][0]
+    assert attempt["action_dispatched"] is True
+    action = attempt["action"]
+    assert action["input_dispatch_state"] == "UNCERTAIN"
+    assert action["dispatch_state"] == "DISPATCHED_UNCERTAIN"
+    assert action["text_sha256"]
+    assert attempt["retry_class"] == "NO_REDISPATCH"
+    actions = json.loads((tmp_path / "mobiagent_step_trace" / "actions.json").read_text(encoding="utf-8"))
+    assert len(actions["actions"]) == 1
+    assert actions["actions"][0]["dispatch_state"] == "DISPATCHED_UNCERTAIN"
 
 
 def test_stage7_goal_micro_gate_wrong_target_blocks_goal_completion():

@@ -43,6 +43,7 @@ from .model_client import (
 from .schema import TestCaseError, TestCaseSpec, TestStep, dump_json
 from .step_gate import (
     StepGateDecision,
+    _node_is_text_input,
     evaluate_dispatch_failure_gate,
     evaluate_micro_action_gate,
     evaluate_step_gate,
@@ -331,6 +332,14 @@ class MobiAgentStepExecutor:
                     break
                 except Exception as exc:  # noqa: BLE001
                     dispatch_finished_ms = int(time.time() * 1000)
+                    partial_action = getattr(exc, "partial_action_record", None)
+                    action_dispatched = isinstance(partial_action, Mapping)
+                    if action_dispatched:
+                        # The runner creates input records before calling the
+                        # device.  Persist that record even when the device
+                        # raises after the underlying input call started.
+                        partial_action = dict(partial_action)
+                        actions.append(partial_action)
                     LOGGER.exception(
                         "MobiAgent step execution raised before a gate decision "
                         "(step_id=%s, action_index=%s)",
@@ -342,14 +351,18 @@ class MobiAgentStepExecutor:
                             attempt=attempts,
                             action_index=action_index,
                             pre_frame=current_frame,
-                            action_record=None,
+                            action_record=partial_action,
                             post_frames=(),
                             gate=None,
                             dispatch_started_ms=attempt_started_ms,
                             dispatch_finished_ms=dispatch_finished_ms,
-                            action_dispatched=False,
+                            action_dispatched=action_dispatched,
                             retry_class="NO_REDISPATCH",
-                            retry_reason="step execution raised before a gate decision",
+                            retry_reason=(
+                                "input dispatch state is uncertain; no re-dispatch"
+                                if action_dispatched
+                                else "step execution raised before a gate decision"
+                            ),
                             error=f"{type(exc).__name__}: {exc}",
                         )
                     )
@@ -372,14 +385,23 @@ class MobiAgentStepExecutor:
                     step_results.append(
                         StepExecutionResult(
                             step_id=step.step_id,
-                            status=StepStatus.STEP_FAILED,
+                            status=(
+                                StepStatus.INCONCLUSIVE
+                                if action_dispatched
+                                else StepStatus.STEP_FAILED
+                            ),
                             action_type=step.action_type,
                             attempts=attempts,
                             resolved_value=step.resolved_value(test_case.test_data),
                             target=step.target,
                             pre_frame=pre_frame,
                             error=f"mobiagent step execution failed: {type(exc).__name__}: {exc}",
-                            evidence={"attempt_evidence": list(attempt_evidence)},
+                            evidence={
+                                "attempt_evidence": list(attempt_evidence),
+                                "action": partial_action,
+                                "action_dispatched": action_dispatched,
+                                "retry_class": "NO_REDISPATCH",
+                            },
                         )
                     )
                     break
@@ -426,11 +448,7 @@ class MobiAgentStepExecutor:
                 )
                 if post_action_context is not None:
                     action_record["post_action_context"] = post_action_context
-                input_effect = (
-                    _evaluate_input_effect(step, action_record, gate_post_frames)
-                    if str(action_record.get("target_source") or "").startswith("hierarchy_")
-                    else None
-                )
+                input_effect = _evaluate_input_effect(step, action_record, gate_post_frames)
                 if input_effect is not None:
                     action_record["input_effect"] = input_effect
                 next_target_resolution = self._resolve_next_step_target(
@@ -971,6 +989,13 @@ class MobiAgentStepExecutor:
                 post_frame["goal_micro_action_index"] = micro_index
             goal_observation_frames.extend(post_frames)
             post_frame = post_frames[-1] if post_frames else current_goal_frame
+            if step.action_type == "INPUT" or str(emitted.get("type") or "").lower() in {
+                "input",
+                "click_input",
+            }:
+                emitted["input_effect"] = _evaluate_input_effect(
+                    step, emitted, tuple(post_frames)
+                )
             micro_gate = evaluate_micro_action_gate(
                 test_case=test_case,
                 step=step,
@@ -1433,16 +1458,25 @@ class MobiAgentStepExecutor:
                     ) from exc
                 raise
         elif action == "click_input":
-            runner_mobiagent.handle_click_input_action(
-                decision,
-                device,
-                img,
-                str(raw_trace_dir),
-                action_index,
-                actions,
-                history,
-                hierarchy_text,
-            )
+            try:
+                runner_mobiagent.handle_click_input_action(
+                    decision,
+                    device,
+                    img,
+                    str(raw_trace_dir),
+                    action_index,
+                    actions,
+                    history,
+                    hierarchy_text,
+                )
+            except ValueError as exc:
+                message = str(exc)
+                if "target alignment rejected before dispatch" in message:
+                    raise _TargetNotFound(
+                        f"runner input target was not safely locatable: {message}",
+                        model_decision=decision,
+                    ) from exc
+                raise
         elif action == "input":
             runner_mobiagent.handle_input_action(decision, device, action_index, actions, history)
         elif action == "wait":
@@ -2147,6 +2181,20 @@ def _step_bound_task_prompt(
         "Do not decide whether the App feature passed.",
         "If you emit done, it only means the current step is complete.",
     ]
+    if intent.action_family == "INPUT":
+        lines.extend(
+            [
+                "For INPUT, click_input must target a visible enabled editable control, not a chat/list/container parent.",
+                "The exact input value must be visibly confirmed on that editable control before any later step can be considered.",
+            ]
+        )
+    if intent.action_family == "CLICK" and any(
+        marker in intent.semantic_target.casefold()
+        for marker in ("send", "发送", "submit", "提交")
+    ):
+        lines.append(
+            "For a send/submit step, dispatch the required click; an old message, timestamp, or done response is not proof that this step was executed."
+        )
     if intent.allow_micro_actions:
         lines.append(
             "This is a GOAL step: you may execute multiple internal micro-actions "
@@ -2267,13 +2315,24 @@ def _goal_stage_confirmed(
     folded = [text.casefold() for text in texts]
     for expected in _goal_expected_values(step, test_case):
         needle = expected.casefold()
-        if any(needle in text for text in folded):
+        if any(needle in text for text in folded) and not _goal_value_only_on_editable_surface(
+            frame, expected
+        ):
             return True
     for marker in _goal_stage_markers(step):
         needle = marker.casefold()
         if any(needle in text for text in folded):
             return True
     return False
+
+
+def _goal_value_only_on_editable_surface(frame: Mapping[str, Any], expected: str) -> bool:
+    """Do not treat text still sitting in an editor as a completed GOAL."""
+    nodes = frame.get("xml_nodes")
+    if not isinstance(nodes, list):
+        return False
+    matching = [node for node in nodes if _node_contains_exact_text(node, expected)]
+    return bool(matching) and all(_node_is_text_input(node) for node in matching)
 
 
 def _goal_completion_evidence(
@@ -2969,8 +3028,10 @@ def _attach_hierarchy_hit_test_evidence(
     if action_type not in {"click", "click_input"}:
         return
     existing = action_record.get("xml_hit_test_result")
-    if isinstance(existing, Mapping) and _xml_hit_test_result_is_decisive(existing):
-        return
+    if isinstance(existing, Mapping):
+        # Keep the runner's alignment decision verbatim.  The later hit test is
+        # an independent observation and must never erase a rejection audit.
+        action_record["xml_alignment_audit"] = dict(existing)
     point = _action_click_point(action_record)
     if point is None:
         return
@@ -2983,23 +3044,64 @@ def _attach_hierarchy_hit_test_evidence(
         for node in nodes
         if _node_supports_runtime_hit(node) and _point_in_bounds(x, y, node.get("bounds"))
     ]
+    hierarchy_result: dict[str, Any]
     if not direct_hits:
-        action_record["xml_hit_test_result"] = {
+        hierarchy_result = {
             "click_point": [x, y],
             "alignment_basis": "hierarchy_hit_test",
             "rejection_reason": "outside_target",
             "direct_hits": [],
         }
+    else:
+        direct_hits.sort(key=_node_area)
+        target_element = _decision_target_element(decision)
+        if action_type == "click_input":
+            input_hits = [node for node in direct_hits if _node_is_text_input(node)]
+            if len(input_hits) == 1:
+                basis = "direct_text_entry_hit"
+                selected = input_hits[0]
+            elif len(input_hits) > 1:
+                basis = "hierarchy_hit_test"
+                selected = direct_hits[0]
+                hierarchy_result = {
+                    "click_point": [x, y],
+                    "target_element": target_element,
+                    "alignment_basis": basis,
+                    "rejection_reason": "ambiguous_text_entry_candidates",
+                    "selected_node": _runtime_hit_node_summary(selected),
+                    "direct_hits": [_runtime_hit_node_summary(node) for node in direct_hits[:5]],
+                }
+            else:
+                basis = "hierarchy_hit_test"
+                selected = direct_hits[0]
+                hierarchy_result = {
+                    "click_point": [x, y],
+                    "target_element": target_element,
+                    "alignment_basis": basis,
+                    "rejection_reason": "text_entry_target_rejects_non_input_node",
+                    "selected_node": _runtime_hit_node_summary(selected),
+                    "direct_hits": [_runtime_hit_node_summary(node) for node in direct_hits[:5]],
+                }
+            if len(input_hits) == 1:
+                hierarchy_result = {
+                    "click_point": [x, y],
+                    "target_element": target_element,
+                    "alignment_basis": basis,
+                    "selected_node": _runtime_hit_node_summary(selected),
+                    "direct_hits": [_runtime_hit_node_summary(node) for node in direct_hits[:5]],
+                }
+        else:
+            hierarchy_result = {
+                "click_point": [x, y],
+                "target_element": target_element,
+                "alignment_basis": "direct_supported_hit",
+                "selected_node": _runtime_hit_node_summary(direct_hits[0]),
+                "direct_hits": [_runtime_hit_node_summary(node) for node in direct_hits[:5]],
+            }
+    action_record["hierarchy_hit_test_result"] = hierarchy_result
+    if isinstance(existing, Mapping) and _xml_hit_test_result_is_decisive(existing):
         return
-    direct_hits.sort(key=_node_area)
-    target_element = _decision_target_element(decision)
-    action_record["xml_hit_test_result"] = {
-        "click_point": [x, y],
-        "target_element": target_element,
-        "alignment_basis": "direct_supported_hit",
-        "selected_node": _runtime_hit_node_summary(direct_hits[0]),
-        "direct_hits": [_runtime_hit_node_summary(node) for node in direct_hits[:5]],
-    }
+    action_record["xml_hit_test_result"] = hierarchy_result
 
 
 def _action_click_point(action_record: Mapping[str, Any]) -> tuple[int, int] | None:
@@ -3017,6 +3119,8 @@ def _action_click_point(action_record: Mapping[str, Any]) -> tuple[int, int] | N
 
 
 def _xml_hit_test_result_is_decisive(value: Mapping[str, Any]) -> bool:
+    if str(value.get("rejection_reason") or "").strip():
+        return True
     if value.get("snapped") is True and value.get("selected_node"):
         return True
     direct_hits = value.get("direct_hits")
@@ -3024,7 +3128,7 @@ def _xml_hit_test_result_is_decisive(value: Mapping[str, Any]) -> bool:
         return True
     if value.get("alignment_basis") == "direct_supported_hit":
         return True
-    return value.get("rejection_reason") in {"wrong_target", "outside_target"}
+    return False
 
 
 def _node_supports_runtime_hit(node: Mapping[str, Any]) -> bool:
@@ -3660,7 +3764,10 @@ def _evaluate_input_effect(
     """
 
     expected_value = action_record.get("text")
-    if step.action_type != "INPUT" or not isinstance(expected_value, str) or not expected_value:
+    if (
+        step.action_type != "INPUT"
+        and str(action_record.get("type") or "").lower() not in {"input", "click_input"}
+    ) or not isinstance(expected_value, str) or not expected_value:
         return None
     final_frame = post_frames[-1] if post_frames else None
     visible_texts = (
@@ -3668,23 +3775,98 @@ def _evaluate_input_effect(
         if isinstance(final_frame, Mapping)
         else []
     )
-    if any(expected_value in text for text in visible_texts):
+    proven_bounds = _input_role_bounds(action_record)
+    matched_nodes: list[dict[str, Any]] = []
+    observed_hierarchy = False
+    for frame in post_frames:
+        if not isinstance(frame, Mapping):
+            continue
+        nodes = frame.get("xml_nodes")
+        if not isinstance(nodes, list):
+            continue
+        observed_hierarchy = True
+        input_nodes = [node for node in nodes if _node_is_text_input(node)]
+        for node in input_nodes:
+            if _node_contains_exact_text(node, expected_value):
+                matched_nodes.append(_runtime_hit_node_summary(node))
+        # Some synthetic/older dumps omit the role on the post node.  It is
+        # still safe to use the exact pre-dispatch input bounds as provenance;
+        # a chat bubble at a different location cannot satisfy this fallback.
+        if not matched_nodes and proven_bounds:
+            for node in nodes:
+                if _node_contains_exact_text(node, expected_value) and _bounds_match_any(
+                    node.get("bounds"), proven_bounds
+                ):
+                    matched_nodes.append(_runtime_hit_node_summary(node))
+        if matched_nodes:
+            break
+    if matched_nodes:
         status = "CONFORMANT"
-    elif visible_texts:
+        evidence_basis = "exact_text_on_editable_node"
+    elif observed_hierarchy and any(expected_value in text for text in visible_texts):
         status = "NON_CONFORMANT"
+        evidence_basis = "exact_text_observed_outside_editable_node"
+    elif observed_hierarchy:
+        status = "NON_CONFORMANT"
+        evidence_basis = "editable_value_not_confirmed"
     else:
         status = "UNKNOWN"
+        evidence_basis = "post_hierarchy_unavailable"
     return {
         "status": status,
         "expected_value": expected_value,
         "frame_id": final_frame.get("frame_id") if isinstance(final_frame, Mapping) else None,
         "visible_texts": visible_texts,
+        "evidence_basis": evidence_basis,
+        "matched_editable_nodes": matched_nodes[:5],
+        "proven_input_bounds": [list(bounds) for bounds in proven_bounds],
         "reason": (
-            "expected input value observed in the post-action UI"
+            "expected input value observed on an editable node"
             if status == "CONFORMANT"
-            else "expected input value was not observed after text dispatch"
+            else "expected input value was not confirmed on an editable node"
         ),
     }
+
+
+def _input_role_bounds(action_record: Mapping[str, Any]) -> tuple[tuple[int, int, int, int], ...]:
+    result = action_record.get("xml_hit_test_result")
+    if not isinstance(result, Mapping):
+        result = action_record.get("xml_alignment_audit")
+    if not isinstance(result, Mapping):
+        return ()
+    raw_nodes: list[Any] = []
+    selected = result.get("selected_node")
+    if isinstance(selected, Mapping):
+        raw_nodes.append(selected)
+    direct = result.get("direct_hits")
+    if isinstance(direct, list):
+        raw_nodes.extend(direct)
+    bounds: list[tuple[int, int, int, int]] = []
+    for node in raw_nodes:
+        if not _node_is_text_input(node):
+            continue
+        parsed = _parse_bounds(node.get("bounds"))
+        if parsed is not None and parsed not in bounds:
+            bounds.append(parsed)
+    return tuple(bounds)
+
+
+def _node_contains_exact_text(node: Mapping[str, Any], expected: str) -> bool:
+    attributes = node.get("attributes")
+    attributes = attributes if isinstance(attributes, Mapping) else {}
+    values = [
+        node.get("text"), node.get("value"), node.get("originalText"),
+        attributes.get("text"), attributes.get("value"), attributes.get("originalText"),
+    ]
+    return any(expected in str(value or "") for value in values)
+
+
+def _bounds_match_any(value: Any, candidates: tuple[tuple[int, int, int, int], ...]) -> bool:
+    bounds = _parse_bounds(value)
+    if bounds is None:
+        return False
+    return any(bounds == candidate or _bounds_contains(candidate, bounds) or _bounds_contains(bounds, candidate)
+               for candidate in candidates)
 
 
 def _model_target_locator(
