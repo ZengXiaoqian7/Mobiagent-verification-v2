@@ -28,6 +28,7 @@ class StepExecutionIntent:
     value: str | None = None
     value_ref: str | None = None
     allow_micro_actions: bool = False
+    allowed_micro_action_families: tuple[str, ...] = ()
     allowed_recovery: tuple[str, ...] = ("WAIT",)
     max_attempts: int = 1
     compiled_before_execution: bool = True
@@ -55,6 +56,7 @@ class StepExecutionIntent:
                 "value": self.value,
                 "value_ref": self.value_ref,
                 "allow_micro_actions": self.allow_micro_actions,
+                "allowed_micro_action_families": list(self.allowed_micro_action_families),
                 "allowed_recovery": list(self.allowed_recovery),
                 "max_attempts": self.max_attempts,
             },
@@ -85,6 +87,7 @@ def compile_step_execution_intent(
                 "ABORT",
             ]
         )
+    allowed_micro_actions = _allowed_goal_micro_actions(step) if step.step_mode == "GOAL" else ()
     return StepExecutionIntent(
         step_id=step.step_id,
         original_instruction=step.instruction,
@@ -94,9 +97,31 @@ def compile_step_execution_intent(
         value=value,
         value_ref=step.value_ref,
         allow_micro_actions=step.step_mode == "GOAL",
+        allowed_micro_action_families=allowed_micro_actions,
         allowed_recovery=tuple(dict.fromkeys(recovery)),
         max_attempts=step.max_retries + 1,
     )
+
+
+def _allowed_goal_micro_actions(step: TestStep) -> tuple[str, ...]:
+    default = (
+        "click", "click_input", "input", "swipe", "wait", "press_back",
+        "long_press", "press_home", "info", "call_user", "abort", "done",
+    )
+    target = step.target if isinstance(step.target, Mapping) else {}
+    raw = target.get("allowed_micro_actions")
+    if not isinstance(raw, (list, tuple)):
+        return default
+    aliases = {"back": "press_back", "home": "press_home", "scroll": "swipe"}
+    allowed = []
+    for item in raw:
+        action = aliases.get(str(item).strip().lower(), str(item).strip().lower())
+        if action not in default:
+            raise ValueError(f"unsupported GOAL micro-action {item!r} for step {step.step_id}")
+        allowed.append(action)
+    if not allowed:
+        raise ValueError(f"GOAL step {step.step_id} must allow at least one micro-action")
+    return tuple(dict.fromkeys((*allowed, "done")))
 
 
 def _semantic_target(step: TestStep) -> str:

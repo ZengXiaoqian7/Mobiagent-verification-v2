@@ -396,11 +396,15 @@ class HarmonyDevice(Device):
         self.d.input_text(text)
         if self._confirm_clipboard_suggestion(text):
             return
-        # Some Harmony IMEs expose the clipboard candidate only after the
-        # confirm key event. Never send it when the editor already contains the
-        # requested value.
-        self.d.press_key(KeyCode.ENTER)
-        self._confirm_clipboard_suggestion(text)
+        # ENTER is not a safe generic way to confirm an IME candidate: chat,
+        # form, and search editors may treat it as a business write.  If the
+        # hierarchy cannot prove that the text was entered (or expose a
+        # semantic clipboard candidate to click), fail closed.  The Step Gate
+        # will then preserve the single INPUT attempt instead of risking an
+        # implicit submit or a duplicate write.
+        raise RuntimeError(
+            "Harmony text input could not be confirmed without an unsafe ENTER key event"
+        )
 
     def _confirm_clipboard_suggestion(self, text):
         """Confirm Harmony IME clipboard suggestions without fixed coordinates."""
@@ -1695,6 +1699,16 @@ def validate_grounder_response(response_dict):
             if all(name in lowered for name in aliases):
                 response_dict["bbox"] = [lowered[name] for name in aliases]
                 break
+        else:
+            if all(name in lowered for name in ("x", "y", "width", "height")):
+                try:
+                    x = float(lowered["x"])
+                    y = float(lowered["y"])
+                    width = float(lowered["width"])
+                    height = float(lowered["height"])
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("Grounder x/y/width/height fields must be numeric") from exc
+                response_dict["bbox"] = [x, y, x + width, y + height]
 
     # Grounder需要至少返回coordinates或bbox
     if "coordinates" not in response_dict and not any(
@@ -2665,6 +2679,26 @@ def _bboxes_do_not_overlap(first, second):
     return min(ax2, bx2) <= max(ax1, bx1) or min(ay2, by2) <= max(ay1, by1)
 
 
+def _bbox_has_alignment_support(bbox, target_element, hierarchy, surface_width, surface_height):
+    """Return semantic/hierarchy support for one model-proposed bbox."""
+
+    if not hierarchy or not _is_usable_click_bbox(bbox, surface_width, surface_height):
+        return False, {"rejection_reason": "missing_hierarchy_or_unusable_bbox"}
+    x1, y1, x2, y2 = (int(value) for value in bbox)
+    point = ((x1 + x2) // 2, (y1 + y2) // 2)
+    _, audit = align_click_to_xml_node(
+        point,
+        [x1, y1, x2, y2],
+        target_element,
+        hierarchy,
+        surface_width,
+        surface_height,
+        action_type="click",
+    )
+    supported = bool(audit.get("alignment_basis")) and not _alignment_rejection_blocks_click(audit)
+    return supported, audit
+
+
 def _is_usable_click_bbox(bbox, surface_width, surface_height):
     """Reject a converted bbox that collapsed onto a display boundary.
 
@@ -2810,16 +2844,48 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
                 decider_native_bbox, [x1, y1, x2, y2]
                 )
             ):
-                # A Grounder that identifies a completely disjoint region is
-                # not a refinement of the Decider's target. Preserve the
-                # Decider's centre instead of letting a second model turn one
-                # intended click into an unrelated action.
-                logging.warning(
-                    "Grounder bbox %s is disjoint from Decider bbox %s; using Decider geometry",
-                    [x1, y1, x2, y2], decider_native_bbox,
-                )
-                x1, y1, x2, y2 = decider_native_bbox
-                bbox_source = "decider_grounder_disagreement"
+                grounder_bbox = [x1, y1, x2, y2]
+                if hierarchy:
+                    grounder_supported, grounder_audit = _bbox_has_alignment_support(
+                        grounder_bbox, target_element, hierarchy, target_width, target_height
+                    )
+                    decider_supported, decider_audit = _bbox_has_alignment_support(
+                        decider_native_bbox, target_element, hierarchy, target_width, target_height
+                    )
+                    if grounder_supported and not decider_supported:
+                        logging.warning(
+                            "Grounder bbox %s is disjoint from Decider bbox %s; "
+                            "using hierarchy-supported Grounder geometry",
+                            grounder_bbox, decider_native_bbox,
+                        )
+                        bbox_source = "grounder_hierarchy_supported_disagreement"
+                    elif decider_supported and not grounder_supported:
+                        logging.warning(
+                            "Grounder bbox %s is disjoint from Decider bbox %s; "
+                            "using hierarchy-supported Decider geometry",
+                            grounder_bbox, decider_native_bbox,
+                        )
+                        x1, y1, x2, y2 = decider_native_bbox
+                        bbox_source = "decider_hierarchy_supported_disagreement"
+                    else:
+                        raise ValueError(
+                            "target alignment rejected before dispatch: "
+                            "ambiguous_decider_grounder_disagreement "
+                            f"(grounder_supported={grounder_supported}, "
+                            f"decider_supported={decider_supported}, "
+                            f"grounder_reason={grounder_audit.get('rejection_reason')}, "
+                            f"decider_reason={decider_audit.get('rejection_reason')})"
+                        )
+                else:
+                    # Preserve the historical no-hierarchy fallback for
+                    # platforms that cannot expose accessibility evidence.
+                    logging.warning(
+                        "Grounder bbox %s is disjoint from Decider bbox %s; "
+                        "using Decider geometry because hierarchy is unavailable",
+                        grounder_bbox, decider_native_bbox,
+                    )
+                    x1, y1, x2, y2 = decider_native_bbox
+                    bbox_source = "decider_grounder_disagreement_no_hierarchy"
             elif decider_native_bbox is not None and not _is_usable_click_bbox(
                 decider_native_bbox, target_width, target_height
             ):

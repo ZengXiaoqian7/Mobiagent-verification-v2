@@ -19,6 +19,7 @@ from typing import Any, Callable, Mapping, Protocol
 from PIL import Image
 
 from .contract import AppTestContract
+from .environment_signals import detect_environment_blocker
 from .executor import EvidenceState, ExecutionRecord
 from .model_client import extract_json_object, model_config_from_env, post_chat_completion
 from .mobiagent_executor import (
@@ -133,27 +134,6 @@ READ_ONLY_NAVIGATION_ROLES = frozenset(
 AMBIGUOUS_WRITE_CONTROL_LABELS = frozenset(
     {"post", "new", "create", "compose", "add", "+", "新增", "新建", "创建"}
 )
-ENV_BLOCKER_TERMS = (
-    "login",
-    "log in",
-    "sign in",
-    "permission",
-    "network",
-    "offline",
-    "retry",
-    "no available way to open",
-    "no available opener",
-    "请先登录",
-    "登录",
-    "权限",
-    "网络",
-    "无网络",
-    "未连接",
-    "重试",
-    "暂无可用打开方式",
-)
-
-
 @dataclass(frozen=True)
 class VerificationStepResult:
     verification_step_id: str
@@ -1612,11 +1592,7 @@ def _direction(target: Any, *, default: str) -> str:
 
 
 def _environment_blocker(texts: tuple[str, ...] | list[str]) -> str | None:
-    joined = "\n".join(str(item) for item in texts).casefold()
-    for term in ENV_BLOCKER_TERMS:
-        if term.casefold() in joined:
-            return term
-    return None
+    return detect_environment_blocker(texts)
 
 
 def _environment_blocker_frame(frame: Mapping[str, Any]) -> str | None:

@@ -26,6 +26,7 @@ from uuid import uuid4
 from PIL import Image
 
 from .contract import compile_app_test_contract
+from .environment_signals import detect_environment_blocker
 from .executor import EvidenceState, ExecutionRecord, StepExecutionResult, StepStatus
 from .manifest import (
     EXECUTION_MANIFEST_SCHEMA_VERSION,
@@ -921,6 +922,15 @@ class MobiAgentStepExecutor:
             if micro_action == "done":
                 goal_completed = _goal_stage_confirmed(step, test_case, current_goal_frame)
                 break
+            if (
+                intent.allowed_micro_action_families
+                and micro_action not in intent.allowed_micro_action_families
+            ):
+                raise _TargetNotFound(
+                    f"runner chose forbidden micro-action {micro_action!r} "
+                    f"for goal step {step.step_id}; allowed actions are "
+                    f"{list(intent.allowed_micro_action_families)!r}"
+                )
             if micro_action not in {
                 "click",
                 "click_input",
@@ -2142,6 +2152,12 @@ def _step_bound_task_prompt(
             "This is a GOAL step: you may execute multiple internal micro-actions "
             "needed to complete this user step, but do not advance to the next user step."
         )
+        if intent.allowed_micro_action_families:
+            lines.append(
+                "Allowed GOAL micro-actions only: "
+                + ", ".join(intent.allowed_micro_action_families)
+                + ". Any other action is forbidden."
+            )
     if intent.value is not None:
         lines.append(f"Use this exact input value when input is needed: {intent.value!r}")
     return "\n".join(lines)
@@ -2323,12 +2339,6 @@ def _goal_expected_values(step: TestStep, test_case: TestCaseSpec) -> tuple[str,
     step_value = step.resolved_value(test_case.test_data)
     if step_value:
         values.append(step_value)
-    for assertion in test_case.expected_results:
-        if assertion.type != "TEXT_VISIBLE":
-            continue
-        value = assertion.resolved_value(test_case.test_data)
-        if value:
-            values.append(value)
     return tuple(dict.fromkeys(values))
 
 
@@ -3146,28 +3156,9 @@ def _observation_burst_summary(
 
 
 def _environment_blocker_frame(frame: Mapping[str, Any]) -> str | None:
-    texts = "\n".join(str(item) for item in frame.get("visible_texts", ())).casefold()
-    for term in (
-        "login",
-        "log in",
-        "sign in",
-        "permission",
-        "network",
-        "offline",
-        "retry",
-        "no available way to open",
-        "no available opener",
-        "请先登录",
-        "登录",
-        "权限",
-        "网络",
-        "无网络",
-        "未连接",
-        "重试",
-        "暂无可用打开方式",
-    ):
-        if term.casefold() in texts:
-            return term
+    blocker = detect_environment_blocker(frame.get("visible_texts", ()))
+    if blocker is not None:
+        return blocker
     nodes = frame.get("xml_nodes")
     if isinstance(nodes, list):
         joined_nodes = "\n".join(

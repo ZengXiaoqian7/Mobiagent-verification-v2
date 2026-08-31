@@ -35,10 +35,14 @@ Runner `done` is never an App verdict. Likewise, `ACTION_DISPATCHED`,
 write, `INPUT`, or side-effecting GOAL micro-action is never repeated as a whole;
 the system may only add safe observation or return `INCONCLUSIVE`.
 
-Current offline baseline (2026-08-31): `211 passed`; the protected six-trace
+Current offline baseline (2026-08-31): `226 passed`; the protected six-trace
 cohort is `6/6` with exact accuracy `1.0` and zero false pass, false fail, or
-attribution error. Real-device commercial-App pilots remain a separate,
-user-triggered acceptance stage.
+attribution error. A HarmonyOS Xiaohongshu read-only pilot has passed. An
+explicitly authorized chat-send pilot correctly ended as `TEST_EXECUTION_FAIL`
+instead of treating a historical matching message and Runner `done` as
+`APP_PASS`; the unsafe Harmony IME `ENTER` confirmation fallback found by that
+pilot has been removed. Further business writes remain explicitly
+user-authorized acceptance work.
 
 OpenAI-compatible providers that expose the Responses wire API are selected with
 `MOBIAGENT_WIRE_API=responses`. The original Decider/Grounder and the verifier

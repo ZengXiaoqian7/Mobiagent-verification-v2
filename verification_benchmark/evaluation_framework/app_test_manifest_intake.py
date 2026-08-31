@@ -161,7 +161,11 @@ def _validate_legacy_binding(
         migration_ids.append(
             "test_case.observation_policy.adaptive_capture_default_false"
         )
-    if not migration_ids or migrated_case_payload != test_case.as_dict():
+    # A registered Contract-only migration can be required even when the
+    # normalized test case itself did not change.  The migrated Contract is
+    # still compared in full below, so accepting an unchanged case here does
+    # not weaken binding or permit unregistered Contract drift.
+    if migrated_case_payload != test_case.as_dict():
         raise ManifestIntakeError(
             "legacy test case does not match the current schema after a registered compatibility migration"
         )
@@ -213,9 +217,51 @@ def _validate_legacy_binding(
 
     expected_current_contract = current_contract.as_dict()
     expected_current_contract.pop("contract_sha256", None)
+    legacy_steps = (
+        migrated_contract.get("execution_contract", {}).get("steps", [])
+        if isinstance(migrated_contract.get("execution_contract"), Mapping)
+        else []
+    )
+    current_steps = (
+        expected_current_contract.get("execution_contract", {}).get("steps", [])
+        if isinstance(expected_current_contract.get("execution_contract"), Mapping)
+        else []
+    )
+    added_goal_action_policy = False
+    if isinstance(legacy_steps, list) and isinstance(current_steps, list):
+        current_by_id = {
+            str(item.get("step_id")): item
+            for item in current_steps
+            if isinstance(item, Mapping)
+        }
+        for legacy_step in legacy_steps:
+            if not isinstance(legacy_step, dict):
+                continue
+            current_step = current_by_id.get(str(legacy_step.get("step_id")))
+            legacy_runtime = legacy_step.get("runtime_intent")
+            current_runtime = current_step.get("runtime_intent") if isinstance(current_step, Mapping) else None
+            legacy_intent = legacy_runtime.get("execution_intent") if isinstance(legacy_runtime, Mapping) else None
+            current_intent = current_runtime.get("execution_intent") if isinstance(current_runtime, Mapping) else None
+            if (
+                isinstance(legacy_intent, dict)
+                and isinstance(current_intent, Mapping)
+                and "allowed_micro_action_families" not in legacy_intent
+            ):
+                legacy_intent["allowed_micro_action_families"] = deepcopy(
+                    current_intent.get("allowed_micro_action_families", [])
+                )
+                added_goal_action_policy = True
+    if added_goal_action_policy:
+        migration_ids.append(
+            "contract.step_runtime_intent.allowed_micro_action_families_v1"
+        )
     if migrated_contract != expected_current_contract:
         raise ManifestIntakeError(
             "legacy App-test contract differs beyond a registered compatibility migration"
+        )
+    if not migration_ids:
+        raise ManifestIntakeError(
+            "legacy binding did not require a registered compatibility migration"
         )
 
     legacy_observation_policy = legacy_case_payload.get("observation_policy")

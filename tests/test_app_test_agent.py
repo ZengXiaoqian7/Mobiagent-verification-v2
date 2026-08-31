@@ -2138,6 +2138,83 @@ def test_stage7_runner_does_not_dispatch_weak_xml_alignment(tmp_path, monkeypatc
     assert actions == []
 
 
+def test_stage7_disjoint_decider_grounder_uses_only_hierarchy_supported_bbox(tmp_path, monkeypatch):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner = _import_original_mobiagent()
+    image_path = tmp_path / "frame.jpg"
+    Image.new("RGB", (1080, 2444), "white").save(image_path)
+
+    class Recorder:
+        def __init__(self):
+            self.clicks = []
+
+        def click(self, x, y):
+            self.clicks.append((x, y))
+
+    monkeypatch.setattr(
+        runner,
+        "call_model_with_validation_retry",
+        lambda *_args, **_kwargs: {"bbox": [330, 1088, 436, 1204]},
+    )
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "Row",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "bounds": "[669,2220][843,2358]",
+                },
+                "children": [
+                    {
+                        "attributes": {
+                            "type": "Text",
+                            "text": "消息",
+                            "clickable": "false",
+                            "enabled": "true",
+                            "bounds": "[706,2251][806,2326]",
+                        }
+                    }
+                ],
+            }
+        ],
+    }
+    device = Recorder()
+    actions = []
+
+    runner.handle_click_action(
+        {
+            "reasoning": "进入消息页面",
+            "parameters": {
+                "bbox": [318, 900, 434, 1004],
+                "target_element": "底部导航栏消息按钮",
+            },
+        },
+        device,
+        Image.open(image_path),
+        "",
+        "{reasoning} {description}",
+        "{reasoning} {description}",
+        True,
+        True,
+        False,
+        str(tmp_path),
+        {"current_dir": str(tmp_path), "screenshot_name": image_path.name},
+        image_path.name,
+        1,
+        actions,
+        [],
+        hierarchy,
+    )
+
+    assert len(device.clicks) == 1
+    assert 669 <= device.clicks[0][0] <= 843
+    assert 2220 <= device.clicks[0][1] <= 2358
+    assert actions[0]["bbox_source"] == "grounder_hierarchy_supported_disagreement"
+
+
 def test_stage7_runner_visual_fab_resolver_uses_red_compact_lower_right_control():
     from app_test_agent.mobiagent_executor import _import_original_mobiagent
     from PIL import ImageDraw
@@ -2240,6 +2317,37 @@ def test_stage7_runner_input_reactivates_only_the_latest_click_input_target():
     )
     assert device.clicks[-1] == (300, 400)
     assert device.inputs[-1] == "下一段"
+
+
+def test_stage7_harmony_input_never_uses_enter_as_confirmation_fallback():
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    class DriverRecorder:
+        def __init__(self):
+            self.shell_commands = []
+            self.keys = []
+            self.inputs = []
+
+        def shell(self, command):
+            self.shell_commands.append(command)
+
+        def press_key(self, key):
+            self.keys.append(key)
+
+        def input_text(self, text):
+            self.inputs.append(text)
+
+    runner = _import_original_mobiagent()
+    device = runner.HarmonyDevice.__new__(runner.HarmonyDevice)
+    device.d = DriverRecorder()
+    device._confirm_clipboard_suggestion = lambda _text: False
+
+    with pytest.raises(RuntimeError, match="unsafe ENTER"):
+        device.input("你好呀我是评测智能体")
+
+    assert device.d.inputs == ["你好呀我是评测智能体"]
+    assert device.d.keys == [2071]
+    assert all(str(key) != str(runner.KeyCode.ENTER) for key in device.d.keys)
 
 
 def test_stage7_runner_input_rejects_unknown_focus_and_unsafe_swipe_falls_back(tmp_path):
@@ -3361,6 +3469,60 @@ def test_grounder_accepts_edge_named_bbox_aliases():
     runner_mobiagent.validate_grounder_response(payload)
 
     assert payload["bbox"] == [11, 21, 31, 41]
+
+
+def test_grounder_accepts_xywh_bbox_aliases():
+    from runner.mobiagent import mobiagent as runner_mobiagent
+
+    payload = {"x": 12, "y": 22, "width": 30, "height": 40}
+
+    runner_mobiagent.validate_grounder_response(payload)
+
+    assert payload["bbox"] == [12.0, 22.0, 42.0, 62.0]
+
+
+def test_goal_micro_action_allowlist_excludes_input_for_readonly_navigation():
+    from app_test_agent.step_intent import compile_step_execution_intent
+
+    payload = _case_payload()
+    payload["steps"] = [
+        {
+            "step_id": "readonly_navigation",
+            "instruction": "只读浏览并进入目标页面",
+            "action_type": "GUI_TASK",
+            "step_mode": "GOAL",
+            "target": {
+                "stage_result_text_candidates": ["目标页面"],
+                "allowed_micro_actions": ["CLICK", "SWIPE", "WAIT", "BACK"],
+            },
+        }
+    ]
+    payload["expected_results"] = ["可以看到目标页面"]
+    spec = AppTestCaseSpec.from_json(payload).with_runtime_context(run_id="readonly-goal")
+
+    intent = compile_step_execution_intent(spec.steps[0], spec)
+
+    assert intent.allowed_micro_action_families == (
+        "click", "swipe", "wait", "press_back", "done"
+    )
+    assert "input" not in intent.allowed_micro_action_families
+    assert "click_input" not in intent.allowed_micro_action_families
+
+
+def test_navigation_goal_does_not_inherit_final_message_assertion_as_completion():
+    from app_test_agent.mobiagent_executor import _goal_completion_evidence
+
+    spec = load_test_case(ROOT / "examples" / "xiaohongshu_chat_qingwen_app_test.json")
+    step = next(item for item in spec.steps if item.step_id == "open_qingwen_chat")
+
+    evidence = _goal_completion_evidence(
+        step,
+        spec,
+        {"frame_id": 1, "visible_texts": ["青文", "你好呀我是评测智能体"]},
+    )
+
+    assert evidence["confirmed"] is False
+    assert evidence["matched_expected_values"] == []
 
 
 def test_stage7_remote_model_endpoint_uses_raw_http_transport_by_default(monkeypatch):
@@ -5699,6 +5861,54 @@ def test_manifest_intake_rejects_legacy_binding_without_source_test_case(tmp_pat
             test_case=current_spec,
             manifest_path=manifest_path,
         )
+
+
+def test_manifest_intake_migrates_missing_goal_action_policy_contract_only(tmp_path):
+    test_case_path, manifest_path = _legacy_adaptive_capture_manifest_fixture(tmp_path)
+    current_spec = load_test_case(test_case_path)
+    contract_path = tmp_path / "app_test_contract.json"
+
+    # Restore the current test-case schema so only the newly registered
+    # runtime-intent Contract field differs from the frozen artifacts.
+    case_payload = json.loads(test_case_path.read_text(encoding="utf-8"))
+    case_payload["observation_policy"]["adaptive_capture"] = False
+    test_case_path.write_text(
+        json.dumps(case_payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    current_spec = load_test_case(test_case_path)
+
+    contract_payload = compile_app_test_contract(current_spec).as_dict()
+    contract_payload.pop("contract_sha256")
+    for step in contract_payload["execution_contract"]["steps"]:
+        step["runtime_intent"]["execution_intent"].pop(
+            "allowed_micro_action_families"
+        )
+    legacy_contract_sha256 = canonical_sha256(contract_payload)
+    contract_payload["contract_sha256"] = legacy_contract_sha256
+    contract_path.write_text(
+        json.dumps(contract_payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_payload["test_case_sha256"] = current_spec.sha256
+    manifest_payload["contract_sha256"] = legacy_contract_sha256
+    manifest_path.write_text(
+        json.dumps(manifest_payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    intake = load_app_test_manifest_evidence(
+        test_case=current_spec,
+        test_case_path=test_case_path,
+        manifest_path=manifest_path,
+    )
+
+    assert intake.compatibility_migration is not None
+    assert intake.compatibility_migration["migration_ids"] == [
+        "contract.step_runtime_intent.allowed_micro_action_families_v1"
+    ]
 
 
 def test_manifest_intake_rejects_unregistered_legacy_contract_change(tmp_path):

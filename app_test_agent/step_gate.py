@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from .environment_signals import detect_environment_blocker
 from .schema import TestCaseSpec, TestStep
 from .step_intent import StepExecutionIntent, compile_step_execution_intent
 
@@ -1159,32 +1160,7 @@ def _has_loading_signal(texts: tuple[str, ...]) -> bool:
 
 
 def _environment_signal(frames: tuple[Mapping[str, Any], ...]) -> str | None:
-    texts = "\n".join(_texts(frames)).casefold()
-    for term in (
-        "crash",
-        "isn't responding",
-        "not responding",
-        "anr",
-        "login",
-        "log in",
-        "sign in",
-        "permission",
-        "network",
-        "offline",
-        "retry",
-        "崩溃",
-        "无响应",
-        "请先登录",
-        "登录",
-        "权限",
-        "网络",
-        "无网络",
-        "未连接",
-        "重试",
-    ):
-        if term.casefold() in texts:
-            return term
-    return None
+    return detect_environment_blocker(_texts(frames))
 
 
 def _texts(frames: tuple[Mapping[str, Any] | None, ...]) -> tuple[str, ...]:

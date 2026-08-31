@@ -53,14 +53,18 @@
     },
     {
       "step_id": "open_qingwen_chat",
-      "instruction": "进入青文的聊天页面",
-      "action_type": "CLICK",
+      "instruction": "在消息列表中找到青文并进入聊天页面；只进行只读导航操作",
+      "action_type": "GUI_TASK",
+      "step_mode": "GOAL",
       "target": {
         "role": "conversation",
-        "text_candidates": ["青文"]
+        "text_candidates": ["青文"],
+        "stage_result_text_candidates": ["发消息...", "发送消息"],
+        "allowed_micro_actions": ["CLICK", "SWIPE", "WAIT", "BACK"],
+        "max_micro_actions": 6
       },
-      "timeout_seconds": 20,
-      "max_retries": 1
+      "timeout_seconds": 60,
+      "max_retries": 0
     },
     {
       "step_id": "input_chat_message",

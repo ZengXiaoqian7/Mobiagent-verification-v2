@@ -242,4 +242,4 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`PLAN.md`、`APP_TEST_AGENT_README.md` 与 `docs/STAGE4_MOBIAGENT_PREFLIGHT.md` 作为当前架构说明一并维护，其余 `docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件不进入发布分支。
 
-当前离线验收基线（2026-08-31）：`218 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。
+当前离线验收基线（2026-08-31）：`226 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。HarmonyOS 真机已完成小红书只读导航试点，并在用户明确授权的聊天发送试点中正确阻止历史消息和 Runner `done` 产生假 `APP_PASS`。该试点还暴露并关闭了 Harmony 输入确认以 `ENTER` 隐式提交的风险；商业 App 的写入、发送、发布或支付流程仍只能在用户明确选择测试账号、设备并授权后触发。
