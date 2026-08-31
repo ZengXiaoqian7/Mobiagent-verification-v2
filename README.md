@@ -53,6 +53,27 @@ $env:MOBIAGENT_BASE_URL = "https://<your-openai-compatible-endpoint>/v1"
 $env:MOBIAGENT_MODEL = "<your-vision-model>"
 ```
 
+对于声明 `wire_api = "responses"` 的 OpenAI-compatible 服务，MobiAgent 与
+App Verifier/Verification Runner 共用以下显式配置：
+
+```powershell
+# 密钥只放在当前会话，或改用仓库外的 MOBIAGENT_API_KEY_FILE。
+$env:MOBIAGENT_API_KEY = "<your-api-key>"
+$env:MOBIAGENT_BASE_URL = "https://api.horizon1123.top"
+$env:MOBIAGENT_MODEL = "gpt-5.5"
+$env:MOBIAGENT_WIRE_API = "responses"
+$env:MOBIAGENT_REASONING_EFFORT = "xhigh"
+$env:MOBIAGENT_DISABLE_RESPONSE_STORAGE = "true"
+```
+
+Responses 模式会把原 MobiAgent 的文字/截图消息转换为 `input_text` /
+`input_image`，使用 `max_output_tokens`，传递 reasoning effort，并默认发送
+`store=false`。未设置 `MOBIAGENT_WIRE_API` 时仍使用原来的
+`chat/completions`，不会改变已有部署。Codex 配置中的 `review_model`、
+`network_access`、`features.goals` 和 WSL acknowledgement 不是 MobiAgent API
+字段，不会复制进模型请求。Codex/OpenAI 登录凭据也不会自动暴露给本项目，
+真机试点前必须由用户在启动 PC 客户端的同一会话中显式提供密钥。
+
 HarmonyOS 真实执行还需要已可用的 `hdc`、设备序列号和应用登录态。涉及发帖、发送消息或发布笔记的用例会产生真实业务副作用，请使用测试账号。
 
 可在不连接设备的情况下检查各运行环境：
@@ -216,4 +237,4 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`PLAN.md`、`APP_TEST_AGENT_README.md` 与 `docs/STAGE4_MOBIAGENT_PREFLIGHT.md` 作为当前架构说明一并维护，其余 `docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件不进入发布分支。
 
-当前离线验收基线（2026-08-31）：`203 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。
+当前离线验收基线（2026-08-31）：`210 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。

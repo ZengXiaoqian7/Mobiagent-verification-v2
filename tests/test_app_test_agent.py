@@ -3333,7 +3333,9 @@ def test_stage7_remote_runner_requires_explicit_key_before_device_mutation(tmp_p
 
 
 def test_stage7_remote_model_endpoint_uses_raw_http_transport_by_default(monkeypatch):
-    from runner.mobiagent import mobiagent as runner_mobiagent
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner_mobiagent = _import_original_mobiagent()
 
     monkeypatch.setenv("MOBIAGENT_DECIDER_BASE_URL", "https://api.example.test/v1")
     monkeypatch.delenv("MOBIAGENT_LLM_TRANSPORT", raising=False)
@@ -3344,6 +3346,123 @@ def test_stage7_remote_model_endpoint_uses_raw_http_transport_by_default(monkeyp
 
     monkeypatch.setenv("MOBIAGENT_LLM_TRANSPORT", "raw_http")
     assert runner_mobiagent._use_raw_http_transport() is True
+
+
+def test_responses_wire_api_preserves_vision_input_reasoning_and_privacy(monkeypatch):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner_mobiagent = _import_original_mobiagent()
+
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {"type": "output_text", "text": '{"action":"done"}'}
+                        ],
+                    }
+                ]
+            }
+
+    def fake_post(endpoint, **kwargs):
+        captured["endpoint"] = endpoint
+        captured.update(kwargs)
+        return FakeResponse()
+
+    monkeypatch.setenv("MOBIAGENT_BASE_URL", "https://api.example.test/v1")
+    monkeypatch.setenv("MOBIAGENT_API_KEY", "test-only-key")
+    monkeypatch.setenv("MOBIAGENT_WIRE_API", "responses")
+    monkeypatch.setenv("MOBIAGENT_REASONING_EFFORT", "xhigh")
+    monkeypatch.setenv("MOBIAGENT_DISABLE_RESPONSE_STORAGE", "true")
+    monkeypatch.setattr(runner_mobiagent.requests, "post", fake_post)
+
+    response = runner_mobiagent._requests_chat_completion(
+        "Decider",
+        "gpt-5.5",
+        [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "inspect the screen"},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "data:image/jpeg;base64,AA=="},
+                    },
+                ],
+            }
+        ],
+        0.7,
+        30,
+        256,
+    )
+
+    payload = json.loads(captured["data"].decode("utf-8"))
+    assert response == '{"action":"done"}'
+    assert captured["endpoint"] == "https://api.example.test/v1/responses"
+    assert captured["headers"]["Authorization"] == "Bearer test-only-key"
+    assert payload["model"] == "gpt-5.5"
+    assert payload["reasoning"] == {"effort": "xhigh"}
+    assert payload["store"] is False
+    assert payload["max_output_tokens"] == 256
+    assert "temperature" not in payload
+    assert payload["input"][0]["content"] == [
+        {"type": "input_text", "text": "inspect the screen"},
+        {"type": "input_image", "image_url": "data:image/jpeg;base64,AA=="},
+    ]
+
+
+def test_responses_wire_api_extracts_direct_output_and_rejects_unknown_mode(monkeypatch):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner_mobiagent = _import_original_mobiagent()
+
+    assert runner_mobiagent._responses_output_text({"output_text": "direct"}) == "direct"
+
+    monkeypatch.setenv("MOBIAGENT_WIRE_API", "unknown")
+    with pytest.raises(ValueError, match="unsupported MobiAgent wire API"):
+        runner_mobiagent._wire_api_for_role("Grounder")
+
+
+def test_responses_sdk_transport_uses_responses_client(monkeypatch):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner_mobiagent = _import_original_mobiagent()
+
+    captured = {}
+
+    class FakeResponses:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return type("Response", (), {"output_text": "sdk response"})()
+
+    client = type("Client", (), {"responses": FakeResponses()})()
+    monkeypatch.setenv("MOBIAGENT_WIRE_API", "responses")
+    monkeypatch.setenv("MOBIAGENT_DISABLE_RESPONSE_STORAGE", "true")
+
+    text, transport = runner_mobiagent._sdk_model_completion(
+        client,
+        "Decider",
+        "gpt-5.5",
+        [{"role": "user", "content": "inspect"}],
+        0.0,
+        30,
+        128,
+    )
+
+    assert text == "sdk response"
+    assert transport == "openai_sdk_responses"
+    assert captured["input"][0]["content"] == [
+        {"type": "input_text", "text": "inspect"}
+    ]
+    assert captured["store"] is False
+    assert captured["timeout"] == 30
 
 
 def test_stage6_app_verifier_can_use_visual_post_action_evidence(tmp_path, monkeypatch):

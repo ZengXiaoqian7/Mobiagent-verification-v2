@@ -633,6 +633,108 @@ def _base_url_for_role(role):
     )
 
 
+def _wire_api_for_role(role):
+    role = role.upper()
+    value = _env_first(
+        f"MOBIAGENT_{role}_WIRE_API",
+        "MOBIAGENT_WIRE_API",
+        default="chat_completions",
+    )
+    normalized = str(value or "").strip().lower().replace("-", "_")
+    aliases = {
+        "chat": "chat_completions",
+        "chat_completion": "chat_completions",
+        "chat_completions": "chat_completions",
+        "responses": "responses",
+        "response": "responses",
+    }
+    if normalized not in aliases:
+        raise ValueError(
+            f"unsupported MobiAgent wire API {value!r}; choose chat_completions or responses"
+        )
+    return aliases[normalized]
+
+
+def _env_flag(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return bool(default)
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be true or false")
+
+
+def _responses_content(content):
+    if isinstance(content, str):
+        return [{"type": "input_text", "text": content}]
+    converted = []
+    for item in content or ():
+        if not isinstance(item, dict):
+            raise ValueError("Responses message content items must be objects")
+        item_type = str(item.get("type") or "").strip().lower()
+        if item_type in {"text", "input_text"}:
+            converted.append({"type": "input_text", "text": str(item.get("text") or "")})
+            continue
+        if item_type in {"image_url", "input_image"}:
+            image_url = item.get("image_url")
+            detail = item.get("detail")
+            if isinstance(image_url, dict):
+                detail = image_url.get("detail", detail)
+                image_url = image_url.get("url")
+            if not isinstance(image_url, str) or not image_url:
+                raise ValueError("Responses image content requires a non-empty image_url")
+            converted_image = {"type": "input_image", "image_url": image_url}
+            if detail:
+                converted_image["detail"] = detail
+            converted.append(converted_image)
+            continue
+        raise ValueError(f"unsupported Responses message content type {item_type!r}")
+    return converted
+
+
+def _responses_request_payload(model, messages, max_tokens):
+    payload = {
+        "model": model,
+        "input": [
+            {
+                "role": str(message.get("role") or "user"),
+                "content": _responses_content(message.get("content")),
+            }
+            for message in messages
+        ],
+        "max_output_tokens": max_tokens,
+        # Responses may be retained by the provider unless explicitly disabled.
+        "store": not _env_flag("MOBIAGENT_DISABLE_RESPONSE_STORAGE", default=True),
+    }
+    effort = _env_first("MOBIAGENT_REASONING_EFFORT")
+    if effort:
+        payload["reasoning"] = {"effort": str(effort).strip()}
+    return payload
+
+
+def _responses_output_text(body):
+    direct = body.get("output_text") if isinstance(body, dict) else None
+    if isinstance(direct, str) and direct:
+        return direct
+    texts = []
+    for output in body.get("output", ()) if isinstance(body, dict) else ():
+        if not isinstance(output, dict):
+            continue
+        for content in output.get("content", ()):
+            if not isinstance(content, dict):
+                continue
+            if content.get("type") in {"output_text", "text"}:
+                text = content.get("text")
+                if isinstance(text, str) and text:
+                    texts.append(text)
+    if texts:
+        return "\n".join(texts)
+    raise ValueError("Responses API result did not contain output text")
+
+
 class ModelServiceConfigurationError(RuntimeError):
     """A model provider rejected a request that cannot succeed by retrying."""
 
@@ -763,14 +865,24 @@ def _requests_chat_completion(role, model, messages, temperature, timeout, max_t
     if not base_url:
         return None
 
-    endpoint = base_url.rstrip("/") + "/chat/completions"
-    payload = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-    logging.info("%s request transport=raw_http endpoint=%s", role, endpoint)
+    wire_api = _wire_api_for_role(role)
+    if wire_api == "responses":
+        endpoint = base_url.rstrip("/") + "/responses"
+        payload = _responses_request_payload(model, messages, max_tokens)
+    else:
+        endpoint = base_url.rstrip("/") + "/chat/completions"
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+    logging.info(
+        "%s request transport=raw_http wire_api=%s endpoint=%s",
+        role,
+        wire_api,
+        endpoint,
+    )
     response = requests.post(
         endpoint,
         headers={
@@ -783,7 +895,32 @@ def _requests_chat_completion(role, model, messages, temperature, timeout, max_t
     if response.status_code >= 400:
         raise RuntimeError(f"HTTP {response.status_code}: {response.text[:500]}")
     body = response.json()
+    if wire_api == "responses":
+        return _responses_output_text(body)
     return body["choices"][0]["message"]["content"]
+
+
+def _sdk_model_completion(client, role, model, messages, temperature, timeout, max_tokens):
+    wire_api = _wire_api_for_role(role)
+    if wire_api == "responses":
+        response = client.responses.create(
+            **_responses_request_payload(model, messages, max_tokens),
+            timeout=timeout,
+        )
+        output_text = getattr(response, "output_text", None)
+        if isinstance(output_text, str) and output_text:
+            return output_text, "openai_sdk_responses"
+        if hasattr(response, "model_dump"):
+            return _responses_output_text(response.model_dump()), "openai_sdk_responses"
+        raise ValueError("Responses SDK result did not contain output text")
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        timeout=timeout,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content, "openai_sdk"
 
 
 def _model_for_role(role, current_model):
@@ -920,16 +1057,21 @@ def call_model_with_validation_retry(client, model, messages, validator_func, ma
                 max_tokens,
             )
             if response_str is None:
-                transport = "openai_sdk"
-                response_str = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    timeout=API_TIMEOUT,
-                    max_tokens=max_tokens,
-                ).choices[0].message.content
+                response_str, transport = _sdk_model_completion(
+                    client,
+                    context,
+                    model,
+                    messages,
+                    temperature,
+                    API_TIMEOUT,
+                    max_tokens,
+                )
             else:
-                transport = "raw_http"
+                transport = (
+                    "raw_http_responses"
+                    if _wire_api_for_role(context) == "responses"
+                    else "raw_http"
+                )
             end_time = time.time()
             duration_ms = max(0, int((end_time - start_time) * 1000))
             emit_model_event(
@@ -3099,10 +3241,15 @@ def get_app_package_name(task_description, use_graphrag=False, device_type="Andr
         256,
     )
     if response_str is None:
-        response_str = planner_client.chat.completions.create(
-            model=planner_model,
-            messages=messages,
-        ).choices[0].message.content
+        response_str, _transport = _sdk_model_completion(
+            planner_client,
+            "Planner",
+            planner_model,
+            messages,
+            INITIAL_TEMP,
+            API_TIMEOUT,
+            256,
+        )
     logging.info(f"Planner 响应: \n{response_str}")
     response_json = parse_planner_response(response_str)
     if response_json is None:
