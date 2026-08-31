@@ -2187,6 +2187,76 @@ def test_stage7_runner_alignment_does_not_hijack_fab_with_adjacent_unlabeled_con
     assert runner._alignment_rejection_blocks_click(audit) is True
 
 
+def test_stage7_runner_visual_fab_recovery_uses_unique_red_clickable_node():
+    """A clipped model box may recover one explicit red create control safely."""
+    runner = mobiagent_executor_module._import_original_mobiagent()
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "android.view.ViewGroup",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "visible": "true",
+                    "bounds": "[855,1819][1011,1975]",
+                }
+            }
+        ],
+    }
+    image = Image.new("RGB", (1080, 2444), "black")
+    image.paste((240, 20, 20), (855, 1819, 1011, 1975))
+
+    result = runner.find_visual_floating_action_button(
+        "右下角红色悬浮+新建笔记按钮",
+        hierarchy,
+        image,
+        1080,
+        2444,
+    )
+
+    assert result["candidate_count"] == 1
+    assert result["click_point"] == [933, 1897]
+
+
+def test_stage7_runner_visual_fab_recovery_rejects_multiple_red_candidates():
+    """Visual recovery must fail closed when two controls satisfy the evidence."""
+    runner = mobiagent_executor_module._import_original_mobiagent()
+    nodes = [
+        "[700,1500][856,1656]",
+        "[855,1819][1011,1975]",
+    ]
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "android.view.ViewGroup",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "visible": "true",
+                    "bounds": bounds,
+                }
+            }
+            for bounds in nodes
+        ],
+    }
+    image = Image.new("RGB", (1080, 2444), "black")
+    for bounds in ((700, 1500, 856, 1656), (855, 1819, 1011, 1975)):
+        image.paste((240, 20, 20), bounds)
+
+    result = runner.find_visual_floating_action_button(
+        "右下角红色悬浮+新建笔记按钮",
+        hierarchy,
+        image,
+        1080,
+        2444,
+    )
+
+    assert result["candidate_count"] == 2
+    assert result["rejection_reason"] == "ambiguous_visual_floating_action_button_candidates"
+
+
 def test_stage7_failed_trace_input_bbox_is_rejected_or_safely_recovers_to_unique_editor():
     runner = mobiagent_executor_module._import_original_mobiagent()
     hierarchy = {
@@ -2225,6 +2295,49 @@ def test_stage7_failed_trace_input_bbox_is_rejected_or_safely_recovers_to_unique
     assert point == (465, 2264)
     assert audit["alignment_basis"] == "unique_text_entry_semantic_recovery"
     assert audit["selected_node"]["bounds"] == [175, 2220, 756, 2308]
+    assert runner._alignment_rejection_blocks_click(audit) is False
+
+
+def test_stage7_input_alignment_prefers_semantic_title_over_direct_body_hit():
+    runner = mobiagent_executor_module._import_original_mobiagent()
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "android.widget.EditText",
+                    "text": "添加标题",
+                    "hint": "添加标题",
+                    "bounds": "[50,727][1030,849]",
+                    "clickable": "true",
+                    "enabled": "true",
+                }
+            },
+            {
+                "attributes": {
+                    "type": "android.widget.EditText",
+                    "text": "添加正文",
+                    "hint": "添加正文",
+                    "bounds": "[50,849][1030,1258]",
+                    "clickable": "true",
+                    "enabled": "true",
+                }
+            },
+        ],
+    }
+    point, audit = runner.align_click_to_xml_node(
+        (210, 853),
+        [56, 796, 364, 910],
+        "标题输入框“添加标题”",
+        hierarchy,
+        1080,
+        2444,
+        action_type="click_input",
+    )
+
+    assert point == (540, 788)
+    assert audit["alignment_basis"] == "semantic_text_entry_recovery"
+    assert audit["selected_node"]["bounds"] == [50, 727, 1030, 849]
     assert runner._alignment_rejection_blocks_click(audit) is False
 
 
@@ -3791,6 +3904,97 @@ def test_grounder_accepts_xywh_bbox_aliases():
     runner_mobiagent.validate_grounder_response(payload)
 
     assert payload["bbox"] == [12.0, 22.0, 42.0, 62.0]
+
+
+def test_grounder_canonicalizes_nested_xywh_bbox_and_runner_dispatches_it(tmp_path, monkeypatch):
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner = _import_original_mobiagent()
+    payload = {"bbox": {"x": 432, "y": 34, "width": 87, "height": 56}}
+    runner.validate_grounder_response(payload)
+    assert payload["bbox"] == [432.0, 34.0, 519.0, 90.0]
+
+    image_path = tmp_path / "frame.jpg"
+    Image.new("RGB", (1080, 2444), "white").save(image_path)
+
+    class Recorder:
+        def __init__(self):
+            self.clicks = []
+
+        def click(self, x, y):
+            self.clicks.append((x, y))
+
+    monkeypatch.setattr(
+        runner,
+        "call_model_with_validation_retry",
+        lambda *_args, **_kwargs: {"bbox": {"x": 432, "y": 34, "width": 87, "height": 56}},
+    )
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "android.view.ViewGroup",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "bounds": "[868,122][1030,259]",
+                },
+                "children": [
+                    {
+                        "attributes": {
+                            "type": "android.view.ViewGroup",
+                            "clickable": "true",
+                            "enabled": "true",
+                            "bounds": "[868,146][1030,234]",
+                        },
+                        "children": [
+                            {
+                                "attributes": {
+                                    "type": "Text",
+                                    "text": "发布",
+                                    "clickable": "false",
+                                    "enabled": "true",
+                                    "bounds": "[905,165][993,215]",
+                                }
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    device = Recorder()
+    actions = []
+
+    runner.handle_click_action(
+        {
+            "reasoning": "click publish",
+            "parameters": {
+                "bbox": [434, 46, 518, 120],
+                "target_element": "右上角发布按钮",
+            },
+        },
+        device,
+        Image.open(image_path),
+        "",
+        "{reasoning} {description}",
+        "{reasoning} {description}",
+        True,
+        False,
+        False,
+        str(tmp_path),
+        {"current_dir": str(tmp_path), "screenshot_name": image_path.name},
+        image_path.name,
+        1,
+        actions,
+        [],
+        hierarchy,
+    )
+
+    assert device.clicks == [(949, 190)]
+    assert actions[0]["xml_hit_test_result"]["alignment_basis"] == (
+        "semantic_descendant_recovery"
+    )
 
 
 def test_goal_micro_action_allowlist_excludes_input_for_readonly_navigation():

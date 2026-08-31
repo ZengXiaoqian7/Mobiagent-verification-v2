@@ -1409,6 +1409,35 @@ def _normalize_bbox(value, field_name="bbox"):
         raise ValueError(f"Invalid parameter '{field_name}': expected numeric bbox values") from exc
 
 
+def _canonicalize_grounder_bbox(value, field_name="bbox"):
+    """Convert the Grounder's supported bbox shapes to canonical XYXY values.
+
+    The vision response validator accepts both a four-value XYXY list and
+    named objects such as ``{"x": ..., "y": ..., "width": ..., "height": ...}``.
+    Keep the conversion at the runtime boundary as well: a validated response
+    must never reach coordinate arithmetic in its provider-specific shape.
+    """
+    if isinstance(value, dict):
+        lowered = {str(key).casefold(): item for key, item in value.items()}
+        if all(name in lowered for name in ("x1", "y1", "x2", "y2")):
+            return [lowered[name] for name in ("x1", "y1", "x2", "y2")]
+        if all(name in lowered for name in ("left", "top", "right", "bottom")):
+            return [lowered[name] for name in ("left", "top", "right", "bottom")]
+        if all(name in lowered for name in ("x", "y", "width", "height")):
+            try:
+                x = float(lowered["x"])
+                y = float(lowered["y"])
+                width = float(lowered["width"])
+                height = float(lowered["height"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid parameter '{field_name}': expected numeric x/y/width/height values"
+                ) from exc
+            return [x, y, x + width, y + height]
+        raise ValueError(f"Invalid parameter '{field_name}': unsupported named bbox shape")
+    return _normalize_bbox(value, field_name)
+
+
 def _normalize_optional_seconds(value):
     if value is None:
         return DEVICE_WAIT_TIME * 2
@@ -1687,33 +1716,36 @@ def validate_grounder_response(response_dict):
     # OpenAI-compatible vision models commonly return semantically equivalent
     # named bbox fields. Canonicalize them before validation so a correct
     # localization does not spend additional provider attempts on formatting.
-    bbox_aliases = (
-        ("x1", "y1", "x2", "y2"),
-        ("left", "top", "right", "bottom"),
+    bbox_key = next(
+        (
+            key for key in response_dict.keys()
+            if str(key).lower() in ["bbox", "bbox_2d", "bbox-2d", "bbox2d"]
+        ),
+        None,
     )
-    if not any(
-        key.lower() in ["bbox", "bbox_2d", "bbox-2d", "bbox2d"]
-        for key in response_dict.keys()
-    ):
+    if bbox_key is not None:
+        response_dict["bbox"] = _canonicalize_grounder_bbox(response_dict[bbox_key])
+    else:
+        bbox_aliases = (
+            ("x1", "y1", "x2", "y2"),
+            ("left", "top", "right", "bottom"),
+        )
         lowered = {str(key).lower(): value for key, value in response_dict.items()}
         for aliases in bbox_aliases:
             if all(name in lowered for name in aliases):
-                response_dict["bbox"] = [lowered[name] for name in aliases]
+                response_dict["bbox"] = _canonicalize_grounder_bbox(
+                    {name: lowered[name] for name in aliases}
+                )
                 break
         else:
             if all(name in lowered for name in ("x", "y", "width", "height")):
-                try:
-                    x = float(lowered["x"])
-                    y = float(lowered["y"])
-                    width = float(lowered["width"])
-                    height = float(lowered["height"])
-                except (TypeError, ValueError) as exc:
-                    raise ValueError("Grounder x/y/width/height fields must be numeric") from exc
-                response_dict["bbox"] = [x, y, x + width, y + height]
+                response_dict["bbox"] = _canonicalize_grounder_bbox(
+                    {name: lowered[name] for name in ("x", "y", "width", "height")}
+                )
 
     # Grounder需要至少返回coordinates或bbox
     if "coordinates" not in response_dict and not any(
-        key.lower() in ["bbox", "bbox_2d", "bbox-2d", "bbox2d"]
+        str(key).lower() in ["bbox", "bbox_2d", "bbox-2d", "bbox2d"]
         for key in response_dict.keys()
     ):
         raise ValueError("Grounder response must contain 'coordinates' or 'bbox' field")
@@ -2511,6 +2543,12 @@ def find_visual_floating_action_button(target_element, hierarchy, image, surface
         candidates.append((red_ratio, red_pixels, node, center_x, center_y))
     if not candidates:
         return None
+    if len(candidates) != 1:
+        return {
+            "candidate_count": len(candidates),
+            "candidates": [candidate[2] for candidate in candidates],
+            "rejection_reason": "ambiguous_visual_floating_action_button_candidates",
+        }
     red_ratio, red_pixels, node, center_x, center_y = max(candidates, key=lambda item: (item[0], item[1]))
     return {
         "click_point": [center_x, center_y],
@@ -2706,6 +2744,47 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
     audit["input_role_candidate_count"] = len(input_role_nodes)
     audit["direct_input_role_hit_count"] = len(direct_text_entry_nodes)
     if wants_text_entry:
+        semantic_input_candidates = [
+            node for node in input_role_nodes
+            if _target_semantic_score(target_element, node) >= 4
+        ]
+        audit["semantic_input_candidate_count"] = len(semantic_input_candidates)
+
+        # A model box can straddle two vertically stacked editors and its
+        # centre can fall into the wrong one.  When the hierarchy provides one
+        # strong semantic input candidate, prefer it over a merely direct but
+        # semantically unrelated hit.  This is generic for title/body forms,
+        # search fields, chat editors, and custom accessibility labels.
+        if (
+            len(semantic_input_candidates) == 1
+            and direct_text_entry_nodes
+            and not any(
+                node is semantic_input_candidates[0]
+                for node in direct_text_entry_nodes
+            )
+        ):
+            candidate = semantic_input_candidates[0]
+            x1, y1, x2, y2 = candidate["bounds"]
+            center = ((x1 + x2) // 2, (y1 + y2) // 2)
+            audit.update({
+                "snapped": True,
+                "selected_node": candidate,
+                "semantic_score": _target_semantic_score(target_element, candidate),
+                "intersection_ratio": round(_intersection_ratio(
+                    converted_bounds or [x, y, x, y], candidate["bounds"]
+                ), 4),
+                "center_distance": round(
+                    ((center[0] - x) ** 2 + (center[1] - y) ** 2) ** 0.5, 2
+                ),
+                "alignment_basis": "semantic_text_entry_recovery",
+                "semantic_text_entry_recovery": {
+                    "direct_hits": direct_text_entry_nodes,
+                    "selected_input": candidate,
+                    "reason": "unique strong semantic input outranks unrelated direct input hit",
+                },
+            })
+            return center, audit
+
         # A direct hit on exactly one editable node is the strongest evidence.
         # A direct hit on a generic parent must not short-circuit this check.
         if len(direct_text_entry_nodes) == 1:
@@ -3084,6 +3163,10 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
 
             if bbox is None:
                 raise ValueError("Grounder response validation failed: no bbox field found")
+            # Validation normally canonicalizes this field.  Repeat the
+            # boundary conversion here because callers/tests may provide a
+            # validated response object from another adapter implementation.
+            bbox = _canonicalize_grounder_bbox(bbox, "Grounder bbox")
 
             if use_qwen3:
                 bbox = convert_qwen3_coordinates_to_absolute(
@@ -3176,10 +3259,10 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
         position_x = (x1 + x2) // 2
         position_y = (y1 + y2) // 2
         raw_click_point = [position_x, position_y]
-        # The Decider/Grounder point remains authoritative. Hierarchy is used
-        # only for generic geometric alignment and evidence; a
-        # screenshot-specific FAB/add-button resolver must not redirect a
-        # model decision to a control selected by a special case.
+        # The Decider/Grounder point remains authoritative. Hierarchy and the
+        # screenshot are used only for generic, auditable alignment evidence;
+        # the visual FAB resolver is enabled only for an explicit create/add
+        # target and a unique compact red clickable node.
         (position_x, position_y), xml_hit_test = align_click_to_xml_node(
             (position_x, position_y), [x1, y1, x2, y2], target_element,
             hierarchy, target_width, target_height, action_type="click",
@@ -3187,10 +3270,31 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
         if xml_hit_test.get("snapped"):
             logging.info("XML-aligned click point %s -> (%s, %s), node=%s", raw_click_point, position_x, position_y, xml_hit_test.get("selected_node"))
         if _alignment_rejection_blocks_click(xml_hit_test):
-            reason = str(xml_hit_test.get("rejection_reason") or "unknown")
-            raise ValueError(
-                f"target alignment rejected before dispatch: {reason}"
+            visual_fab = find_visual_floating_action_button(
+                target_element, hierarchy, img, target_width, target_height
             )
+            if visual_fab and visual_fab.get("candidate_count") == 1:
+                selected_node = visual_fab["selected_node"]
+                position_x, position_y = visual_fab["click_point"]
+                xml_hit_test.update({
+                    "snapped": True,
+                    "selected_node": selected_node,
+                    "alignment_basis": "visual_floating_action_button_recovery",
+                    "visual_floating_action_button_recovery": visual_fab,
+                })
+                xml_hit_test.pop("rejection_reason", None)
+                logging.info(
+                    "Visual FAB alignment recovered click point %s -> (%s, %s), node=%s",
+                    raw_click_point, position_x, position_y, selected_node,
+                )
+            else:
+                if visual_fab and visual_fab.get("rejection_reason"):
+                    xml_hit_test["visual_floating_action_button_audit"] = visual_fab
+                    xml_hit_test["rejection_reason"] = visual_fab["rejection_reason"]
+                reason = str(xml_hit_test.get("rejection_reason") or "unknown")
+                raise ValueError(
+                    f"target alignment rejected before dispatch: {reason}"
+                )
         _clear_input_focus(device)
         device.click(position_x, position_y)
         append_action_and_history(actions, history, decider_response, {
