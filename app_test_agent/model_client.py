@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 import requests
@@ -43,9 +44,14 @@ def model_config_from_env(
     model_names: Iterable[str],
     api_key_names: Iterable[str] = ("MOBIAGENT_API_KEY",),
 ) -> ModelConfig:
+    base_url_names = tuple(base_url_names)
+    model_names = tuple(model_names)
+    api_key_names = tuple(api_key_names)
     base_url_name, base_url = _first_env(base_url_names)
     model_name, model = _first_env(model_names)
     api_key_name, api_key = _first_env(api_key_names)
+    if not api_key and "MOBIAGENT_API_KEY" in api_key_names:
+        api_key_name, api_key = _api_key_from_file()
     missing = [
         label
         for label, value in (
@@ -255,6 +261,19 @@ def _first_env(names: Iterable[str]) -> tuple[str | None, str | None]:
         if value:
             return name, value
     return None, None
+
+
+def _api_key_from_file() -> tuple[str | None, str | None]:
+    key_file = os.getenv("MOBIAGENT_API_KEY_FILE", "").strip()
+    if not key_file:
+        return None, None
+    try:
+        value = Path(key_file).expanduser().read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise ModelConfigError("MOBIAGENT_API_KEY_FILE is unreadable") from exc
+    if not value:
+        raise ModelConfigError("MOBIAGENT_API_KEY_FILE is empty")
+    return "MOBIAGENT_API_KEY_FILE", value
 
 
 def _looks_like_placeholder(value: str | None) -> bool:

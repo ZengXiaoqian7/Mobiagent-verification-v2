@@ -5,7 +5,7 @@
 阶段 A–E 已完成，当前代码已经实现本文第 5 节的目标架构；第 3、4
 节保留问题演进背景，但以本节和代码/测试为准。当前离线验收为：
 
-- 全量测试 `210 passed`；
+- 全量测试 `211 passed`；
 - 六条冻结真实 trace `6/6`，exact accuracy `1.0`；
 - false pass、false fail、attribution error 均为 `0`；
 - 默认生产路径不注入 locator，离线集成测试完整经过原始 MobiAgent
@@ -173,7 +173,7 @@ Mock 只证明控制流和归因规则，不证明真实设备、模型定位或
 
 - App-test 单元/集成测试覆盖协议、Mock、默认原 Decider/Grounder、执行
   符合性、Step Gate、App verifier、报告、冻结 prompt 和 Verification Runner。
-- 当前全量为 `210 passed`；受保护真实 trace 为 `6/6`，exact accuracy
+- 当前全量为 `211 passed`；受保护真实 trace 为 `6/6`，exact accuracy
   `1.0`，无 false pass、false fail 或归因错误。
 <!-- - 已有小红书测试样例和真实设备探索记录，但不能视为可靠的端到端成功证明。 -->
 

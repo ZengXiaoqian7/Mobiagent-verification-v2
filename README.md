@@ -57,8 +57,8 @@ $env:MOBIAGENT_MODEL = "<your-vision-model>"
 App Verifier/Verification Runner 共用以下显式配置：
 
 ```powershell
-# 密钥只放在当前会话，或改用仓库外的 MOBIAGENT_API_KEY_FILE。
-$env:MOBIAGENT_API_KEY = "<your-api-key>"
+# 推荐把单行密钥放在仓库外，并只把文件路径放进当前会话。
+$env:MOBIAGENT_API_KEY_FILE = "C:\secure\horizon-api-key.txt"
 $env:MOBIAGENT_BASE_URL = "https://api.horizon1123.top"
 $env:MOBIAGENT_MODEL = "gpt-5.5"
 $env:MOBIAGENT_WIRE_API = "responses"
@@ -237,4 +237,4 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`PLAN.md`、`APP_TEST_AGENT_README.md` 与 `docs/STAGE4_MOBIAGENT_PREFLIGHT.md` 作为当前架构说明一并维护，其余 `docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件不进入发布分支。
 
-当前离线验收基线（2026-08-31）：`210 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。
+当前离线验收基线（2026-08-31）：`211 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。
