@@ -1,0 +1,55 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "xiaohongshu-readonly-search-001",
+  "app_under_test": {
+    "name": "小红书",
+    "package": "com.xingin.xhs_hos"
+  },
+  "feature": "open_readonly_search_surface",
+  "steps": [
+    {
+      "step_id": "open_xiaohongshu",
+      "instruction": "打开小红书并等待首页稳定，不点击任何内容卡片。",
+      "action_type": "OPEN_APP",
+      "target": {
+        "role": "application",
+        "label": "小红书",
+        "text_candidates": []
+      },
+      "timeout_seconds": 30,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_search",
+      "instruction": "点击页面顶部的搜索图标，进入搜索界面；不要输入搜索词。",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "label": "搜索",
+        "text_candidates": [
+          "搜索"
+        ]
+      },
+      "timeout_seconds": 30,
+      "max_retries": 0
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "search-surface-visible",
+      "type": "TEXT_VISIBLE",
+      "expected_value": "搜索",
+      "after_step": "open_search",
+      "required": true,
+      "historical_match_not_sufficient": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "LOW",
+  "metadata": {
+    "readonly": true,
+    "no_business_write": true,
+    "no_text_input": true,
+    "semantic_locator_only": true
+  }
+}

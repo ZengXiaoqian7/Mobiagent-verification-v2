@@ -209,6 +209,7 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 | `qq_send_hello_zhexi_app_test.json` | 发送 QQ 消息 |
 | `xiaohongshu_*.json` | 小红书发帖、聊天与只读场景 |
 | `harmony_probe_capability_app_test.json` | HarmonyOS 设备能力探测 |
+| `xiaohongshu_readonly_search_app_test.json` | 小红书只读搜索入口与无文字控件定位试点 |
 | `minimal_user_view_app_test.json` | 最小只读用例 |
 
 新增用例时，至少定义：`test_case_id`、必要的初始状态、用户能够描述的按序 `steps`，以及最终可观察的 `expected_results`。测试作者不必提供坐标、控件 ID、逐步 `expected_after` 或 Verification Runner 路线；这些只能作为运行时内部证据。对有副作用的操作，应使用唯一测试文本，并把最终断言绑定到发布后的界面证据。
@@ -241,4 +242,4 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`PLAN.md`、`APP_TEST_AGENT_README.md` 与 `docs/STAGE4_MOBIAGENT_PREFLIGHT.md` 作为当前架构说明一并维护，其余 `docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件不进入发布分支。
 
-当前离线验收基线（2026-08-31）：`215 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。
+当前离线验收基线（2026-08-31）：`218 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。

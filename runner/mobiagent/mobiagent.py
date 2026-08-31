@@ -1679,9 +1679,26 @@ def validate_grounder_response(response_dict):
     Raises:
         ValueError: 校验失败时抛出异常
     """
+    # OpenAI-compatible vision models commonly return semantically equivalent
+    # named bbox fields. Canonicalize them before validation so a correct
+    # localization does not spend additional provider attempts on formatting.
+    bbox_aliases = (
+        ("x1", "y1", "x2", "y2"),
+        ("left", "top", "right", "bottom"),
+    )
+    if not any(
+        key.lower() in ["bbox", "bbox_2d", "bbox-2d", "bbox2d"]
+        for key in response_dict.keys()
+    ):
+        lowered = {str(key).lower(): value for key, value in response_dict.items()}
+        for aliases in bbox_aliases:
+            if all(name in lowered for name in aliases):
+                response_dict["bbox"] = [lowered[name] for name in aliases]
+                break
+
     # Grounder需要至少返回coordinates或bbox
     if "coordinates" not in response_dict and not any(
-        key.lower() in ["bbox", "bbox_2d", "bbox-2d", "bbox_2D", "bbox2d"]
+        key.lower() in ["bbox", "bbox_2d", "bbox-2d", "bbox2d"]
         for key in response_dict.keys()
     ):
         raise ValueError("Grounder response must contain 'coordinates' or 'bbox' field")
@@ -3387,6 +3404,9 @@ def execute_single_task(task_description, device, data_dir, use_experience, use_
 
 # for testing purposes
 if __name__ == "__main__":
+    from console_compat import configure_utf8_console
+
+    configure_utf8_console()
     # 解析命令行参数
     parser = argparse.ArgumentParser(description="MobiMind Agent")
     parser.add_argument("--service_ip", type=str, default="localhost", help="Ip for the services (default: localhost)")

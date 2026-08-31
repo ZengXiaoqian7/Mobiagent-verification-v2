@@ -173,6 +173,6 @@ Stage 4 is accepted when:
 - real commercial-App writes, sends, posts, and payments remain manual,
   user-triggered acceptance work.
 
-Offline baseline on 2026-08-31: `215 passed`; six protected real traces are
+Offline baseline on 2026-08-31: `218 passed`; six protected real traces are
 `6/6`, exact accuracy is `1.0`, and false pass, false fail, and attribution error
 counts are zero.

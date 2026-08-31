@@ -3343,6 +3343,26 @@ def test_runner_reads_openai_api_key_from_json_file(monkeypatch, tmp_path):
     assert runner_mobiagent._configured_api_key() == "json-only-key"
 
 
+def test_grounder_accepts_xyxy_bbox_aliases():
+    from runner.mobiagent import mobiagent as runner_mobiagent
+
+    payload = {"x1": 10, "y1": 20, "x2": 30, "y2": 40}
+
+    runner_mobiagent.validate_grounder_response(payload)
+
+    assert payload["bbox"] == [10, 20, 30, 40]
+
+
+def test_grounder_accepts_edge_named_bbox_aliases():
+    from runner.mobiagent import mobiagent as runner_mobiagent
+
+    payload = {"left": 11, "top": 21, "right": 31, "bottom": 41}
+
+    runner_mobiagent.validate_grounder_response(payload)
+
+    assert payload["bbox"] == [11, 21, 31, 41]
+
+
 def test_stage7_remote_model_endpoint_uses_raw_http_transport_by_default(monkeypatch):
     from app_test_agent.mobiagent_executor import _import_original_mobiagent
 

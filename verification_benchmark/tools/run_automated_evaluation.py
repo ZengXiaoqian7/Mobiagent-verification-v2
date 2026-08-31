@@ -33,6 +33,7 @@ from app_test_agent.mock_executor import MOCK_SCENARIOS, MockStepExecutor, Scrip
 from app_test_agent.orchestrator import run_app_test
 from app_test_agent.schema import TestCaseError, load_test_case
 from app_test_agent.verification_runner import MobiAgentVerificationRunner
+from console_compat import configure_utf8_console
 from verification_benchmark.evaluation_framework.app_test_manifest_intake import (
     load_app_test_manifest_evidence,
 )
@@ -152,6 +153,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    configure_utf8_console()
     args = _parser().parse_args(argv)
     if args.app_test_case is not None:
         if args.case or args.plan is not None:
