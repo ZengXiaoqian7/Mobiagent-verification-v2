@@ -7,6 +7,7 @@ param(
     [ValidateSet("", "android", "harmony")]
     [string]$DeviceProfile = "",
     [string]$DeviceSerial = "",
+    [switch]$ProbeModelService,
     [switch]$SkipRealReplay,
     [switch]$SkipBuild
 )
@@ -196,6 +197,18 @@ if ($DeviceProfile) {
     }
 }
 
+$ModelServiceProbe = $null
+if ($ProbeModelService) {
+    $ModelProbePath = Join-Path $OutputRoot "model_service_probe.json"
+    Invoke-NativeStep "Sanitized model-service probe (no device interaction)" {
+        python -m verification_benchmark.tools.probe_model_service --output-json $ModelProbePath
+    }
+    $ModelServiceProbe = Read-JsonFile $ModelProbePath "model-service probe"
+    if ($ModelServiceProbe.status -ne "PASS" -or $ModelServiceProbe.device_interaction -ne "NONE") {
+        throw "model-service probe did not report a safe PASS"
+    }
+}
+
 $ReplaySummary = $null
 if (-not $SkipRealReplay) {
     if (-not $RealTraceAssetRoot) {
@@ -273,7 +286,8 @@ $Summary = [ordered]@{
     acceptance_level = $AcceptanceLevel.ToUpperInvariant()
     formal_readiness = if ($IsFormal) { "PASS" } else { "NOT_REQUESTED" }
     live_commercial_acceptance = if ($IsFormal) { "PENDING_USER_TRIGGERED_PILOT" } else { "NOT_REQUESTED" }
-    model_service_probe = "NOT_RUN"
+    model_service_probe = if ($null -eq $ModelServiceProbe) { "NOT_RUN" } else { "PASS" }
+    model_service_probe_result = $ModelServiceProbe
     device_interaction = "CONNECTIVITY_CHECK_ONLY"
     regression_suite = "PASS"
     source_mock = $SourceSmoke.overall_result

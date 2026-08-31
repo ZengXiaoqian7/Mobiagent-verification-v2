@@ -3332,6 +3332,17 @@ def test_stage7_remote_runner_requires_explicit_key_before_device_mutation(tmp_p
     assert runner_mobiagent._configured_api_key() == "test-only-key"
 
 
+def test_runner_reads_openai_api_key_from_json_file(monkeypatch, tmp_path):
+    from runner.mobiagent import mobiagent as runner_mobiagent
+
+    key_file = tmp_path / "model.json"
+    key_file.write_text('{"OPENAI_API_KEY": "json-only-key"}\n', encoding="utf-8")
+    monkeypatch.delenv("MOBIAGENT_API_KEY", raising=False)
+    monkeypatch.setenv("MOBIAGENT_API_KEY_FILE", str(key_file))
+
+    assert runner_mobiagent._configured_api_key() == "json-only-key"
+
+
 def test_stage7_remote_model_endpoint_uses_raw_http_transport_by_default(monkeypatch):
     from app_test_agent.mobiagent_executor import _import_original_mobiagent
 

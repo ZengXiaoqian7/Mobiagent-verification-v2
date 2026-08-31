@@ -764,12 +764,34 @@ def _configured_api_key():
     if not key_file:
         return ""
     try:
-        value = Path(key_file).expanduser().read_text(encoding="utf-8").strip()
+        text = Path(key_file).expanduser().read_text(encoding="utf-8-sig")
     except OSError as exc:
         raise RuntimeError("MOBIAGENT_API_KEY_FILE is unreadable") from exc
+    value = _credential_value_from_file_text(text)
     if not value:
         raise RuntimeError("MOBIAGENT_API_KEY_FILE is empty")
     return value
+
+
+def _credential_value_from_file_text(text):
+    """Read either a bare key or a small JSON credential object."""
+
+    value = text.strip()
+    if not value.startswith("{"):
+        return value
+    try:
+        payload = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("MOBIAGENT_API_KEY_FILE contains invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("MOBIAGENT_API_KEY_FILE JSON must be an object")
+    for name in ("MOBIAGENT_API_KEY", "OPENAI_API_KEY", "api_key"):
+        candidate = payload.get(name)
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    raise RuntimeError(
+        "MOBIAGENT_API_KEY_FILE JSON must contain MOBIAGENT_API_KEY, OPENAI_API_KEY, or api_key"
+    )
 
 
 def validate_model_service_environment():

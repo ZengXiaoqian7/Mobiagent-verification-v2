@@ -50,7 +50,9 @@ def test_formal_acceptance_script_has_strict_release_gates():
     assert "false_fail_count -ne 0" in acceptance_script
     assert "packaged device environment" in acceptance_script
     assert "PENDING_USER_TRIGGERED_PILOT" in acceptance_script
-    assert 'model_service_probe = "NOT_RUN"' in acceptance_script
+    assert "[switch]$ProbeModelService" in acceptance_script
+    assert "verification_benchmark.tools.probe_model_service" in acceptance_script
+    assert 'model_service_probe = if ($null -eq $ModelServiceProbe) { "NOT_RUN" } else { "PASS" }' in acceptance_script
     assert 'device_interaction = "CONNECTIVITY_CHECK_ONLY"' in acceptance_script
 
 

@@ -57,12 +57,13 @@ $env:MOBIAGENT_MODEL = "<your-vision-model>"
 App Verifier/Verification Runner 共用以下显式配置：
 
 ```powershell
-# 推荐把单行密钥放在仓库外，并只把文件路径放进当前会话。
-$env:MOBIAGENT_API_KEY_FILE = "C:\secure\horizon-api-key.txt"
+# 密钥文件可为单行裸密钥，或包含 OPENAI_API_KEY 的 JSON 对象。
+# 推荐放在仓库外；仓库根目录的 /api-key 也已被 Git 精确忽略。
+$env:MOBIAGENT_API_KEY_FILE = "D:\Lab\MobiAgent-verifier-enhanced\api-key"
 $env:MOBIAGENT_BASE_URL = "https://api.horizon1123.top"
-$env:MOBIAGENT_MODEL = "gpt-5.5"
+$env:MOBIAGENT_MODEL = "gpt-5.4"
 $env:MOBIAGENT_WIRE_API = "responses"
-$env:MOBIAGENT_REASONING_EFFORT = "xhigh"
+$env:MOBIAGENT_REASONING_EFFORT = "high"
 $env:MOBIAGENT_DISABLE_RESPONSE_STORAGE = "true"
 ```
 
@@ -109,16 +110,19 @@ python -m pip install -r requirements-package.txt
 .\verify_pc_release.ps1 `
   -AcceptanceLevel Formal `
   -DeviceProfile harmony `
-  -DeviceSerial "<hdc-device-serial>"
+  -DeviceSerial "<hdc-device-serial>" `
+  -ProbeModelService
 ```
 
 `Formal` 禁止 `-SkipRealReplay` 和 `-SkipBuild`，要求显式设备序列号、完整真实
 trace、源码目标 profile READY，并在构建后从冻结 EXE 内再次检查同一 profile。
 它只证明正式真机试点的代码、依赖、设备和打包物已经就绪；摘要会明确写入
 `live_commercial_acceptance=PENDING_USER_TRIGGERED_PILOT`，不会把未执行的商业
-App 测试冒充最终验收。该门禁不调用模型、也不操作设备，摘要分别记录
-`model_service_probe=NOT_RUN` 和 `device_interaction=CONNECTIVITY_CHECK_ONLY`；模型
-服务连通性在用户触发真机试点前单独验证。临时验证可通过 `-OutputRoot <path>` 与正式报告隔离。
+App 测试冒充最终验收。该门禁始终不操作设备；只有显式传入
+`-ProbeModelService` 才发出一次最小纯文本模型请求，否则摘要记录
+`model_service_probe=NOT_RUN`。探测报告不保存密钥或模型原文，只保留配置、
+耗时、字符数和响应哈希；摘要仍记录
+`device_interaction=CONNECTIVITY_CHECK_ONLY`。临时验证可通过 `-OutputRoot <path>` 与正式报告隔离。
 GitHub Actions 仍运行可复现的 Offline 档，并明确跳过受保护 trace。
 
 源码或冻结客户端都可通过以下无设备操作入口输出机器可读依赖报告：
@@ -237,4 +241,4 @@ python -m verification_benchmark.tools.run_automated_evaluation `
 
 密钥只通过环境变量或本机受保护的密钥文件提供。根目录 `tests/` 仅包含合成、可公开的回归测试并随源码发布；`PLAN.md`、`APP_TEST_AGENT_README.md` 与 `docs/STAGE4_MOBIAGENT_PREFLIGHT.md` 作为当前架构说明一并维护，其余 `docs/`、嵌套第三方测试目录、运行产物、设备截图、构建缓存和密钥文件不进入发布分支。
 
-当前离线验收基线（2026-08-31）：`211 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。
+当前离线验收基线（2026-08-31）：`215 passed`；六条冻结真实 trace 为 `6/6`，exact accuracy `1.0`，false pass、false fail 和 attribution error 均为 `0`。这些结果不替代真实设备试点；商业 App 的写入、发送、发布或支付流程只能由用户在明确选择的测试账号和设备上触发。

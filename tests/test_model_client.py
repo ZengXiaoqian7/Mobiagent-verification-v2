@@ -145,3 +145,19 @@ def test_model_config_can_read_api_key_from_explicit_external_file(monkeypatch, 
     )
 
     assert config.api_key == "file-only-secret"
+
+
+def test_model_config_can_read_openai_api_key_from_json_file(monkeypatch, tmp_path):
+    key_file = tmp_path / "model.json"
+    key_file.write_text('{"OPENAI_API_KEY": "json-only-secret"}\n', encoding="utf-8")
+    monkeypatch.setenv("MOBIAGENT_BASE_URL", "https://api.example.test")
+    monkeypatch.setenv("MOBIAGENT_MODEL", "gpt-5.4")
+    monkeypatch.delenv("MOBIAGENT_API_KEY", raising=False)
+    monkeypatch.setenv("MOBIAGENT_API_KEY_FILE", str(key_file))
+
+    config = model_client.model_config_from_env(
+        base_url_names=("MOBIAGENT_BASE_URL",),
+        model_names=("MOBIAGENT_MODEL",),
+    )
+
+    assert config.api_key == "json-only-secret"

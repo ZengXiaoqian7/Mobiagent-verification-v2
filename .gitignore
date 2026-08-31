@@ -108,3 +108,6 @@ output.txt
 /MobiAgentVerifierPC.spec
 /output_pc_client/
 /output_pc_acceptance/
+
+# Local model credential; never commit.
+/api-key
