@@ -2003,6 +2003,124 @@ def test_stage7_runner_alignment_uses_descendant_text_for_clickable_container():
     assert audit["selected_node"]["bounds"] == [706, 2251, 806, 2326]
 
 
+def test_stage7_runner_alignment_recovers_specific_button_from_inherited_parent_hit():
+    """A broad semantic parent must not keep a model click on its top edge."""
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner = _import_original_mobiagent()
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "android.view.ViewGroup",
+                    "id": "DC_NavBar_Right",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "visible": "true",
+                    "bounds": "[868,122][1030,259]",
+                },
+                "children": [
+                    {
+                        "attributes": {
+                            "type": "android.view.ViewGroup",
+                            "id": "DC_Button",
+                            "clickable": "true",
+                            "enabled": "true",
+                            "visible": "true",
+                            "bounds": "[868,146][1030,234]",
+                        },
+                        "children": [
+                            {
+                                "attributes": {
+                                    "type": "android.widget.TextView",
+                                    "text": "发布",
+                                    "enabled": "true",
+                                    "visible": "true",
+                                    "bounds": "[905,165][993,215]",
+                                }
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    point, audit = runner.align_click_to_xml_node(
+        (949, 128),
+        [866, 72, 1032, 184],
+        "顶部右上角红色“发布”按钮",
+        hierarchy,
+        1080,
+        2444,
+        action_type="click",
+    )
+    assert point == (949, 190)
+    assert audit["snapped"] is True
+    assert audit["alignment_basis"] == "semantic_descendant_recovery"
+    assert audit["selected_node"]["bounds"] == [868, 146, 1030, 234]
+    assert audit["direct_hits"][0]["bounds"] == [868, 122, 1030, 259]
+
+
+def test_stage7_runner_alignment_rejects_ambiguous_semantic_descendant_hits():
+    from app_test_agent.mobiagent_executor import _import_original_mobiagent
+
+    runner = _import_original_mobiagent()
+    children = []
+    for left in (700, 900):
+        children.append(
+            {
+                "attributes": {
+                    "type": "android.view.ViewGroup",
+                    "id": "DC_Button",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "visible": "true",
+                    "bounds": f"[{left},146][{left + 150},234]",
+                },
+                "children": [
+                    {
+                        "attributes": {
+                            "type": "android.widget.TextView",
+                            "text": "发布",
+                            "enabled": "true",
+                            "visible": "true",
+                            "bounds": f"[{left + 30},165][{left + 120},215]",
+                        }
+                    }
+                ],
+            }
+        )
+    hierarchy = {
+        "attributes": {},
+        "children": [
+            {
+                "attributes": {
+                    "type": "android.view.ViewGroup",
+                    "id": "DC_NavBar_Right",
+                    "clickable": "true",
+                    "enabled": "true",
+                    "visible": "true",
+                    "bounds": "[650,122][1080,259]",
+                },
+                "children": children,
+            }
+        ],
+    }
+    point, audit = runner.align_click_to_xml_node(
+        (675, 128),
+        [650, 72, 1080, 184],
+        "顶部右上角红色“发布”按钮",
+        hierarchy,
+        1080,
+        2444,
+        action_type="click",
+    )
+    assert point == (675, 128)
+    assert audit["rejection_reason"] == "ambiguous_semantic_descendant_candidates"
+    assert runner._alignment_rejection_blocks_click(audit) is True
+
+
 def test_stage7_runner_alignment_accepts_unlabeled_compact_clickable_control_from_geometry():
     """A generic compact control needs no app- or icon-specific recognizer."""
     from app_test_agent.mobiagent_executor import _import_original_mobiagent

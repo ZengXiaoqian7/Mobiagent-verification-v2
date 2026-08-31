@@ -2670,6 +2670,37 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
     }
     semantic_nodes_exist = any(_target_semantic_score(target_element, node) > 0 for node in nodes)
     direct_semantic_hit = any(_target_semantic_score(target_element, node) > 0 for node in direct_hits)
+    # A clickable ancestor may inherit the target label from a descendant in
+    # its semantic context.  That proves the control family, but it does not
+    # identify the safest point inside the control.  Let the candidate
+    # ranking below prefer a smaller semantic descendant in this case.
+    direct_own_semantic_hit = any(
+        any(
+            label
+            and label in _normalized_text(target_element)
+            for label in _node_semantic_parts(node)[:3]
+        )
+        for node in direct_hits
+    )
+    inherited_direct_semantic_hit = direct_semantic_hit and not direct_own_semantic_hit
+    model_bounds = converted_bounds or [x, y, x, y]
+    specific_semantic_candidate_available = any(
+        node not in direct_hits
+        and _target_semantic_score(target_element, node) > 0
+        and _point_in_bounds(
+            (node["bounds"][0] + node["bounds"][2]) // 2,
+            (node["bounds"][1] + node["bounds"][3]) // 2,
+            direct["bounds"],
+        )
+        and (
+            (node["bounds"][2] - node["bounds"][0])
+            * (node["bounds"][3] - node["bounds"][1])
+            < (direct["bounds"][2] - direct["bounds"][0])
+            * (direct["bounds"][3] - direct["bounds"][1])
+        )
+        for node in nodes
+        for direct in direct_hits
+    )
     input_role_nodes = [node for node in nodes if _node_is_text_entry(node)]
     direct_text_entry_nodes = [node for node in direct_hits if _node_is_text_entry(node)]
     audit["input_role_candidate_count"] = len(input_role_nodes)
@@ -2725,8 +2756,14 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
 
     direct_compact_control_hit = any(_node_is_compact_clickable_control(node) for node in direct_hits)
     if direct_hits and not wants_text_entry and (
-        direct_semantic_hit
-        or direct_compact_control_hit
+        (
+            direct_semantic_hit
+            and not (inherited_direct_semantic_hit and specific_semantic_candidate_available)
+        )
+        or (
+            direct_compact_control_hit
+            and not (inherited_direct_semantic_hit and specific_semantic_candidate_available)
+        )
         # A raw click within a large unlabeled card is not enough evidence for
         # a requested icon/FAB: a compact control may overlap its edge.  Let
         # the candidate ranking below inspect that control instead of treating
@@ -2736,7 +2773,6 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
         audit["alignment_basis"] = "direct_supported_hit"
         return (x, y), audit
 
-    model_bounds = converted_bounds or [x, y, x, y]
     candidates = []
     for node in nodes:
         x1, y1, x2, y2 = node["bounds"]
@@ -2755,13 +2791,66 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
 
     audit["candidate_count"] = len(candidates)
     if not candidates:
-        audit["rejection_reason"] = "no_candidate"
+        audit["rejection_reason"] = (
+            "semantic_descendant_candidate_missing"
+            if inherited_direct_semantic_hit
+            else "no_candidate"
+        )
         return (x, y), audit
+
+    semantic_descendant_candidates = []
+    if inherited_direct_semantic_hit:
+        for candidate in candidates:
+            candidate_node = candidate[5]
+            if candidate_node in direct_hits or candidate[1] < 4:
+                continue
+            candidate_bounds = candidate_node["bounds"]
+            candidate_center = (
+                (candidate_bounds[0] + candidate_bounds[2]) // 2,
+                (candidate_bounds[1] + candidate_bounds[3]) // 2,
+            )
+            candidate_area = candidate[2]
+            contained_by_direct = any(
+                _point_in_bounds(candidate_center[0], candidate_center[1], direct["bounds"])
+                and candidate_area
+                < max(
+                    1,
+                    (direct["bounds"][2] - direct["bounds"][0])
+                    * (direct["bounds"][3] - direct["bounds"][1]),
+                )
+                for direct in direct_hits
+            )
+            if contained_by_direct:
+                semantic_descendant_candidates.append(candidate)
+        audit["semantic_descendant_candidate_count"] = len(semantic_descendant_candidates)
+        if semantic_descendant_candidates:
+            strongest_semantic = max(item[1] for item in semantic_descendant_candidates)
+            strongest_candidates = [
+                item
+                for item in semantic_descendant_candidates
+                if item[1] == strongest_semantic
+            ]
+            if len(strongest_candidates) != 1:
+                audit["rejection_reason"] = "ambiguous_semantic_descendant_candidates"
+                audit["semantic_descendant_candidates"] = [
+                    item[5] for item in strongest_candidates
+                ]
+                return (x, y), audit
+            semantic_descendant_candidate = strongest_candidates[0]
+            audit["semantic_descendant_candidates"] = [
+                item[5] for item in semantic_descendant_candidates
+            ]
+        else:
+            audit["rejection_reason"] = "semantic_descendant_candidate_missing"
+            return (x, y), audit
+    else:
+        semantic_descendant_candidate = None
     # When a clickable parent inherits the same descendant label as its
     # clickable child, prefer the smaller node because it is the more
     # specific interaction target. Semantic agreement remains primary.
     candidates.sort(key=lambda item: (item[1], -item[2], item[0]), reverse=True)
-    _, semantic, _, overlap, distance, node, center_x, center_y = candidates[0]
+    selected_candidate = semantic_descendant_candidate or candidates[0]
+    _, semantic, _, overlap, distance, node, center_x, center_y = selected_candidate
     node_center_in_model_bounds = _point_in_bounds(center_x, center_y, model_bounds)
     accepted, reason = _alignment_acceptance_reason(
         target_element,
@@ -2783,6 +2872,12 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
         })
         return (x, y), audit
 
+    # If the raw point hit a broad clickable ancestor whose semantic match was
+    # inherited from a descendant, record and use the more specific candidate.
+    # The containment and smaller-area checks keep this generic and prevent a
+    # nearby unrelated control from hijacking the model decision.
+    semantic_descendant_recovery = semantic_descendant_candidate is not None
+
     audit.update({
         "snapped": True,
         "selected_node": node,
@@ -2790,8 +2885,18 @@ def align_click_to_xml_node(raw_point, converted_bounds, target_element, hierarc
         "intersection_ratio": round(overlap, 4),
         "center_distance": round(distance, 2),
         "candidate_center_in_model_bounds": node_center_in_model_bounds,
-        "alignment_basis": reason,
+        "alignment_basis": (
+            "semantic_descendant_recovery"
+            if semantic_descendant_recovery
+            else reason
+        ),
     })
+    if semantic_descendant_recovery:
+        audit["semantic_descendant_recovery"] = {
+            "direct_ancestor_hits": direct_hits,
+            "selected_descendant": node,
+            "reason": "unique smaller semantic candidate contained by direct ancestor",
+        }
     return (center_x, center_y), audit
 
 
@@ -2811,6 +2916,11 @@ def _alignment_rejection_blocks_click(audit):
         return True
     if rejection_reason == "no_candidate":
         return bool(audit.get("target_wants_text_entry"))
+    if rejection_reason in {
+        "ambiguous_semantic_descendant_candidates",
+        "semantic_descendant_candidate_missing",
+    }:
+        return True
     return rejection_reason in {
         "wrong_target",
         "outside_target",
