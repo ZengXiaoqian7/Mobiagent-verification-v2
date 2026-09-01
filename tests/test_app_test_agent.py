@@ -3997,6 +3997,18 @@ def test_grounder_canonicalizes_nested_xywh_bbox_and_runner_dispatches_it(tmp_pa
     )
 
 
+def test_grounder_canonicalizes_named_xyxy_values_before_coordinate_arithmetic():
+    from runner.mobiagent import mobiagent as runner_mobiagent
+
+    payload = {
+        "bbox_2d": {"x1": "432", "y1": "34", "x2": "519", "y2": "90"}
+    }
+
+    runner_mobiagent.validate_grounder_response(payload)
+
+    assert payload["bbox"] == [432, 34, 519, 90]
+
+
 def test_goal_micro_action_allowlist_excludes_input_for_readonly_navigation():
     from app_test_agent.step_intent import compile_step_execution_intent
 

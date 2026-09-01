@@ -1420,9 +1420,15 @@ def _canonicalize_grounder_bbox(value, field_name="bbox"):
     if isinstance(value, dict):
         lowered = {str(key).casefold(): item for key, item in value.items()}
         if all(name in lowered for name in ("x1", "y1", "x2", "y2")):
-            return [lowered[name] for name in ("x1", "y1", "x2", "y2")]
+            return _normalize_bbox(
+                [lowered[name] for name in ("x1", "y1", "x2", "y2")],
+                field_name,
+            )
         if all(name in lowered for name in ("left", "top", "right", "bottom")):
-            return [lowered[name] for name in ("left", "top", "right", "bottom")]
+            return _normalize_bbox(
+                [lowered[name] for name in ("left", "top", "right", "bottom")],
+                field_name,
+            )
         if all(name in lowered for name in ("x", "y", "width", "height")):
             try:
                 x = float(lowered["x"])
