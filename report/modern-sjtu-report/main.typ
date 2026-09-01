@@ -228,7 +228,7 @@ HarmonyDevice.input 在无法安全确认时可能抛出异常，而异常有可
 
 最终结果为 APP_PASS，执行状态为 COMPLETED，归因为 APP_BEHAVIOR。trace 顶层有 5 个动作记录：open_app、click、gui_task、click_input 和 click。输入动作只有一次实际派发；发送步骤虽然包含两次模型尝试，但只有一次实际发送点击，没有重复输入或重复发送。最终截图显示新出现的蓝色消息气泡，编辑器恢复为空状态。
 
-本次 trace 的主要审计文件为：D:/Lab/xhs_chat_qingwen_20260831_live_final_after_fix/report.json、D:/Lab/xhs_chat_qingwen_20260831_live_final_after_fix/mobiagent_step_trace/actions.json，以及 D:/Lab/xhs_chat_qingwen_20260831_live_final_after_fix/mobiagent_step_trace/28.jpg。
+本次 trace 的主要审计文件已归档至：D:/Lab/mobiagent_archive/real_traces/successful_20260901/xhs_chat_qingwen_20260831_live_final_after_fix/report.json、D:/Lab/mobiagent_archive/real_traces/successful_20260901/xhs_chat_qingwen_20260831_live_final_after_fix/mobiagent_step_trace/actions.json，以及其中的最终截图。
 
 七月成功 trace 也验证了相同的用户路径：5 个动作，输入点击 [465,2264]，RichEditor bounds 为 [175,2220,756,2308]，输入后出现发送按钮，发送点击 [949,1344]，随后出现带“刚刚”的新消息气泡。两次运行的共同点是输入、发送和发送后观察都得到独立证据。
 
@@ -252,7 +252,7 @@ HarmonyDevice.input 在无法安全确认时可能抛出异常，而异常有可
 
 这次测试前几轮没有直接成功。第一轮发布步骤中，Grounder 返回了合法的命名 XYWH 框，但执行器没有把对象框转换成统一的 XYXY，导致坐标运算抛出 TypeError，发布动作没有派发。修复后又遇到设备保留“我的-笔记”选中状态的问题，Step Gate 拒绝了模型在“打开笔记”步骤返回的 done，并要求恢复安全前态。重新运行后，模型完成了 7 个步骤，发布后的观察帧同时出现标题 TEST 和正文评测智能体。
 
-最终结果为 APP_PASS，执行状态为 COMPLETED，归因为 APP_BEHAVIOR。两个最终断言均为 SATISFIED，直接应用证据已经充分，因此没有启动 Verification Runner。主要证据位于 D:/Lab/cloudmusic_create_note_real_run_20260831_retest_fixed7/report.md 和 D:/Lab/cloudmusic_create_note_real_run_20260831_retest_fixed7/mobiagent_step_trace/actions.json。
+最终结果为 APP_PASS，执行状态为 COMPLETED，归因为 APP_BEHAVIOR。两个最终断言均为 SATISFIED，直接应用证据已经充分，因此没有启动 Verification Runner。主要证据已归档至 D:/Lab/mobiagent_archive/real_traces/successful_20260901/cloudmusic_create_note_real_run_20260831_retest_fixed7/report.md 和 D:/Lab/mobiagent_archive/real_traces/successful_20260901/cloudmusic_create_note_real_run_20260831_retest_fixed7/mobiagent_step_trace/actions.json。
 
 这次修复涉及 Grounder 框格式归一化、语义目标与层级节点对齐以及输入角色检查。代码只依赖通用的输入角色、可见性、enabled 状态、语义文本和候选唯一性，没有写入网易云页面坐标或专用控件名称。
 
