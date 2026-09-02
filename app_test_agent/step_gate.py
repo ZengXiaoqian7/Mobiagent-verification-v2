@@ -1110,8 +1110,13 @@ def _node_is_button(value: Any) -> bool:
 
 def _dispatch_failure_is_retryable(error: str) -> bool:
     text = str(error).casefold()
-    if "done before dispatching required action" in text:
-        return False
+    # A model-only ``done`` is safely retryable when the declared atomic
+    # action has not been dispatched.  This is not a replay of a business
+    # action: no click, input, or external side effect occurred.  It gives
+    # the Decider one bounded opportunity to correct a premature completion
+    # claim while preserving the no-re-dispatch boundary after any device I/O.
+    if "done before dispatching" in text:
+        return True
     return any(
         marker in text
         for marker in (

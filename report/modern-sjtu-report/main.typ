@@ -49,7 +49,7 @@
 
 我围绕移动应用中的“完成”判定，搭建了一个带过程审计的评测智能体。输入是一组用户视角的测试步骤，执行端仍由原始 MobiAgent Decider/Grounder 自主观察和操作；我在它外侧加入 Step Gate、App Verifier 和只读 Verification Runner，对动作顺序、目标、证据、观察窗口和重试安全性逐步检查。这样可以把“模型说做完了”和“应用确实完成了”分开记录。
 
-目前项目已有 238 条测试通过，六条冻结真实 trace 全部重放通过，exact accuracy 为 1.0，false pass、false fail 和 attribution error 均为 0。2026 年 8 月 31 日在 HarmonyOS 真机上完成了小红书消息发送和网易云音乐笔记发布两次真实测试，结果均为 APP_PASS，并保留了动作、层级、截图和判定证据。报告重点记录系统的设计、实现过程，以及真机测试中暴露出的输入定位、历史消息误判和目标框格式问题。
+目前项目已有 238 条测试通过，六条冻结真实 trace 全部重放通过，exact accuracy 为 1.0，false pass、false fail 和 attribution error 均为 0。2026 年 8 月 31 日至 9 月 2 日，我在 HarmonyOS 真机上完成了小红书消息发送、网易云音乐笔记发布、微信消息发送，以及小红书图文笔记发布并回访个人主页四类真实测试，结果均为 APP_PASS，并保留了动作、层级、截图和判定证据。报告重点记录系统的设计、实现过程，以及真机测试中暴露出的输入定位、历史消息误判和目标框格式问题。
 
 = 一、问题定义与判定边界
 
@@ -256,7 +256,40 @@ HarmonyDevice.input 在无法安全确认时可能抛出异常，而异常有可
 
 这次修复涉及 Grounder 框格式归一化、语义目标与层级节点对齐以及输入角色检查。代码只依赖通用的输入角色、可见性、enabled 状态、语义文本和候选唯一性，没有写入网易云页面坐标或专用控件名称。
 
-== 6.3 当前验证结果
+== 6.3 微信发送消息：包名校正、目标对齐与端到端复测
+
+2026 年 9 月 1 日，我在同一台 HarmonyOS 设备上自动运行微信消息发送用例。首次运行使用 Android 常见包名 #raw("com.tencent.mm")，HDC 返回设备没有该包，因此在任何模型决策、输入或点击派发之前停止，结果为 TEST_EXECUTION_FAIL / EXECUTOR / 0/4。只读查询设备安装包后确认实际 HarmonyOS bundle name 为 #raw("com.tencent.wechat")；该次失败证据保留在 #raw("D:/Lab/mobiagent_archive/real_traces/non_success_20260901/wechat-send-hello-world-zzzz-001/")。
+
+修正包名后，自动重试成功打开微信，原始 Decider/Grounder 提出了会话行点击。但坐标转换后的点击点在运行时 hierarchy 中命中了不带目标语义的列表行，点击后页面也没有保留目标会话上下文。Step Gate 因此以 NON_CONFORMANT 目标证据返回 INCONCLUSIVE，并且不重派发已经派发的导航点击。该次完成 1/4 步，只有打开应用和一次会话点击；没有输入、发送或最终断言证据，且 NEVER 策略使 Verification Runner 保持 NOT_RUN。最终结果为 INCONCLUSIVE / EVIDENCE，不归因为微信功能失败，也不能证明消息已发送。证据归档于 #raw("D:/Lab/mobiagent_archive/real_traces/non_success_20260901/wechat-send-hello-world-zzzz-001-retry1/")。
+
+对原始 Grounder 输出、截图和 hierarchy 的离线复核显示：Grounder 的缩放坐标转换本身正确，但其框覆盖了目标会话下方的另一列表行。修复后的通用规则在派发前对唯一、可见且 enabled 的会话/联系人文字目标建立 identity guard：Decider 和 Grounder 仍分别提出动作与 bbox；只有其最终点击点落在 hierarchy 证明的可点击目标范围内才允许派发。否则在派发前拒绝，并只允许使用原有的安全重试预算。这一规则不依赖微信包名、联系人名称或固定坐标；对应的最小化合成测试和本次 trace 离线复演均证明原错误点击会被阻断。
+
+修复后第三次全自动重跑完成 4/4 步并得到 APP_PASS / APP_BEHAVIOR / COMPLETED。运行时 identity guard 确认会话点击落在唯一目标的可点击范围内；随后在可编辑输入框中确认指定文本，再派发一次发送点击。发送后多个稳定观察帧持续出现预期消息，最终断言为 SATISFIED。Verification Runner 仍因用例 NEVER 策略保持 NOT_RUN。完整成功证据归档于 #raw("D:/Lab/mobiagent_archive/real_traces/successful_20260901/wechat-send-hello-world-zzzz-001-retry2/")。
+
+== 6.4 小红书图文笔记发布与只读回访核验
+
+2026 年 9 月 2 日，我在同一台 HarmonyOS 设备上从初始应用状态运行用例 #raw("xiaohongshu-publish-hello-world-runner-001")。用例要求依次打开小红书、点击底部加号、选择“写文字”、输入 #raw("hello world")、生成图片、确认配图并发布笔记；发布后必须启用 Verification Runner，进入“我”的笔记页确认新笔记可见。
+
+#figure(
+  table(
+    columns: (1.5fr, 2fr, 3fr),
+    inset: 6pt,
+    align: left,
+    [阶段], [实际动作], [关键证据],
+    [创建图文笔记], [open_app、click、click、click_input], [进入发布入口与“写文字”编辑页；编辑器中出现精确文本 hello world。],
+    [生成并发布], [click、wait、click、click], [生成入口、配图确认与发布动作均只派发一次；业务步骤完成 8/8。],
+    [只读回访], [wait、navigate、navigate、refresh、observe], [Runner 依次进入“我”和“笔记”页、刷新并观察；5 个动作全部标记为 read_only_action。],
+  ),
+  caption: [小红书图文笔记发布及个人主页回访的动作与证据],
+)
+
+原始 Decider 在“打开生成入口”步骤曾一次输出 done 而尚未派发设备动作。Step Gate 将该情形识别为预派发失败并消耗安全重试预算，随后重新规划并完成该点击；由于第一次没有设备派发，未重放任何输入、确认或发布动作。该处理是对所有步骤通用的预派发重试规则，不含小红书控件、坐标或文案的特例。
+
+最终结果为 APP_PASS，执行状态为 COMPLETED，归因为 APP_BEHAVIOR，最终断言 #raw("hello_world_visible_in_own_note_list") 为 SATISFIED。Verification Runner 状态为 COMPLETED：其终态 hierarchy 在“我”的笔记列表中同时出现 #raw("hello world") 与“刚刚”，并且完整观察窗口已采集。业务发布与后续核验在同一份测试契约下完成，Runner 没有进行发布、编辑、删除或账户变更。
+
+主要证据已归档至 #raw("D:/Lab/mobiagent_archive/real_traces/successful_20260902/xiaohongshu-publish-hello-world-runner-001-clean-rerun1/report.md")、#raw("D:/Lab/mobiagent_archive/real_traces/successful_20260902/xiaohongshu-publish-hello-world-runner-001-clean-rerun1/mobiagent_step_trace/actions.json") 和 #raw("D:/Lab/mobiagent_archive/real_traces/successful_20260902/xiaohongshu-publish-hello-world-runner-001-clean-rerun1/mobiagent_verification_trace/verification_actions.json")。
+
+== 6.5 当前验证结果
 
 #figure(
   table(
@@ -270,6 +303,8 @@ HarmonyDevice.input 在无法安全确认时可能抛出异常，而异常有可
     [Formal PC acceptance], [PASS；7 个 prompts 已加载，HarmonyOS 源码和打包环境就绪],
     [小红书真实发送用例], [APP_PASS；APP_BEHAVIOR；COMPLETED],
     [网易云音乐真实发布用例], [APP_PASS；APP_BEHAVIOR；COMPLETED；7/7],
+    [微信发送消息（2026-09-01）], [APP_PASS；APP_BEHAVIOR；4/4；输入与发送各一次，Verification Runner 未启动],
+    [小红书图文发布与回访（2026-09-02）], [APP_PASS；APP_BEHAVIOR；8/8；Verification Runner COMPLETED，5 个只读动作],
   ),
   caption: [当前测试与验收结果],
 )

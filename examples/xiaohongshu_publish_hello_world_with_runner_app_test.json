@@ -1,0 +1,165 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "xiaohongshu-publish-hello-world-runner-001",
+  "app_under_test": {
+    "name": "小红书",
+    "package": "com.xingin.xhs_hos",
+    "version": "runtime-confirmed"
+  },
+  "feature": "publish_generated_image_text_note_and_verify_own_profile",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["请先登录", "登录后查看", "Log in"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "测试账号已登录"
+    },
+    {
+      "condition_id": "network_available",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["网络异常", "无网络", "未连接", "重试"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "小红书服务可访问"
+    }
+  ],
+  "test_data": {
+    "post_content": "hello world"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true
+  },
+  "steps": [
+    {
+      "step_id": "open_xiaohongshu",
+      "instruction": "打开小红书",
+      "action_type": "OPEN_APP",
+      "target": {"role": "application", "label": "小红书"},
+      "timeout_seconds": 20,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_publish_entry",
+      "instruction": "点击底部导航中间的加号，打开发布方式选择面板",
+      "action_type": "CLICK",
+      "target": {"role": "button", "label": "底部发布加号", "text_candidates": ["+"]},
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "select_write_text_entry",
+      "instruction": "在发布方式面板中点击“写文字”，进入文字笔记编辑器",
+      "action_type": "CLICK",
+      "target": {"role": "button", "text_candidates": ["写文字"]},
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_post_content",
+      "instruction": "在文字笔记编辑器的正文输入区域输入 hello world",
+      "action_type": "INPUT",
+      "target": {"role": "text_input", "label": "说说你的想法吧", "text_candidates": ["说说你的想法吧"]},
+      "value_ref": "post_content",
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "open_image_generation",
+      "instruction": "点击文字编辑器右上角的“生成”，进入“一句话生成配图”流程",
+      "action_type": "CLICK",
+      "target": {"role": "button", "text_candidates": ["生成"]},
+      "timeout_seconds": 25,
+      "max_retries": 1
+    },
+    {
+      "step_id": "wait_for_generated_images",
+      "instruction": "等待配图生成完成，直到出现“选择配图”和“确定”；等待期间不取消、不切换配图",
+      "action_type": "WAIT",
+      "target": {"surface_text_candidates": ["选择配图", "确定"]},
+      "timeout_seconds": 60,
+      "max_retries": 0
+    },
+    {
+      "step_id": "confirm_generated_image",
+      "instruction": "在选择配图页直接点击“确定”，确认默认已选配图并进入发布编辑页面",
+      "action_type": "CLICK",
+      "target": {"role": "button", "text_candidates": ["确定"]},
+      "timeout_seconds": 25,
+      "max_retries": 1
+    },
+    {
+      "step_id": "publish_note",
+      "instruction": "在发布编辑页面点击“发布笔记”或“发布”，提交这条测试笔记",
+      "action_type": "CLICK",
+      "target": {"role": "button", "text_candidates": ["发布笔记", "发布"]},
+      "timeout_seconds": 40,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "hello_world_visible_in_own_note_list",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "post_content",
+      "surface": "own_note_list",
+      "after_step": "publish_note",
+      "historical_match_not_sufficient": true,
+      "requires_verification_runner": true,
+      "required": true
+    }
+  ],
+  "verification_steps": [
+    {
+      "verification_step_id": "wait_after_publish",
+      "instruction": "等待发布结果页或页面跳转稳定",
+      "action_type": "WAIT",
+      "timeout_seconds": 8,
+      "max_retries": 0
+    },
+    {
+      "verification_step_id": "navigate_to_me_tab",
+      "instruction": "只读导航到“我”主页，仅浏览页面内容，不触发任何内容或账户变更",
+      "action_type": "NAVIGATE",
+      "target": {"role": "navigation", "text_candidates": ["我"], "surface_text_candidates": ["笔记", "收藏", "赞过"]},
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "verification_step_id": "navigate_to_own_note_list",
+      "instruction": "只读导航到“我”主页的笔记列表；若已显示则保持当前页面",
+      "action_type": "NAVIGATE",
+      "target": {"role": "tab", "text_candidates": ["笔记", "作品", "帖子"], "surface_text_candidates": ["笔记", "作品", "帖子"]},
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "verification_step_id": "refresh_own_note_list",
+      "instruction": "仅刷新一次自己的笔记列表以获取最新发布结果",
+      "action_type": "REFRESH",
+      "target": {"surface_text_candidates": ["笔记", "作品", "帖子"]},
+      "timeout_seconds": 10,
+      "max_retries": 0
+    },
+    {
+      "verification_step_id": "observe_own_note_list",
+      "instruction": "只读观察“我”主页的笔记列表，查找列表中最新出现的 hello world 笔记",
+      "action_type": "OBSERVE",
+      "target": {"surface": "own_note_list", "surface_text_candidates": ["笔记", "作品", "帖子"]},
+      "timeout_seconds": 10,
+      "max_retries": 0
+    }
+  ],
+  "verification_policy": {"max_steps": 6, "timeout_seconds": 90, "max_retries": 2},
+  "verification_runner_policy": "REQUIRED_FOR_RESULT",
+  "risk_level": "MEDIUM",
+  "metadata": {
+    "stage": "real-commercial-post-with-readonly-runner",
+    "real_device_required": true,
+    "test_account_required": true,
+    "package_confirmed_by_hdc": "com.xingin.xhs_hos",
+    "verification_scope": "Verification Runner 仅在发布后进入我主页并只读核验笔记列表"
+  }
+}

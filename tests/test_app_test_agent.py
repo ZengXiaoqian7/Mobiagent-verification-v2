@@ -73,6 +73,7 @@ from verification_benchmark.evaluation_framework.app_test_replay_baseline import
 ROOT = Path(__file__).resolve().parents[1]
 CASE = ROOT / "examples" / "post_create_app_test.json"
 MINIMAL_USER_CASE = ROOT / "examples" / "minimal_user_view_app_test.json"
+WECHAT_SEND_CASE = ROOT / "examples" / "wechat_send_hello_world_app_test.json"
 
 
 def _run(scenario: str):
@@ -593,6 +594,37 @@ class _CountingVerificationRunner:
             business_execution=business_execution,
             contract=contract,
         )
+
+
+def test_wechat_send_case_is_user_level_and_disables_verification_runner():
+    spec = load_test_case(WECHAT_SEND_CASE)
+
+    assert spec.app_under_test.package == "com.tencent.wechat"
+    assert [step.action_type for step in spec.steps] == [
+        "OPEN_APP",
+        "CLICK",
+        "INPUT",
+        "CLICK",
+    ]
+    assert spec.steps[1].target["text_candidates"] == ["ZzZz"]
+    assert spec.steps[2].resolved_value(spec.test_data) == "hello world"
+    assert spec.steps[3].target["text_candidates"] == ["发送"]
+    assert spec.verification_runner_policy == "NEVER"
+    assert spec.expected_results[0].after_step == "send_chat_message"
+    assert spec.expected_results[0].historical_match_not_sufficient is True
+
+    runner = _CountingVerificationRunner()
+    report = run_app_test(
+        spec,
+        MockStepExecutor(scenario="pass"),
+        run_id="wechat-send-mock",
+        verification_runner=runner,
+    )
+
+    assert report["overall_result"] == OverallResult.INCONCLUSIVE
+    assert report["app_behavior_result"]["status"] == "UNKNOWN_EVIDENCE"
+    assert report["verification_runner_result"]["status"] == "NOT_RUN"
+    assert runner.calls == 0
 
 
 def test_mock_pass_maps_to_app_pass():
@@ -1690,6 +1722,36 @@ def test_stage_c_step_gate_done_before_action_is_execution_failure(tmp_path):
     record = executor.execute(spec)
     assert record.step_results[0].status == "STEP_FAILED"
     assert "done before dispatching required action" in str(record.step_results[0].error)
+
+
+def test_stage_c_premature_done_before_dispatch_retries_without_replaying_action(tmp_path):
+    payload = _case_payload()
+    payload["test_case_id"] = "step-gate-premature-done-retry-001"
+    payload["app_under_test"]["package"] = "com.example.demoforum"
+    spec = AppTestCaseSpec.from_json(payload).with_runtime_context(run_id="gate-done-retry")
+    calls = {"count": 0}
+
+    def done_once_then_click(intent, test_case, current_frame):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return _done_step_decider(intent, test_case, current_frame)
+        return _fake_step_decider(intent, test_case, current_frame)
+
+    executor = MobiAgentStepExecutor(
+        output_dir=tmp_path,
+        device_instance=_FakeMobiAgentDevice(),
+        step_decider=done_once_then_click,
+    )
+    record = executor.execute(spec)
+    first_step = record.step_results[0]
+    assert first_step.status == "STEP_COMPLETED"
+    assert first_step.attempts == 2
+    assert first_step.evidence["attempt_evidence"][0]["action_dispatched"] is False
+    assert first_step.evidence["attempt_evidence"][0]["retry_class"] == "PRE_DISPATCH_RETRY"
+    trace_actions = json.loads(
+        (Path(record.raw_trace_dir) / "actions.json").read_text(encoding="utf-8")
+    )["actions"]
+    assert sum(action.get("step_id") == "open_post_editor" for action in trace_actions) == 1
 
 
 def test_stage_c_step_gate_missing_target_evidence_is_unknown_inconclusive():
@@ -3256,6 +3318,24 @@ def test_stage7_decider_bbox_disambiguates_repeated_accessible_labels():
     assert target is not None
     assert target["bounds"] == (790, 1250, 900, 1330)
     assert target["source"] == "hierarchy_decider_aligned_text"
+
+
+def test_stage7_identity_target_guard_rejects_off_target_grounder_click():
+    runner = mobiagent_executor_module._import_original_mobiagent()
+    target = {
+        "text": "Alice",
+        "bounds": [10, 100, 300, 220],
+        "source": "hierarchy_exact_text",
+    }
+
+    rejected = runner._identity_target_guard(target, (150, 260))
+    accepted = runner._identity_target_guard(target, (150, 180))
+
+    assert rejected is not None
+    assert rejected["enforced"] is True
+    assert rejected["supported"] is False
+    assert accepted is not None
+    assert accepted["supported"] is True
 
 
 def test_stage7_required_destination_context_retries_recoverable_navigation_before_later_actions():

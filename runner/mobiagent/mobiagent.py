@@ -31,7 +31,10 @@ except ModuleNotFoundError:
     Driver = None
 
     class _MissingKeyCode:
-        pass
+        # Keep the protocol-level ENTER code available for dependency-light
+        # desktop/test imports.  HOME and BACK deliberately remain absent so
+        # the existing hasattr-based numeric fallbacks keep their behavior.
+        ENTER = 2054
 
     KeyCode = _MissingKeyCode()
 from utils.load_md_prompt import load_prompt
@@ -3007,10 +3010,42 @@ def _alignment_rejection_blocks_click(audit):
     }:
         return True
     return rejection_reason in {
+        "identity_target_not_hit",
         "wrong_target",
         "outside_target",
         "weak_geometry_without_semantics",
         "geometry_only_rejects_low_information_container",
+    }
+
+
+def _identity_target_guard(required_identity_target, click_point):
+    """Validate a model click against a uniquely proven identity target.
+
+    The App-test executor supplies this optional runtime-only guard only when
+    the hierarchy has one exact visible identity target (for example a
+    conversation or contact row).  It never supplies test-case coordinates.
+    Grounder still produces the bbox; this check merely prevents that bbox
+    from dispatching a click outside the hierarchy-proven target.
+    """
+    if not isinstance(required_identity_target, dict):
+        return None
+    bounds = required_identity_target.get("bounds")
+    if not isinstance(bounds, (list, tuple)) or len(bounds) != 4:
+        return None
+    try:
+        x1, y1, x2, y2 = (int(value) for value in bounds)
+        x, y = (int(value) for value in click_point)
+    except (TypeError, ValueError):
+        return None
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return {
+        "enforced": True,
+        "target_text": str(required_identity_target.get("text") or ""),
+        "target_bounds": [x1, y1, x2, y2],
+        "click_point": [x, y],
+        "supported": _point_in_bounds(x, y, [x1, y1, x2, y2]),
+        "source": str(required_identity_target.get("source") or "hierarchy"),
     }
 
 
@@ -3063,7 +3098,8 @@ def _is_usable_click_bbox(bbox, surface_width, surface_height):
 
 def handle_click_action(decider_response, device, img, screenshot_resize, grounder_prompt_template_bbox,
                         grounder_prompt_template_no_bbox, bbox_flag, use_qwen3, use_e2e,
-                        data_dir, device_paths, current_image, image_index, actions, history, hierarchy=None):
+                        data_dir, device_paths, current_image, image_index, actions, history, hierarchy=None,
+                        required_identity_target=None):
     reasoning = decider_response["reasoning"]
     target_element = decider_response["parameters"].get("target_element", "stepfun_click_target")
     target_width, target_height = get_click_coordinate_size(device, img)
@@ -3275,6 +3311,18 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
         )
         if xml_hit_test.get("snapped"):
             logging.info("XML-aligned click point %s -> (%s, %s), node=%s", raw_click_point, position_x, position_y, xml_hit_test.get("selected_node"))
+        identity_guard = _identity_target_guard(
+            required_identity_target,
+            (position_x, position_y),
+        )
+        if identity_guard is not None:
+            xml_hit_test["identity_target_guard"] = identity_guard
+            if not identity_guard["supported"]:
+                xml_hit_test["rejection_reason"] = "identity_target_not_hit"
+                raise ValueError(
+                    "target alignment rejected before dispatch: "
+                    "identity_target_not_hit"
+                )
         if _alignment_rejection_blocks_click(xml_hit_test):
             visual_fab = find_visual_floating_action_button(
                 target_element, hierarchy, img, target_width, target_height
@@ -3315,6 +3363,7 @@ def handle_click_action(decider_response, device, img, screenshot_resize, ground
             "converted_bounds": [x1, y1, x2, y2],
             "click_point_before_xml_alignment": raw_click_point,
             "xml_hit_test_result": xml_hit_test,
+            "identity_target_guard": identity_guard,
             "click_coordinate_size": [target_width, target_height],
             "screenshot_size": [img.width, img.height],
             "action_index": image_index

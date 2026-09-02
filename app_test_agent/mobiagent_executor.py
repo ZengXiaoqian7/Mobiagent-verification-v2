@@ -1220,7 +1220,8 @@ class MobiAgentStepExecutor:
                 }
             if action == "done":
                 raise _TargetNotFound(
-                    f"runner marked step {step.step_id} done before dispatching required action"
+                    f"runner marked step {step.step_id} done before dispatching required action",
+                    model_decision=decision,
                 )
             if action not in expected_runner_actions:
                 raise _TargetNotFound(
@@ -1263,6 +1264,15 @@ class MobiAgentStepExecutor:
                 return emitted
             if wants_text_input and intent.value is not None:
                 decision.setdefault("parameters", {})["text"] = intent.value
+            required_identity_target = (
+                _resolve_hierarchy_control_target(
+                    current_frame,
+                    step,
+                    wants_text_input=False,
+                )
+                if action == "click" and _prefer_exact_hierarchy_target(step)
+                else None
+            )
             try:
                 emitted = self._dispatch_runner_decision(
                     device,
@@ -1271,6 +1281,7 @@ class MobiAgentStepExecutor:
                     raw_trace_dir=raw_trace_dir,
                     current_frame=current_frame,
                     history=history,
+                    required_identity_target=required_identity_target,
                 )
             except _TargetNotFound as exc:
                 # Preserve the already-issued model decision when Grounder
@@ -1386,6 +1397,7 @@ class MobiAgentStepExecutor:
         raw_trace_dir: Path,
         current_frame: Mapping[str, Any],
         history: list[str],
+        required_identity_target: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         runner_mobiagent = _import_original_mobiagent()
         screenshot_path = current_frame.get("screenshot_abs")
@@ -1439,6 +1451,7 @@ class MobiAgentStepExecutor:
                     actions,
                     history,
                     hierarchy_text,
+                    required_identity_target=required_identity_target,
                 )
             except ValueError as exc:
                 # A malformed Grounder response cannot have dispatched a

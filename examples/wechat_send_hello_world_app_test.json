@@ -1,0 +1,104 @@
+{
+  "schema_version": "app-test-case-v1",
+  "test_case_id": "wechat-send-hello-world-zzzz-001",
+  "app_under_test": {
+    "name": "微信",
+    "package": "com.tencent.wechat",
+    "version": "runtime-confirmed"
+  },
+  "feature": "send_chat_message",
+  "preconditions": [
+    {
+      "condition_id": "logged_in",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["登录", "请先登录", "手机号登录", "Log in", "Sign in"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "测试账号已经登录微信"
+    },
+    {
+      "condition_id": "network_available",
+      "type": "TEXT_ABSENT",
+      "value_candidates": ["网络异常", "无网络", "未连接网络", "连接失败", "点击重试"],
+      "failure_class": "ENV_BLOCKED",
+      "description": "微信可以正常访问网络"
+    }
+  ],
+  "test_data": {
+    "message_text": "hello world"
+  },
+  "observation_policy": {
+    "immediate": true,
+    "delays_ms": [500, 1500, 3000],
+    "max_wait_ms": 5000,
+    "stop_when_stable": true,
+    "adaptive_capture": true
+  },
+  "steps": [
+    {
+      "step_id": "open_wechat",
+      "instruction": "打开微信",
+      "action_type": "OPEN_APP",
+      "timeout_seconds": 15,
+      "max_retries": 0
+    },
+    {
+      "step_id": "open_zzzz_chat",
+      "instruction": "点击联系人 ZzZz，进入与 ZzZz 的聊天页面",
+      "action_type": "CLICK",
+      "target": {
+        "role": "conversation",
+        "text_candidates": ["ZzZz"],
+        "post_action_context": {
+          "text_candidates": ["ZzZz"],
+          "required": true
+        }
+      },
+      "timeout_seconds": 20,
+      "max_retries": 1
+    },
+    {
+      "step_id": "input_chat_message",
+      "instruction": "在当前聊天框中输入 hello world",
+      "action_type": "INPUT",
+      "target": {
+        "role": "text_input",
+        "text_candidates": ["输入消息", "输入", "说点什么", "发送消息"]
+      },
+      "value_ref": "message_text",
+      "timeout_seconds": 15,
+      "max_retries": 1
+    },
+    {
+      "step_id": "send_chat_message",
+      "instruction": "点击发送按钮发送 hello world",
+      "action_type": "CLICK",
+      "target": {
+        "role": "button",
+        "text_candidates": ["发送"]
+      },
+      "timeout_seconds": 15,
+      "max_retries": 1
+    }
+  ],
+  "expected_results": [
+    {
+      "assertion_id": "sent_message_visible_in_chat",
+      "type": "TEXT_VISIBLE",
+      "expected_value_ref": "message_text",
+      "surface": "conversation",
+      "after_step": "send_chat_message",
+      "historical_match_not_sufficient": true,
+      "required": true
+    }
+  ],
+  "verification_runner_policy": "NEVER",
+  "risk_level": "MEDIUM",
+  "metadata": {
+    "stage": "real-commercial-chat-smoke",
+    "real_device_required": true,
+    "test_account_required": true,
+    "manual_review_required": true,
+    "verification_runner_disabled_reason": "发送完成后的聊天气泡由主执行器的直接观察证据判断，不启动 Verification Runner。",
+    "note": "会向真实联系人 ZzZz 发送 hello world；真实执行前请确认该联系人、测试账号和发送行为已获当前窗口明确授权。"
+  }
+}
