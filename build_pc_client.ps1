@@ -14,13 +14,13 @@ $RuntimePrompts = @(
 foreach ($PromptName in $RuntimePrompts) {
     $PromptPath = Join-Path $RepoRoot "prompts\$PromptName"
     if (-not (Test-Path -LiteralPath $PromptPath -PathType Leaf)) {
-        throw "缺少 MobiAgent 运行时 prompt：$PromptPath"
+        throw "Missing MobiAgent runtime prompt: $PromptPath"
     }
 }
 
 $PyInstallerVersion = python -m PyInstaller --version 2>$null
 if ($LASTEXITCODE -ne 0) {
-    throw "PyInstaller 未安装。请先运行：python -m pip install pyinstaller"
+    throw "PyInstaller is not installed. Run: python -m pip install pyinstaller"
 }
 Write-Host "PyInstaller $PyInstallerVersion"
 
@@ -46,7 +46,7 @@ python -m PyInstaller `
     "$RepoRoot\pc_client_entry.py"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "PyInstaller 构建失败，退出码：$LASTEXITCODE"
+    throw "PyInstaller build failed with exit code: $LASTEXITCODE"
 }
 
-Write-Host "构建完成：$RepoRoot\dist\MobiAgentVerifierPC\MobiAgentVerifierPC.exe"
+Write-Host "Build complete: $RepoRoot\dist\MobiAgentVerifierPC\MobiAgentVerifierPC.exe"
