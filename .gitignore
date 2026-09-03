@@ -1,113 +1,86 @@
-# 忽略特定文件
-screenshot*.jpg
-list.error
-tasks.json
-
-# 忽略特定目录
+# Local configuration, credentials and generated output
 __pycache__/
 .pytest_cache/
-data/
-log/
-data_log/
-weights/
-
-utils/experience/BAAI/
 .venv/
-utils/experience/BAAI/
-utils/experience/all-MiniLM-L6-v2/
-data-*
-new_data/
-vectordb/
-RAG/
-utils/experience/BAAI/
-
-output*/
-reports/
-verification_benchmark/reports/
-verification_benchmark/runner_outputs/
-verification_benchmark/**/__pycache__/
-app_test_agent/**/__pycache__/
-tests/**/__pycache__/
-app_test_agent/reports/
-utils/experience/multistage_plans_storage
-utils/experience/singletask_storage
-runner/HarmonyOS-mobiagent/
-runner/UI-TARS-agent/data_uitars-test/
-tasks/
-utils/experience/templates-new-bak.json
 .vscode/
-collect/auto/ui-semantic-output/
-profile-mem/*
-!profile-mem/local_openai_llm_server.py
-!profile-mem/verify_mem0_pipeline.py
-!profile-mem/manage_openai_llm_service.sh
-!profile-mem/manage_profile_memory.py
-!profile-mem/model_utils.py
-!profile-mem/README_zh.md
-!profile-mem/standalone_embed.sh
-runner/mobiagent/workflow/__pycache__/
-runner/mobiagent/workflow/test-runs/
-runner/mobiagent/.env
-collect-apps-info.sh
-
-# Public source-release policy: keep local documentation and all test code in
-# the working tree, but never include them in the publish branch.
-docs/
-tests/
-**/docs/
-**/tests/
-**/test_*.py
-**/*_test.py
-**/*.md
-**/*.rst
-!/README.md
-
-# Current architecture documents are release inputs and must stay reviewable.
-!/PLAN.md
-!/APP_TEST_AGENT_README.md
-!/docs/
-docs/*
-!/docs/STAGE4_MOBIAGENT_PREFLIGHT.md
-
-# MobiAgent runtime prompt assets are source inputs, not documentation.
-!prompts/
-prompts/*.md
-!prompts/grounder_qwen3_bbox.md
-!prompts/grounder_qwen3_coordinates.md
-!prompts/grounder_bbox.md
-!prompts/grounder_coordinates.md
-!prompts/decider_v2.md
-!prompts/planner_oneshot.md
-!prompts/planner_oneshot_harmony.md
-
-# The root regression suite is synthetic and safe to publish. Keep nested
-# third-party/local test trees excluded by the broad rules above.
-!/tests/
-!/tests/**/*.py
-
-# Local credentials and runtime output must never enter source control.
-api-key-file.txt
 .env
 .env.*
+api-key
+api-key-file.txt
 *.pem
 *.key
 *.pfx
 *.p12
-artifacts/
-assets/
-tmp_visual_debug/
-.hvigor/
-phone_runner/local_server/
 *.log
-output.txt
-给 codex 的结果输出.txt
-
-# Local Windows desktop-client build products.
 /build/
 /dist/
 /MobiAgentVerifierPC.spec
-/output_pc_client/
-/output_pc_acceptance/
+/output*/
+/artifacts/
+/assets/
+/tmp_visual_debug/
 
-# Local model credential; never commit.
-/api-key
+# The repository publishes one concise entry document only.
+/*.md
+!README.md
+/prompts/*.md
+!/prompts/grounder_qwen3_bbox.md
+!/prompts/grounder_qwen3_coordinates.md
+!/prompts/grounder_bbox.md
+!/prompts/grounder_coordinates.md
+!/prompts/decider_v2.md
+!/prompts/planner_oneshot.md
+!/prompts/planner_oneshot_harmony.md
+/runner/*.md
+/runner/mobiagent/*.md
+/runner/mobiagent/decider_adapters/*.md
+/utils/*.md
+/verification_benchmark/*.md
+
+# Development-only material kept locally but excluded from the release branch
+/.github/
+/APP_TEST_AGENT_README.md
+/PLAN.md
+/agent_rr/
+/app/
+/collect/
+/deployment/
+/docs/
+/mobile_mobi/
+/phone_runner/
+/profile-mem/
+/report/
+/tests/
+/runner/UI-TARS-agent/
+/runner/mobiagent/auto-search.py
+/runner/mobiagent/multi_task/
+/runner/mobiagent/workflow/
+/runner/mobiagent/workflow_runner.py
+/runner/mobiagent/task.json
+/auto-search-run.bat
+/auto-search-run-template.sh
+/collect-apps-info.sh
+/requirements-ci-lock.txt
+/requirements-device-android.txt
+/requirements-device-harmony.txt
+/requirements-test.txt
+/requirements.txt
+/requirements_simple.txt
+/verify_pc_release.ps1
+
+# Local data produced by optional experience and collection features
+/data/
+/data-*/
+/log/
+/data_log/
+/weights/
+/vectordb/
+/RAG/
+/tasks/
+/utils/experience/BAAI/
+/utils/experience/all-MiniLM-L6-v2/
+/utils/experience/multistage_plans_storage/
+/utils/experience/singletask_storage/
+/runner/mobiagent/experience/
+/verification_benchmark/reports/
+/报错信息截取

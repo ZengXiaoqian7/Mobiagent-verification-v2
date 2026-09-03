@@ -34,6 +34,8 @@ python -m PyInstaller `
     --add-data "$RepoRoot\prompts;prompts" `
     --add-data "$RepoRoot\msyh.ttf;." `
     --hidden-import runner.mobiagent.mobiagent `
+    --collect-all hmdriver2 `
+    --collect-all uiautomator2 `
     --exclude-module mem0 `
     --exclude-module matplotlib `
     --exclude-module IPython `

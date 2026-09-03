@@ -1,4 +1,0 @@
--r requirements-core.txt
-pytest>=7.4,<9
-numpy>=2,<3
-opencv-python>=4.12,<5

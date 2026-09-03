@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
+import os
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Iterator, Mapping
 
 from app_test_agent.mobiagent_executor import (
     MobiAgentStepExecutor,
@@ -55,6 +57,7 @@ class PcEvaluationRequest:
     runner_root: Path | None = None
     device_mutation_confirmation: str | None = None
     model_event_sink: Callable[[Mapping[str, Any]], None] | None = None
+    runtime_environment: Mapping[str, str] | None = None
 
     def validated(self) -> "PcEvaluationRequest":
         mode = str(self.mode).strip().upper()
@@ -76,6 +79,7 @@ class PcEvaluationRequest:
             raise PcEvaluationValidationError(f"不支持的 Mock 场景：{scenario}")
         runner_root = self.runner_root.resolve(strict=True) if self.runner_root else None
         serial = str(self.device_serial or "").strip() or None
+        runtime_environment = _validated_runtime_environment(self.runtime_environment)
         if mode == PcEvaluationMode.DEVICE_EXECUTION:
             if self.device_mutation_confirmation != DEVICE_MUTATION_CONFIRMATION:
                 raise PcEvaluationValidationError("真机执行尚未完成设备副作用确认")
@@ -93,6 +97,7 @@ class PcEvaluationRequest:
             runner_root=runner_root,
             device_mutation_confirmation=self.device_mutation_confirmation,
             model_event_sink=self.model_event_sink,
+            runtime_environment=runtime_environment,
         )
 
 
@@ -122,6 +127,13 @@ def run_pc_evaluation(request: PcEvaluationRequest) -> PcEvaluationResult:
     """Execute one desktop request through the canonical App-test pipeline."""
 
     request = request.validated()
+    with _temporary_runtime_environment(request.runtime_environment):
+        return _run_validated_pc_evaluation(request)
+
+
+def _run_validated_pc_evaluation(request: PcEvaluationRequest) -> PcEvaluationResult:
+    """Run a validated request with its process-local model settings in scope."""
+
     test_case = load_test_case(request.test_case_path)
     if request.mode == PcEvaluationMode.DEVICE_PREFLIGHT:
         preflight = prepare_mobiagent_preflight(
@@ -200,6 +212,49 @@ def run_pc_evaluation(request: PcEvaluationRequest) -> PcEvaluationResult:
             "device_mutation": request.mode == PcEvaluationMode.DEVICE_EXECUTION,
         },
     )
+
+
+def _validated_runtime_environment(
+    values: Mapping[str, str] | None,
+) -> Mapping[str, str] | None:
+    if not values:
+        return None
+    allowed = {
+        "MOBIAGENT_API_KEY_FILE",
+        "MOBIAGENT_BASE_URL",
+        "MOBIAGENT_MODEL",
+        "MOBIAGENT_WIRE_API",
+        "MOBIAGENT_REASONING_EFFORT",
+        "MOBIAGENT_DISABLE_RESPONSE_STORAGE",
+    }
+    normalized: dict[str, str] = {}
+    for name, value in values.items():
+        key = str(name).strip()
+        if key not in allowed:
+            raise PcEvaluationValidationError(f"不允许客户端覆盖环境变量：{key}")
+        rendered = str(value).strip()
+        if rendered:
+            normalized[key] = rendered
+    return normalized or None
+
+
+@contextmanager
+def _temporary_runtime_environment(values: Mapping[str, str] | None) -> Iterator[None]:
+    """Apply UI-selected configuration only for one evaluation, never to disk."""
+
+    if not values:
+        yield
+        return
+    previous = {name: os.environ.get(name) for name in values}
+    try:
+        os.environ.update(values)
+        yield
+    finally:
+        for name, previous_value in previous.items():
+            if previous_value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = previous_value
 
 
 def format_model_event_for_display(event: Mapping[str, Any]) -> str:
