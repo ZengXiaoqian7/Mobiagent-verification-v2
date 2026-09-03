@@ -59,7 +59,8 @@ class MobiAgentPcApp(tk.Tk):
         self._nav_buttons: dict[str, tk.Button] = {}
         self._views: dict[str, ttk.Frame] = {}
         self._active_view = "setup"
-        self._model_settings_visible = False
+        self._live_technical_visible = False
+        self._result_details_visible = False
         self._build_style()
         self._build_variables()
         self._build_ui()
@@ -100,7 +101,7 @@ class MobiAgentPcApp(tk.Tk):
         style.map("Treeview", background=[("selected", "#DCECF4")], foreground=[("selected", "#172B3A")])
 
     def _build_variables(self) -> None:
-        self.mode_var = tk.StringVar(value="生成真机预检包")
+        self.mode_var = tk.StringVar(value="真机执行")
         self.case_var = tk.StringVar(value=str(DEFAULT_CASE_PATH))
         self.manifest_var = tk.StringVar()
         self.output_var = tk.StringVar(value=self._new_output_dir())
@@ -123,6 +124,8 @@ class MobiAgentPcApp(tk.Tk):
         self.result_var = tk.StringVar(value="尚未运行")
         self.case_title_var = tk.StringVar(value="正在读取用例...")
         self.case_meta_var = tk.StringVar(value="")
+        self.case_detail_meta_var = tk.StringVar(value="")
+        self.case_impact_var = tk.StringVar(value="正在分析用例影响...")
         self.case_risk_var = tk.StringVar(value="风险：未知")
         self.case_policy_var = tk.StringVar(value="")
         self.result_execution_var = tk.StringVar(value="执行：-")
@@ -244,132 +247,197 @@ class MobiAgentPcApp(tk.Tk):
         self.setup_tab.rowconfigure(0, weight=1)
         self.setup_tab.columnconfigure(0, weight=3)
         self.setup_tab.columnconfigure(1, weight=2)
-        form = ttk.Frame(self.setup_tab, style="Surface.TFrame", padding=18)
-        form.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        form.columnconfigure(1, weight=1)
-        ttk.Label(form, text="评测设置", style="CardTitle.TLabel").grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 2))
-        ttk.Label(form, text="定义本次评测的运行方式、用例和证据输出位置。", style="Muted.TLabel").grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 10))
-        self._field(form, "运行模式", 2)
-        self.mode_box = ttk.Combobox(form, textvariable=self.mode_var, values=tuple(MODE_LABELS), state="readonly")
-        self.mode_box.grid(row=2, column=1, columnspan=2, sticky="ew", pady=4)
-        self.mode_box.bind("<<ComboboxSelected>>", lambda _event: self._update_mode_fields())
-        self._field(form, "测试用例", 3)
-        self.case_entry = ttk.Entry(form, textvariable=self.case_var)
-        self.case_entry.grid(row=3, column=1, sticky="ew", pady=4)
-        ttk.Button(form, text="选择用例", style="Quiet.TButton", command=lambda: self._choose_file(self.case_var, (("JSON", "*.json"),))).grid(row=3, column=2, padx=(8, 0))
-        self._field(form, "回放 Manifest", 4)
-        self.manifest_entry = ttk.Entry(form, textvariable=self.manifest_var)
-        self.manifest_entry.grid(row=4, column=1, sticky="ew", pady=4)
-        self.manifest_button = ttk.Button(form, text="选择文件", style="Quiet.TButton", command=lambda: self._choose_file(self.manifest_var, (("JSON", "*.json"),)))
-        self.manifest_button.grid(row=4, column=2, padx=(8, 0))
-        self._field(form, "输出目录", 5)
-        ttk.Entry(form, textvariable=self.output_var).grid(row=5, column=1, sticky="ew", pady=4)
-        ttk.Button(form, text="选择目录", style="Quiet.TButton", command=self._choose_output_dir).grid(row=5, column=2, padx=(8, 0))
-        self._field(form, "Mock 场景", 6)
-        self.mock_box = ttk.Combobox(form, textvariable=self.mock_var, values=MOCK_SCENARIOS, state="readonly")
-        self.mock_box.grid(row=6, column=1, columnspan=2, sticky="ew", pady=4)
 
-        ttk.Separator(form).grid(row=7, column=0, columnspan=3, sticky="ew", pady=14)
-        ttk.Label(form, text="目标设备", style="Section.TLabel").grid(row=8, column=0, columnspan=3, sticky="w")
-        ttk.Label(form, text="自动读取本机 hdc / adb 在线设备；真机执行前请确认序列号。", style="Muted.TLabel").grid(row=9, column=0, columnspan=3, sticky="w", pady=(1, 7))
-        self._field(form, "已连接设备", 10)
-        device_row = ttk.Frame(form, style="Surface.TFrame")
-        device_row.grid(row=10, column=1, columnspan=2, sticky="ew", pady=4)
+        workflow = ttk.Frame(self.setup_tab, style="Surface.TFrame", padding=22)
+        workflow.grid(row=0, column=0, sticky="nsew", padx=(0, 9))
+        workflow.columnconfigure(0, weight=1)
+        ttk.Label(workflow, text="新建评测", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(workflow, text="只需选择用例和设备。其他配置由客户端自动处理。", style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(2, 20))
+
+        ttk.Label(workflow, text="1   选择测试用例", style="Section.TLabel").grid(row=2, column=0, sticky="w")
+        ttk.Label(workflow, text="选择已有用例，客户端会读取应用名称、测试目标和影响范围。", style="Muted.TLabel").grid(row=3, column=0, sticky="w", pady=(2, 8))
+        case_row = ttk.Frame(workflow, style="Surface.TFrame")
+        case_row.grid(row=4, column=0, sticky="ew")
+        case_row.columnconfigure(0, weight=1)
+        self.case_entry = ttk.Entry(case_row, textvariable=self.case_var)
+        self.case_entry.grid(row=0, column=0, sticky="ew")
+        ttk.Button(case_row, text="更换用例", style="Secondary.TButton", command=lambda: self._choose_file(self.case_var, (("JSON", "*.json"),))).grid(row=0, column=1, padx=(8, 0))
+        ttk.Label(workflow, textvariable=self.case_title_var, style="Section.TLabel", wraplength=620).grid(row=5, column=0, sticky="w", pady=(12, 2))
+        ttk.Label(workflow, textvariable=self.case_meta_var, style="Muted.TLabel", wraplength=620).grid(row=6, column=0, sticky="w")
+
+        ttk.Separator(workflow).grid(row=7, column=0, sticky="ew", pady=20)
+        ttk.Label(workflow, text="2   选择目标设备", style="Section.TLabel").grid(row=8, column=0, sticky="w")
+        ttk.Label(workflow, text="已连接的 HarmonyOS 和 Android 设备会自动显示在这里。", style="Muted.TLabel").grid(row=9, column=0, sticky="w", pady=(2, 8))
+        device_row = ttk.Frame(workflow, style="Surface.TFrame")
+        device_row.grid(row=10, column=0, sticky="ew")
         device_row.columnconfigure(0, weight=1)
         self.detected_box = ttk.Combobox(device_row, textvariable=self.device_target_var, state="readonly")
         self.detected_box.grid(row=0, column=0, sticky="ew")
         self.detected_box.bind("<<ComboboxSelected>>", lambda _event: self._select_detected_device())
-        self.refresh_devices_button = ttk.Button(device_row, text="重新检测", style="Quiet.TButton", command=self._refresh_devices)
+        self.refresh_devices_button = ttk.Button(device_row, text="重新检测", style="Secondary.TButton", command=self._refresh_devices)
         self.refresh_devices_button.grid(row=0, column=1, padx=(8, 0))
-        self._field(form, "平台 / 序列号", 11)
-        target_row = ttk.Frame(form, style="Surface.TFrame")
-        target_row.grid(row=11, column=1, columnspan=2, sticky="ew", pady=4)
+        ttk.Label(workflow, textvariable=self.device_status_var, style="Muted.TLabel", wraplength=620).grid(row=11, column=0, sticky="w", pady=(8, 0))
+
+        ttk.Separator(workflow).grid(row=12, column=0, sticky="ew", pady=20)
+        tools_row = ttk.Frame(workflow, style="Surface.TFrame")
+        tools_row.grid(row=13, column=0, sticky="ew")
+        tools_row.columnconfigure(0, weight=1)
+        ttk.Label(tools_row, text="需要更多控制？", style="Field.TLabel").grid(row=0, column=0, sticky="w")
+        self.advanced_settings_button = ttk.Button(tools_row, text="高级工具与设置", style="Secondary.TButton", command=self._open_advanced_settings)
+        self.advanced_settings_button.grid(row=0, column=1, sticky="e")
+
+        overview = ttk.Frame(self.setup_tab, style="Surface.TFrame", padding=22)
+        overview.grid(row=0, column=1, sticky="nsew", padx=(9, 0))
+        overview.columnconfigure(0, weight=1)
+        ttk.Label(overview, text="执行前确认", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(overview, text="开始前确认测试目标和实际影响。", style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(2, 18))
+        ttk.Label(overview, text="本次将测试", style="Field.TLabel").grid(row=2, column=0, sticky="w")
+        ttk.Label(overview, textvariable=self.case_title_var, style="Section.TLabel", wraplength=380).grid(row=3, column=0, sticky="w", pady=(3, 8))
+        ttk.Label(overview, textvariable=self.case_impact_var, style="Muted.TLabel", wraplength=380).grid(row=4, column=0, sticky="w")
+        self.risk_label = ttk.Label(overview, textvariable=self.case_risk_var, style="Warn.TLabel", wraplength=380)
+        self.risk_label.grid(row=5, column=0, sticky="ew", pady=(14, 16))
+        ttk.Label(overview, text="设备状态", style="Field.TLabel").grid(row=6, column=0, sticky="w")
+        self.environment_label = ttk.Label(overview, textvariable=self.environment_status_var, style="Safe.TLabel", wraplength=380)
+        self.environment_label.grid(row=7, column=0, sticky="ew", pady=(4, 8))
+        self.confirm_check = ttk.Checkbutton(overview, text="我已确认此用例可能对应用产生真实业务操作", variable=self.confirm_mutation_var)
+        self.confirm_check.grid(row=8, column=0, sticky="w", pady=(10, 6))
+        ttk.Button(overview, text="查看用例详情", style="Quiet.TButton", command=self._open_case_details).grid(row=9, column=0, sticky="w")
+
+        self._build_advanced_settings_window()
+        self._build_case_details_window()
+
+    def _build_advanced_settings_window(self) -> None:
+        self.advanced_window = tk.Toplevel(self)
+        self.advanced_window.withdraw()
+        self.advanced_window.title("高级工具与设置")
+        self.advanced_window.geometry("760x650")
+        self.advanced_window.minsize(680, 540)
+        self.advanced_window.configure(background="#F4F6F8")
+        self.advanced_window.transient(self)
+        self.advanced_window.protocol("WM_DELETE_WINDOW", self._close_advanced_settings)
+        content = ttk.Frame(self.advanced_window, style="Workspace.TFrame", padding=22)
+        content.pack(fill="both", expand=True)
+        content.columnconfigure(0, weight=1)
+        ttk.Label(content, text="高级工具与设置", style="HeaderTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(content, text="这些设置用于诊断、回放和特殊环境；日常真机评测无需调整。", style="HeaderMeta.TLabel").grid(row=1, column=0, sticky="w", pady=(3, 16))
+
+        run_settings = ttk.Frame(content, style="Surface.TFrame", padding=16)
+        run_settings.grid(row=2, column=0, sticky="ew")
+        run_settings.columnconfigure(1, weight=1)
+        ttk.Label(run_settings, text="运行方式", style="Section.TLabel").grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 8))
+        self._field(run_settings, "模式", 1)
+        self.mode_box = ttk.Combobox(run_settings, textvariable=self.mode_var, values=tuple(MODE_LABELS), state="readonly")
+        self.mode_box.grid(row=1, column=1, columnspan=2, sticky="ew", pady=4)
+        self.mode_box.bind("<<ComboboxSelected>>", lambda _event: self._update_mode_fields())
+        self._field(run_settings, "回放 Manifest", 2)
+        self.manifest_entry = ttk.Entry(run_settings, textvariable=self.manifest_var)
+        self.manifest_entry.grid(row=2, column=1, sticky="ew", pady=4)
+        self.manifest_button = ttk.Button(run_settings, text="选择文件", style="Quiet.TButton", command=lambda: self._choose_file(self.manifest_var, (("JSON", "*.json"),)))
+        self.manifest_button.grid(row=2, column=2, padx=(8, 0))
+        self._field(run_settings, "Mock 场景", 3)
+        self.mock_box = ttk.Combobox(run_settings, textvariable=self.mock_var, values=MOCK_SCENARIOS, state="readonly")
+        self.mock_box.grid(row=3, column=1, columnspan=2, sticky="ew", pady=4)
+        self._field(run_settings, "输出目录", 4)
+        self.output_entry = ttk.Entry(run_settings, textvariable=self.output_var)
+        self.output_entry.grid(row=4, column=1, sticky="ew", pady=4)
+        self.output_button = ttk.Button(run_settings, text="选择目录", style="Quiet.TButton", command=self._choose_output_dir)
+        self.output_button.grid(row=4, column=2, padx=(8, 0))
+        self.recompute_check = ttk.Checkbutton(run_settings, text="回放时按当前规则重算 Step Gate", variable=self.recompute_var)
+        self.recompute_check.grid(row=5, column=1, columnspan=2, sticky="w", pady=(5, 0))
+
+        connection = ttk.Frame(content, style="Surface.TFrame", padding=16)
+        connection.grid(row=3, column=0, sticky="ew", pady=(12, 0))
+        connection.columnconfigure(1, weight=1)
+        ttk.Label(connection, text="设备与模型连接", style="Section.TLabel").grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 8))
+        self._field(connection, "平台 / 序列号", 1)
+        target_row = ttk.Frame(connection, style="Surface.TFrame")
+        target_row.grid(row=1, column=1, columnspan=2, sticky="ew", pady=4)
         target_row.columnconfigure(1, weight=1)
         self.device_box = ttk.Combobox(target_row, textvariable=self.device_var, values=("Harmony", "Android"), state="readonly", width=12)
         self.device_box.grid(row=0, column=0)
         self.device_box.bind("<<ComboboxSelected>>", lambda _event: self._check_device_environment())
         self.serial_entry = ttk.Entry(target_row, textvariable=self.serial_var)
         self.serial_entry.grid(row=0, column=1, sticky="ew", padx=(8, 0))
-        ttk.Label(form, textvariable=self.device_status_var, style="Muted.TLabel", wraplength=580).grid(row=12, column=1, columnspan=2, sticky="w", pady=(2, 0))
-        self.environment_label = ttk.Label(form, textvariable=self.environment_status_var, style="Safe.TLabel")
-        self.environment_label.grid(row=13, column=1, columnspan=2, sticky="ew", pady=(6, 2))
-
-        self.model_divider = ttk.Separator(form)
-        self.model_divider.grid(row=14, column=0, columnspan=3, sticky="ew", pady=14)
-        self.model_section_title = ttk.Label(form, text="模型服务", style="Section.TLabel")
-        self.model_section_title.grid(row=15, column=0, sticky="w")
-        self.model_toggle_button = ttk.Button(form, text="显示高级设置", style="Quiet.TButton", command=self._toggle_model_settings)
-        self.model_toggle_button.grid(row=15, column=2, sticky="e")
-        self.model_section_hint = ttk.Label(form, text="仅真机执行需要配置；设置只在本次运行期间生效。", style="Muted.TLabel")
-        self.model_section_hint.grid(row=16, column=0, columnspan=3, sticky="w", pady=(1, 7))
-        model_url_label = self._field(form, "服务 / 模型", 17)
-        model_row = ttk.Frame(form, style="Surface.TFrame")
-        model_row.grid(row=17, column=1, columnspan=2, sticky="ew", pady=4)
+        self._field(connection, "服务 / 模型", 2)
+        model_row = ttk.Frame(connection, style="Surface.TFrame")
+        model_row.grid(row=2, column=1, columnspan=2, sticky="ew", pady=4)
         model_row.columnconfigure(0, weight=2)
         model_row.columnconfigure(1, weight=1)
         self.model_url_entry = ttk.Entry(model_row, textvariable=self.model_base_url_var)
         self.model_url_entry.grid(row=0, column=0, sticky="ew")
         self.model_name_entry = ttk.Entry(model_row, textvariable=self.model_name_var)
         self.model_name_entry.grid(row=0, column=1, sticky="ew", padx=(8, 0))
-        api_key_label = self._field(form, "凭据文件", 18)
-        self.api_key_entry = ttk.Entry(form, textvariable=self.api_key_file_var)
-        self.api_key_entry.grid(row=18, column=1, sticky="ew", pady=4)
-        self.api_key_button = ttk.Button(form, text="选择文件", style="Quiet.TButton", command=lambda: self._choose_file(self.api_key_file_var, (("凭据文件", "*.*"),)))
-        self.api_key_button.grid(row=18, column=2, padx=(8, 0))
-        protocol_label = self._field(form, "协议 / 推理", 19)
-        protocol_row = ttk.Frame(form, style="Surface.TFrame")
-        protocol_row.grid(row=19, column=1, columnspan=2, sticky="ew", pady=4)
+        self._field(connection, "凭据文件", 3)
+        self.api_key_entry = ttk.Entry(connection, textvariable=self.api_key_file_var)
+        self.api_key_entry.grid(row=3, column=1, sticky="ew", pady=4)
+        self.api_key_button = ttk.Button(connection, text="选择文件", style="Quiet.TButton", command=lambda: self._choose_file(self.api_key_file_var, (("凭据文件", "*.*"),)))
+        self.api_key_button.grid(row=3, column=2, padx=(8, 0))
+        self._field(connection, "协议 / 推理", 4)
+        protocol_row = ttk.Frame(connection, style="Surface.TFrame")
+        protocol_row.grid(row=4, column=1, columnspan=2, sticky="ew", pady=4)
         protocol_row.columnconfigure(0, weight=1)
         protocol_row.columnconfigure(1, weight=1)
         self.wire_api_box = ttk.Combobox(protocol_row, textvariable=self.wire_api_var, values=("responses", "chat_completions"), state="readonly")
         self.wire_api_box.grid(row=0, column=0, sticky="ew")
         self.reasoning_box = ttk.Combobox(protocol_row, textvariable=self.reasoning_effort_var, values=("low", "medium", "high", "xhigh"), state="readonly")
         self.reasoning_box.grid(row=0, column=1, sticky="ew", padx=(8, 0))
-        runner_root_label = self._field(form, "Runner 根目录", 20)
-        self.runner_root_entry = ttk.Entry(form, textvariable=self.runner_root_var)
-        self.runner_root_entry.grid(row=20, column=1, sticky="ew", pady=4)
-        self.runner_root_button = ttk.Button(form, text="选择目录", style="Quiet.TButton", command=lambda: self._choose_directory(self.runner_root_var))
-        self.runner_root_button.grid(row=20, column=2, padx=(8, 0))
-        self._model_setting_widgets = [
-            model_url_label, model_row, api_key_label, self.api_key_entry,
-            self.api_key_button, protocol_label, protocol_row, runner_root_label,
-            self.runner_root_entry, self.runner_root_button,
-        ]
-        self._set_model_settings_visible(False)
+        self._field(connection, "Runner 根目录", 5)
+        self.runner_root_entry = ttk.Entry(connection, textvariable=self.runner_root_var)
+        self.runner_root_entry.grid(row=5, column=1, sticky="ew", pady=4)
+        self.runner_root_button = ttk.Button(connection, text="选择目录", style="Quiet.TButton", command=lambda: self._choose_directory(self.runner_root_var))
+        self.runner_root_button.grid(row=5, column=2, padx=(8, 0))
+        ttk.Button(content, text="完成", style="Primary.TButton", command=self._close_advanced_settings).grid(row=4, column=0, sticky="e", pady=(16, 0))
 
-        side = ttk.Frame(self.setup_tab, style="Surface.TFrame", padding=18)
-        side.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
-        side.rowconfigure(7, weight=1)
-        side.columnconfigure(0, weight=1)
-        ttk.Label(side, text="本次评测摘要", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(side, text="用例内容会随文件选择自动更新。", style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(2, 12))
-        ttk.Label(side, textvariable=self.case_title_var, style="Section.TLabel", wraplength=380).grid(row=2, column=0, sticky="w", pady=(0, 2))
-        ttk.Label(side, textvariable=self.case_meta_var, style="Muted.TLabel", wraplength=380).grid(row=3, column=0, sticky="w")
-        self.risk_label = ttk.Label(side, textvariable=self.case_risk_var, style="Warn.TLabel")
-        self.risk_label.grid(row=4, column=0, sticky="ew", pady=(12, 5))
-        ttk.Label(side, textvariable=self.case_policy_var, style="Muted.TLabel", wraplength=380).grid(row=5, column=0, sticky="w")
-        ttk.Label(side, text="业务步骤", style="Section.TLabel").grid(row=6, column=0, sticky="w", pady=(16, 7))
-        self.steps_tree = ttk.Treeview(side, columns=("type", "instruction"), show="headings", height=12)
-        self.steps_tree.heading("type", text="动作")
-        self.steps_tree.heading("instruction", text="目标")
-        self.steps_tree.column("type", width=82, stretch=False)
-        self.steps_tree.column("instruction", width=290)
-        self.steps_tree.grid(row=7, column=0, sticky="nsew")
-        self.recompute_check = ttk.Checkbutton(side, text="回放时按当前规则重算 Step Gate", variable=self.recompute_var)
-        self.recompute_check.grid(row=8, column=0, sticky="w", pady=(12, 3))
-        self.confirm_check = ttk.Checkbutton(side, text="我确认所选设备与用例可能产生的业务副作用", variable=self.confirm_mutation_var)
-        self.confirm_check.grid(row=9, column=0, sticky="w", pady=3)
+    def _build_case_details_window(self) -> None:
+        self.case_details_window = tk.Toplevel(self)
+        self.case_details_window.withdraw()
+        self.case_details_window.title("测试用例详情")
+        self.case_details_window.geometry("760x610")
+        self.case_details_window.minsize(620, 480)
+        self.case_details_window.configure(background="#F4F6F8")
+        self.case_details_window.transient(self)
+        self.case_details_window.protocol("WM_DELETE_WINDOW", self._close_case_details)
+        content = ttk.Frame(self.case_details_window, style="Workspace.TFrame", padding=22)
+        content.pack(fill="both", expand=True)
+        content.rowconfigure(4, weight=1)
+        content.columnconfigure(0, weight=1)
+        ttk.Label(content, text="测试用例详情", style="HeaderTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(content, textvariable=self.case_title_var, style="Section.TLabel", wraplength=700).grid(row=1, column=0, sticky="w", pady=(14, 2))
+        ttk.Label(content, textvariable=self.case_detail_meta_var, style="Muted.TLabel", wraplength=700).grid(row=2, column=0, sticky="w")
+        ttk.Label(content, textvariable=self.case_policy_var, style="Muted.TLabel", wraplength=700).grid(row=3, column=0, sticky="w", pady=(7, 12))
+        steps = ttk.Frame(content, style="Surface.TFrame", padding=12)
+        steps.grid(row=4, column=0, sticky="nsew")
+        steps.rowconfigure(1, weight=1)
+        steps.columnconfigure(0, weight=1)
+        ttk.Label(steps, text="计划步骤", style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        self.steps_tree = ttk.Treeview(steps, columns=("instruction",), show="tree headings", height=12)
+        self.steps_tree.heading("#0", text="步骤")
+        self.steps_tree.heading("instruction", text="操作说明")
+        self.steps_tree.column("#0", width=120, stretch=False)
+        self.steps_tree.column("instruction", width=520)
+        self.steps_tree.grid(row=1, column=0, sticky="nsew")
+        ttk.Button(content, text="关闭", style="Secondary.TButton", command=self._close_case_details).grid(row=5, column=0, sticky="e", pady=(14, 0))
 
     def _build_live_tab(self) -> None:
         self.live_tab.rowconfigure(1, weight=1)
         self.live_tab.columnconfigure(0, weight=1)
-        status = ttk.Frame(self.live_tab, style="Surface.TFrame", padding=16)
-        status.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        status.columnconfigure(1, weight=1)
-        ttk.Label(status, text="运行事件", style="Section.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(status, textvariable=self.status_detail_var, style="Muted.TLabel").grid(row=0, column=1, sticky="e")
-        pane = ttk.Panedwindow(self.live_tab, orient="horizontal")
-        pane.grid(row=1, column=0, sticky="nsew")
+        status = ttk.Frame(self.live_tab, style="Surface.TFrame", padding=22)
+        status.grid(row=0, column=0, sticky="ew")
+        status.columnconfigure(0, weight=1)
+        ttk.Label(status, text="评测正在进行", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(status, text="客户端会依次完成设备准备、业务操作、结果核验和报告生成。", style="Muted.TLabel").grid(row=1, column=0, sticky="w", pady=(3, 14))
+        self.run_progress = ttk.Progressbar(status, mode="indeterminate")
+        self.run_progress.grid(row=2, column=0, sticky="ew", pady=(0, 11))
+        ttk.Label(status, textvariable=self.status_detail_var, style="Muted.TLabel", wraplength=980).grid(row=3, column=0, sticky="w")
+        self.live_technical_button = ttk.Button(status, text="查看技术详情", style="Quiet.TButton", command=self._toggle_live_technical)
+        self.live_technical_button.grid(row=4, column=0, sticky="w", pady=(14, 0))
+
+        self.live_technical_panel = ttk.Frame(self.live_tab, style="App.TFrame")
+        self.live_technical_panel.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
+        self.live_technical_panel.rowconfigure(0, weight=1)
+        self.live_technical_panel.columnconfigure(0, weight=1)
+        pane = ttk.Panedwindow(self.live_technical_panel, orient="horizontal")
+        pane.grid(row=0, column=0, sticky="nsew")
         events = ttk.Frame(pane, style="Surface.TFrame", padding=12)
         detail = ttk.Frame(pane, style="Surface.TFrame", padding=12)
         pane.add(events, weight=2)
@@ -387,25 +455,33 @@ class MobiAgentPcApp(tk.Tk):
         ttk.Label(detail, text="实时日志", style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
         self.log = tk.Text(detail, wrap="word", relief="flat", background="#F5F7F8", foreground="#26343D", font=("Consolas", 10), padx=12, pady=10, state="disabled")
         self.log.grid(row=1, column=0, sticky="nsew")
+        self._set_live_technical_visible(False)
 
     def _build_result_tab(self) -> None:
-        self.result_tab.rowconfigure(2, weight=1)
+        self.result_tab.rowconfigure(1, weight=1)
         self.result_tab.columnconfigure(0, weight=1)
-        headline = ttk.Frame(self.result_tab, style="Surface.TFrame", padding=18)
+        headline = ttk.Frame(self.result_tab, style="Surface.TFrame", padding=22)
         headline.grid(row=0, column=0, sticky="ew")
         headline.columnconfigure(1, weight=1)
-        ttk.Label(headline, text="最终结论", style="Section.TLabel").grid(row=0, column=0, sticky="w")
-        self.result_label = tk.Label(headline, textvariable=self.result_var, background="#FFFFFF", foreground="#58636E", font=("Microsoft YaHei UI", 20, "bold"), anchor="e")
+        ttk.Label(headline, text="评测结论", style="CardTitle.TLabel").grid(row=0, column=0, sticky="w")
+        self.result_label = tk.Label(headline, textvariable=self.result_var, background="#FFFFFF", foreground="#58636E", font=("Microsoft YaHei UI", 24, "bold"), anchor="e")
         self.result_label.grid(row=0, column=1, sticky="e")
         ttk.Label(headline, textvariable=self.result_reason_var, style="Muted.TLabel", wraplength=1050).grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0))
-        metrics = ttk.Frame(self.result_tab, style="Surface.TFrame", padding=(18, 0, 18, 16))
-        metrics.grid(row=1, column=0, sticky="ew")
+        self.result_details_button = ttk.Button(headline, text="查看详细结果", style="Quiet.TButton", command=self._toggle_result_details)
+        self.result_details_button.grid(row=2, column=0, sticky="w", pady=(14, 0))
+
+        self.result_details_panel = ttk.Frame(self.result_tab, style="App.TFrame")
+        self.result_details_panel.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
+        self.result_details_panel.rowconfigure(1, weight=1)
+        self.result_details_panel.columnconfigure(0, weight=1)
+        metrics = ttk.Frame(self.result_details_panel, style="Surface.TFrame", padding=(18, 16, 18, 16))
+        metrics.grid(row=0, column=0, sticky="ew")
         for index in range(4):
             metrics.columnconfigure(index, weight=1)
         for index, variable in enumerate((self.result_execution_var, self.result_behavior_var, self.result_attribution_var, self.result_verification_var)):
             ttk.Label(metrics, textvariable=variable, style="Metric.TLabel", anchor="center").grid(row=0, column=index, sticky="ew", padx=(0 if index == 0 else 5, 0))
-        pane = ttk.Panedwindow(self.result_tab, orient="horizontal")
-        pane.grid(row=2, column=0, sticky="nsew", pady=(10, 0))
+        pane = ttk.Panedwindow(self.result_details_panel, orient="horizontal")
+        pane.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
         assertions = ttk.Frame(pane, style="Surface.TFrame", padding=12)
         evidence = ttk.Frame(pane, style="Surface.TFrame", padding=12)
         pane.add(assertions, weight=3)
@@ -431,6 +507,7 @@ class MobiAgentPcApp(tk.Tk):
         self.artifact_tree.column("path", width=280)
         self.artifact_tree.grid(row=1, column=0, sticky="nsew")
         self.artifact_tree.bind("<Double-1>", lambda _event: self._open_selected_artifact())
+        self._set_result_details_visible(False)
 
     @staticmethod
     def _field(parent: ttk.Frame, text: str, row: int) -> ttk.Label:
@@ -438,17 +515,43 @@ class MobiAgentPcApp(tk.Tk):
         label.grid(row=row, column=0, sticky="w", padx=(0, 12), pady=4)
         return label
 
-    def _toggle_model_settings(self) -> None:
-        self._set_model_settings_visible(not self._model_settings_visible)
+    def _open_advanced_settings(self) -> None:
+        self.advanced_window.deiconify()
+        self.advanced_window.lift()
+        self.advanced_window.focus_set()
 
-    def _set_model_settings_visible(self, visible: bool) -> None:
-        self._model_settings_visible = bool(visible)
-        for widget in self._model_setting_widgets:
-            if visible:
-                widget.grid()
-            else:
-                widget.grid_remove()
-        self.model_toggle_button.configure(text="收起高级设置" if visible else "显示高级设置")
+    def _close_advanced_settings(self) -> None:
+        self.advanced_window.withdraw()
+
+    def _open_case_details(self) -> None:
+        self.case_details_window.deiconify()
+        self.case_details_window.lift()
+        self.case_details_window.focus_set()
+
+    def _close_case_details(self) -> None:
+        self.case_details_window.withdraw()
+
+    def _toggle_live_technical(self) -> None:
+        self._set_live_technical_visible(not self._live_technical_visible)
+
+    def _set_live_technical_visible(self, visible: bool) -> None:
+        self._live_technical_visible = bool(visible)
+        if visible:
+            self.live_technical_panel.grid()
+        else:
+            self.live_technical_panel.grid_remove()
+        self.live_technical_button.configure(text="收起技术详情" if visible else "查看技术详情")
+
+    def _toggle_result_details(self) -> None:
+        self._set_result_details_visible(not self._result_details_visible)
+
+    def _set_result_details_visible(self, visible: bool) -> None:
+        self._result_details_visible = bool(visible)
+        if visible:
+            self.result_details_panel.grid()
+        else:
+            self.result_details_panel.grid_remove()
+        self.result_details_button.configure(text="收起详细结果" if visible else "查看详细结果")
 
     def _schedule_case_summary(self) -> None:
         if self._case_refresh_job is not None:
@@ -463,39 +566,56 @@ class MobiAgentPcApp(tk.Tk):
             summary = load_test_case_summary(Path(self.case_var.get().strip()))
         except Exception as exc:  # noqa: BLE001 - invalid drafts are shown to the operator.
             self.case_title_var.set("用例不可用")
-            self.case_meta_var.set(str(exc))
-            self.case_risk_var.set("风险：无法评估")
+            self.case_meta_var.set("请选择一个可读取的 JSON 测试用例。")
+            self.case_detail_meta_var.set(str(exc))
+            self.case_impact_var.set("当前无法判断此用例是否会产生业务操作。")
+            self.case_risk_var.set("需要处理：用例文件不可用")
             self.case_policy_var.set("")
             self.risk_label.configure(style="Warn.TLabel")
             return
-        self.case_title_var.set(f"{summary.app_name} · {summary.test_case_id}")
+        self.case_title_var.set(f"{summary.app_name} · {summary.feature or '未命名功能'}")
         package = summary.package or "未指定包名"
-        self.case_meta_var.set(f"{summary.feature or '未命名功能'}\n{package}")
-        self.case_risk_var.set(f"风险：{summary.risk_level} · {summary.step_count} 个业务步骤 · {summary.assertion_count} 个断言")
-        self.case_policy_var.set(f"Verification Runner：{summary.verification_runner_policy} · {summary.verification_step_count} 个只读核验步骤")
+        self.case_meta_var.set(f"已载入 · {summary.step_count} 个操作步骤")
+        self.case_detail_meta_var.set(f"用例编号：{summary.test_case_id}\n应用标识：{package}")
+        if summary.mutates_device:
+            self.case_impact_var.set("评测会在应用中执行真实操作，可能发送、发布或修改业务数据。")
+            self.case_risk_var.set("需要确认：此用例可能产生真实业务操作")
+        else:
+            self.case_impact_var.set("该用例不包含发布、发送、删除等真实业务操作。")
+            self.case_risk_var.set("低风险：不会改变应用业务数据")
+        if summary.verification_step_count:
+            self.case_policy_var.set(f"完成主要操作后，将执行 {summary.verification_step_count} 个只读核验步骤以确认结果。")
+        else:
+            self.case_policy_var.set("完成主要操作后，会根据用例定义生成评测结论。")
         self.risk_label.configure(style="Warn.TLabel" if summary.mutates_device else "Safe.TLabel")
-        for _step_id, action_type, instruction in summary.steps:
-            self.steps_tree.insert("", "end", values=(action_type, instruction))
+        for step_id, _action_type, instruction in summary.steps:
+            self.steps_tree.insert("", "end", text=step_id, values=(instruction,))
 
     def _update_mode_fields(self) -> None:
         mode = MODE_LABELS[self.mode_var.get()]
         manifest = mode == PcEvaluationMode.MANIFEST_REPLAY
         mock = mode == PcEvaluationMode.MOCK
         execution = mode == PcEvaluationMode.DEVICE_EXECUTION
+        device_mode = mode in {PcEvaluationMode.DEVICE_EXECUTION, PcEvaluationMode.DEVICE_PREFLIGHT}
         self.manifest_entry.configure(state="normal" if manifest else "disabled")
         self.manifest_button.configure(state="normal" if manifest else "disabled")
         self.mock_box.configure(state="readonly" if mock else "disabled")
-        for widget, active_state in ((self.device_box, "readonly"), (self.serial_entry, "normal"), (self.detected_box, "readonly"), (self.refresh_devices_button, "normal"), (self.model_toggle_button, "normal"), (self.model_url_entry, "normal"), (self.model_name_entry, "normal"), (self.api_key_entry, "normal"), (self.api_key_button, "normal"), (self.wire_api_box, "readonly"), (self.reasoning_box, "readonly"), (self.runner_root_entry, "normal"), (self.runner_root_button, "normal")):
+        self.output_entry.configure(state="normal")
+        self.output_button.configure(state="normal")
+        for widget, active_state in ((self.device_box, "readonly"), (self.serial_entry, "normal"), (self.detected_box, "readonly"), (self.refresh_devices_button, "normal")):
+            widget.configure(state=active_state if device_mode else "disabled")
+        for widget, active_state in ((self.model_url_entry, "normal"), (self.model_name_entry, "normal"), (self.api_key_entry, "normal"), (self.api_key_button, "normal"), (self.wire_api_box, "readonly"), (self.reasoning_box, "readonly"), (self.runner_root_entry, "normal"), (self.runner_root_button, "normal")):
             widget.configure(state=active_state if execution else "disabled")
         self.recompute_check.configure(state="normal" if manifest else "disabled")
         self.confirm_check.configure(state="normal" if execution else "disabled")
         if not execution:
-            self._set_model_settings_visible(False)
-        if not execution:
             self.confirm_mutation_var.set(False)
-            self.environment_status_var.set("此模式不会连接或操作设备")
-            self.environment_label.configure(style="Safe.TLabel")
+            if not device_mode:
+                self.environment_status_var.set("此模式不会连接或操作设备")
+                self.environment_label.configure(style="Safe.TLabel")
         else:
+            self._check_device_environment()
+        if device_mode and not execution:
             self._check_device_environment()
         run_labels = {
             PcEvaluationMode.MANIFEST_REPLAY: "开始回放",
@@ -610,6 +730,9 @@ class MobiAgentPcApp(tk.Tk):
         self.result_var.set("RUNNING")
         self.result_label.configure(foreground="#087E8B")
         self._clear_runtime_views()
+        self._set_live_technical_visible(False)
+        self._set_result_details_visible(False)
+        self.run_progress.start(12)
         self._append_log(f"mode={mode}\ntest_case={request.test_case_path}\noutput={request.output_dir}\n")
         self._show_view("live")
         threading.Thread(target=self._run_worker, args=(request,), daemon=True).start()
@@ -666,6 +789,7 @@ class MobiAgentPcApp(tk.Tk):
     def _finish_success(self, result: object) -> None:
         payload = result.as_dict()  # type: ignore[attr-defined]
         self._running = False
+        self.run_progress.stop()
         self.run_button.configure(state="normal")
         self._last_output = Path(payload["output_dir"])
         self.folder_button.configure(state="normal")
@@ -699,6 +823,7 @@ class MobiAgentPcApp(tk.Tk):
 
     def _finish_error(self, error: object) -> None:
         self._running = False
+        self.run_progress.stop()
         self.run_button.configure(state="normal")
         candidate = Path(self.output_var.get().strip())
         if candidate.exists():
